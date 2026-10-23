@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Keeper Cars</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a parts-counter catalog — sticky control strip, then a grid of spec cards each carrying an inspection-sticker TCO grade */
+:root{
+  --bg:#ECEFF1; --panel:#FFFFFF; --ink:#16202A; --muted:#5A6672; --line:#D3D9DE;
+  --accent:#1F4E79; --sticker:#F2B322; --sticker-ink:#2A1F00;
+  --good:#2E7D4F; --mid:#B7791F; --bad:#B23A3A; --track:#E2E7EB;
+  --f-display:"Saira Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F161D; --panel:#18222C; --ink:#E4EAEF; --muted:#94A2AE; --line:#2B3946;
+  --accent:#7FB2E3; --sticker:#F2B322; --sticker-ink:#2A1F00;
+  --good:#5CC48A; --mid:#E0A84A; --bad:#E57373; --track:#26333F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F161D; --panel:#18222C; --ink:#E4EAEF; --muted:#94A2AE; --line:#2B3946;
+  --accent:#7FB2E3; --sticker:#F2B322; --sticker-ink:#2A1F00;
+  --good:#5CC48A; --mid:#E0A84A; --bad:#E57373; --track:#26333F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;padding:0 16px}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 48px}
+header h1{font-family:var(--f-display);font-weight:800;font-size:clamp(2.4rem,6vw,3.6rem);line-height:.95;margin:0;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+header h1 span{color:var(--accent)}
+header p{max-width:62ch;color:var(--muted);margin:10px 0 0}
+.controls{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding-block:14px;margin-top:22px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end}
+.ctl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ctl label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ctl input,.ctl select{font:inherit;font-size:14px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.ctl input[type=number]{width:96px;font-family:var(--f-mono)}
+#q{width:190px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:13px;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.chip:focus-visible,.ctl input:focus-visible,.ctl select:focus-visible,summary:focus-visible{outline:2px solid var(--sticker);outline-offset:2px}
+.count{font-size:13px;color:var(--muted);margin:14px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+@media (max-width:420px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.name{min-width:0}
+.name h2{font-family:var(--f-display);font-weight:800;font-size:1.55rem;line-height:1;margin:0;text-transform:uppercase}
+.name .yrs{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);margin-top:4px}
+.name .cat{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-top:4px}
+.sticker{flex:none;width:64px;height:64px;border-radius:50%;background:var(--sticker);color:var(--sticker-ink);display:grid;place-items:center;text-align:center;position:relative}
+.sticker b{font-family:var(--f-display);font-weight:800;font-size:2rem;line-height:.9}
+.sticker small{position:absolute;bottom:9px;left:0;right:0;font-size:8.5px;letter-spacing:.1em;font-weight:600}
+.sticker.g-C{background:var(--track);color:var(--ink)}
+.sticker.g-D,.sticker.g-F{background:var(--track);color:var(--muted)}
+.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-block:1px solid var(--line);padding-block:10px}
+.nums div{min-width:0}
+.nums .v.hl{font-weight:700;color:var(--accent)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.tags .cat{margin-top:0}
+.club{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid var(--good);color:var(--good)}
+.nums .k{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.nums .v{font-family:var(--f-mono);font-size:14.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dollars{font-family:var(--f-mono);letter-spacing:.05em}
+.dollars i{font-style:normal;color:var(--line)}
+.bars{display:grid;gap:6px}
+.bar{display:grid;grid-template-columns:96px 1fr 22px;gap:8px;align-items:center;font-size:12.5px}
+.bar .t{height:7px;border-radius:4px;background:var(--track);overflow:hidden}
+.bar .t span{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.bar .n{font-family:var(--f-mono);text-align:right;color:var(--muted)}
+.spec{display:grid;grid-template-columns:78px 1fr;gap:5px 10px;margin:0;font-size:13.5px;background:var(--bg);border-radius:6px;padding:10px 12px}
+.spec dt{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:2px}
+.spec dd{margin:0;min-width:0}
+.get{font-size:13.5px}
+.get b{font-weight:600}
+details{font-size:13.5px;border-top:1px dashed var(--line);padding-top:8px}
+summary{cursor:pointer;font-weight:600;color:var(--accent)}
+details ul{margin:6px 0 0;padding-left:18px}
+details li{margin:3px 0}
+.avoid{color:var(--bad)}
+.muted{color:var(--muted)}
+.dots{letter-spacing:1px;color:var(--accent)}
+.dots i{font-style:normal;color:var(--track)}
+.pt{width:100%;border-collapse:collapse;margin-top:6px;font-size:13.5px}
+.pt td{padding:4px 0;border-bottom:1px solid var(--line)}
+.pt td:last-child{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.note{font-size:12.5px;color:var(--muted);margin-top:6px}
+.spec.mini{margin-top:6px}
+.clist{display:grid;gap:6px;margin-top:8px}
+.clist label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.clist input{margin-top:3px;accent-color:var(--accent);flex:none}
+.clist input:checked+span{color:var(--muted);text-decoration:line-through}
+.prog{font-family:var(--f-mono);font-weight:500;font-size:12px;color:var(--good);margin-left:6px}
+.nl{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:10px 0 4px}
+textarea{width:100%;font:inherit;font-size:13.5px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);resize:vertical}
+.clr{margin-top:8px;font-size:12px}
+.acts{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13.5px;border-top:1px solid var(--line);padding-top:10px;margin-top:auto}
+.acts a{color:var(--accent);font-weight:600}
+.cmp{display:flex;gap:6px;align-items:center;cursor:pointer;font-weight:600}
+.cmp input{accent-color:var(--accent)}
+.dealbox{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.dealbox h3,.cmphead b{font-family:var(--f-display);font-weight:800;text-transform:uppercase;font-size:1.25rem;margin:0 0 8px}
+.dealrow{display:flex;flex-wrap:wrap;gap:10px 14px}
+#dcar{max-width:100%}
+.dout{margin-top:10px;display:grid;gap:4px;font-size:14px;max-width:72ch}
+.verdict{font-family:var(--f-display);font-weight:800;text-transform:uppercase;font-size:1.4rem;line-height:1}
+.verdict.good{color:var(--good)}.verdict.mid{color:var(--mid)}.verdict.bad{color:var(--bad)}
+.cmpbox{margin-top:14px;background:var(--panel);border:2px solid var(--accent);border-radius:10px;padding:14px 16px}
+.cmphead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px}
+.cmphead b{margin:0}
+.tscroll{overflow-x:auto;margin-top:10px}
+.ct{border-collapse:collapse;font-size:13.5px;min-width:520px;width:100%}
+.ct th,.ct td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.ct th{font-family:var(--f-display);text-transform:uppercase;font-size:1.05rem}
+.ct td:first-child{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;white-space:nowrap}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.method{margin-top:36px;max-width:72ch;font-size:13.5px;color:var(--muted)}
+.method h3{font-family:var(--f-display);text-transform:uppercase;font-size:1.3rem;color:var(--ink);margin:0 0 6px}
+.method code{font-family:var(--f-mono);font-size:12.5px;color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px}
+</style>
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
+</head>
+<body>
+
+
+<div class="wrap">
+<header>
+  <h1>Keeper <span>Cars</span></h1>
+  <p>Used cars that run forever, cost little to fix, and have parts on every shelf at the local store. Each one gets a purchase-price rating, 5- and 10-year ownership costs, part prices, a maintenance cheat sheet and a test-drive checklist. Check a listing's price below, or tick Compare on up to three cars.</p>
+</header>
+
+<div class="controls" role="search">
+  <div class="ctl"><label for="q">Search</label><input id="q" type="search" placeholder="HHR, truck, Toyota…"></div>
+  <div class="ctl"><label for="gas">Gas $/gal</label><input id="gas" type="number" step="0.05" min="1" value="3.25"></div>
+  <div class="ctl"><label for="mi">Miles / year</label><input id="mi" type="number" step="1000" min="1000" value="12000"></div>
+  <div class="ctl"><label for="sort">Sort by</label>
+    <select id="sort">
+      <option value="tco">Lowest ownership cost</option>
+      <option value="miles">Most miles</option>
+      <option value="price">Lowest purchase price</option>
+      <option value="repair">Cheapest repairs</option>
+      <option value="life">Longest lasting</option>
+      <option value="diy">Easiest DIY</option>
+    </select></div>
+  <div class="ctl"><label>Grade by</label><div class="chips" id="hz">
+    <button type="button" class="chip" aria-pressed="true" data-h="5">5 years</button>
+    <button type="button" class="chip" aria-pressed="false" data-h="10">10 years</button></div></div>
+  <div class="ctl"><label>Mileage</label><div class="chips">
+    <button type="button" class="chip" id="k250" aria-pressed="false">250K+ only</button></div></div>
+  <div class="ctl"><label>Fuel</label><div class="chips">
+    <button type="button" class="chip" id="pm" aria-pressed="false">Parts &amp; repairs only</button></div></div>
+  <div class="ctl" style="flex:1 1 320px"><label>Body style</label><div class="chips" id="chips"></div></div>
+</div>
+
+<section class="dealbox" aria-labelledby="dh">
+  <h3 id="dh">Check a listing</h3>
+  <div class="dealrow">
+    <div class="ctl"><label for="dcar">Car</label><select id="dcar"></select></div>
+    <div class="ctl"><label for="dyear">Year</label><input id="dyear" type="number" min="1990" max="2026" placeholder="2010"></div>
+    <div class="ctl"><label for="dmiles">Miles</label><input id="dmiles" type="number" step="1000" min="0" placeholder="120000"></div>
+    <div class="ctl"><label for="dprice">Asking $</label><input id="dprice" type="number" step="100" min="0" placeholder="5500"></div>
+  </div>
+  <div id="dout" class="dout" aria-live="polite"></div>
+</section>
+
+<section id="cmpbox" class="cmpbox" hidden></section>
+
+<div class="count" id="count"></div>
+<div class="grid" id="grid"></div>
+
+<section class="method">
+  <h3>How the ratings work</h3>
+  <p><b>Purchase cost</b> runs from <span class="dollars">$</span> (under $6k typical) to <span class="dollars">$$$$$</span> (over $18k), based on the middle of the typical private-party range for the years listed. Prices vary a lot by mileage, rust and region.</p>
+  <p><b>5-yr cost</b> = <code>repairs × 5 + fuel for 5 years + expected value lost</code>. Insurance, tax and registration are left out since they depend on you, not the car. The <b>grade</b> on the yellow sticker ranks each car's 5-yr cost against the others on this list: A is the cheapest fifth, F the priciest.</p>
+  <p><b>10-yr cost</b> uses the same pieces over ten years, with repairs in years 6–10 bumped up 50% because an aging car needs more work. Use <b>Grade by</b> to grade on the 5- or 10-year number.</p>
+  <p><b>Parts &amp; repairs only</b> leaves fuel out of every total and grades cars on repair dollars alone, adding 15% for each point the Parts rating falls below 5, so a cheap-to-fix car with parts on every shelf scores best. The Prius 10-year cost includes a $2,500 hybrid battery replacement.</p>
+  <p><b>Lasts to</b> is the mileage well-maintained examples commonly reach before a major failure makes them not worth fixing. Cars at 250,000 or more get the <b>250K+ club</b> tag, and the <b>250K+ only</b> button filters to just those.</p>
+  <p><b>Repairs/yr</b> are typical averages for the model (unscheduled repairs plus routine maintenance), in the style of RepairPal's figures. The HHR's $542 matches RepairPal's current number; the rest are estimates and older, high-mileage examples will run higher.</p>
+  <p><b>Check a listing</b> estimates a fair price from where the year falls in the guide's range and how the miles compare to the car's typical life. It's a quick sanity check, not a substitute for local listings or a pre-purchase inspection.</p>
+  <p><b>Part prices</b>, <b>maintenance</b>, <b>snow</b> and <b>tow</b> figures are typical values from general knowledge, not looked up per car. Confirm fluid types and capacities in the owner's manual for the exact engine. Tow ratings vary by engine, cab and axle, so check the door sticker. Your <b>test-drive checklists</b> and notes are saved in this browser only.</p>
+  <div class="legend"><span><b>Lasts</b>: how often they pass 200k+ miles</span><span><b>Parts</b>: availability and price at parts stores and junkyards</span><span><b>DIY</b>: how easy to work on in a driveway</span></div>
+</section>
+</div>
+
+<script>
+const CARS=[
+ {n:"Chevy HHR",y:"2006–2011",c:"Hatch & wagon",lo:3500,hi:7500,r:542,mpg:25,d:.35,life:4,parts:5,diy:4,
+  get:"2009–2011 with the 2.2 or 2.4 Ecotec",avoid:"Any car with the ignition-switch recall still open",
+  watch:["Run the VIN for the ignition switch recall","Electric power steering motor (clunk or lost assist)","Rocker and rear wheel arch rust","2.4 timing chain rattle if oil changes were skipped"]},
+ {n:"Chevy Cobalt",y:"2008–2010",c:"Sedan",lo:3000,hi:6000,r:500,mpg:28,d:.35,life:3,parts:5,diy:4,
+  get:"2.2 Ecotec sedan or coupe, HHR's mechanical twin",avoid:"Open ignition-switch recall",
+  watch:["Same ignition recall as the HHR","Power steering motor","Cheap interior trim wears fast"]},
+ {n:"Toyota Matrix / Pontiac Vibe",y:"2009–2013",c:"Hatch & wagon",lo:5000,hi:10000,r:390,mpg:29,d:.3,life:5,parts:5,diy:4,
+  get:"The 1.8 engine. Same car under either badge, the Vibe is often cheaper",avoid:"2.4 engine cars that burn oil",
+  watch:["Oil consumption on the 2.4 (2AZ)","Rear hatch struts","Check for Rust Belt rocker rot"]},
+ {n:"Scion xB",y:"2008–2015",c:"Hatch & wagon",lo:5500,hi:10000,r:420,mpg:24,d:.3,life:4,parts:4,diy:4,
+  get:"2011–2015 with service records",avoid:"2008–2010 cars with heavy oil use",
+  watch:["2.4 oil consumption on early years","Water pump","Body-specific trim parts are getting scarce"]},
+ {n:"Honda Element",y:"2003–2011",c:"SUV",lo:7000,hi:14000,r:420,mpg:21,d:.25,life:5,parts:4,diy:4,
+  get:"Any year with a clean frame; manual transmissions are a bonus",avoid:"Rusted rear frame rails",
+  watch:["A/C compressor","Valve adjustment due every ~100k","Holds value, so cheap ones usually have a reason"]},
+ {n:"Toyota Corolla",y:"2009–2019",c:"Sedan",lo:6000,hi:15000,r:360,mpg:31,d:.3,life:5,parts:5,diy:4,
+  get:"1.8 engine, any trim",avoid:"Nothing big, just skip neglected ones",
+  watch:["Water pump around 100k","Some early 1.8s use a little oil","Brake caliper sticking in salty states"]},
+ {n:"Honda Civic",y:"2012–2015",c:"Sedan",lo:7000,hi:13000,r:370,mpg:32,d:.3,life:5,parts:5,diy:4,
+  get:"LX or EX with the 1.8",avoid:"2006–2009 Civics with a cracked engine block",
+  watch:["A/C compressor","Engine mounts","Valve adjustment if it ticks"]},
+ {n:"Honda Fit",y:"2009–2014",c:"Hatch & wagon",lo:5500,hi:10000,r:390,mpg:31,d:.3,life:5,parts:4,diy:4,
+  get:"Base or Sport, manual or automatic",avoid:"Cars with ignored engine-light codes",
+  watch:["Ignition coils","Valve adjustment","Small and light, so rust repair matters more"]},
+ {n:"Mazda3",y:"2014–2018",c:"Sedan",lo:8000,hi:14000,r:430,mpg:32,d:.3,life:4,parts:4,diy:3,
+  get:"Skyactiv 2.0 or 2.5",avoid:"Pre-2014 cars in rusty states",
+  watch:["Infotainment screen glitches","Rust on older Mazdas","Engine mounts"]},
+ {n:"Toyota Camry",y:"2012–2017",c:"Sedan",lo:8000,hi:16000,r:390,mpg:28,d:.3,life:5,parts:5,diy:4,
+  get:"2.5 four-cylinder LE or SE",avoid:"2007–2009 2.4 cars that burn oil",
+  watch:["Torque converter shudder on some 2012s","Dashboard rattles","Water pump"]},
+ {n:"Honda Accord",y:"2013–2017",c:"Sedan",lo:9000,hi:16000,r:400,mpg:30,d:.3,life:5,parts:5,diy:4,
+  get:"2.4 with the CVT or manual",avoid:"2008–2010 cars with oil consumption",
+  watch:["VTC actuator rattle on cold start","Starter on 2013–2015","Infotainment screen"]},
+ {n:"Ford Fusion",y:"2010–2012",c:"Sedan",lo:4500,hi:8000,r:500,mpg:26,d:.35,life:4,parts:5,diy:4,
+  get:"2.5 front-wheel drive",avoid:"AWD with a leaking transfer unit (PTU)",
+  watch:["Rear subframe and wheel well rust","Throttle body","Motor mounts"]},
+ {n:"Crown Vic / Grand Marquis",y:"2003–2011",c:"Big sedan",lo:4000,hi:9000,r:650,mpg:19,d:.3,life:5,parts:5,diy:5,
+  get:"A civilian Grand Marquis owned by an older driver",avoid:"Worn-out ex-police cars with huge idle hours",
+  watch:["Plastic intake manifold coolant leak","Blend door actuator clicking","Gas mileage is the main running cost"]},
+ {n:"Buick LeSabre / Park Avenue",y:"2000–2005",c:"Big sedan",lo:2500,hi:5500,r:500,mpg:22,d:.4,life:5,parts:5,diy:4,
+  get:"Any with the 3800 Series II V6",avoid:"Supercharged cars with ignored maintenance",
+  watch:["Lower intake gasket coolant leak","Plastic coolant elbows","Window regulators"]},
+ {n:"Chevy Impala",y:"2006–2013",c:"Big sedan",lo:4000,hi:8500,r:540,mpg:23,d:.35,life:4,parts:5,diy:4,
+  get:"3.5 V6 LS or LT",avoid:"Cars with unfixed coolant loss",
+  watch:["Intake gasket leaks","Trunk water leaks from the spoiler","Front-end wear on ex-fleet cars"]},
+ {n:"Toyota Avalon",y:"2005–2012",c:"Big sedan",lo:6000,hi:13000,r:460,mpg:23,d:.3,life:5,parts:5,diy:3,
+  get:"2007 and newer, or 2005–2006 with the oil line already replaced",avoid:"2005–2006 with the original rubber oil line",
+  watch:["VVT-i oil line (early years)","Water pump","Sticky or melting dash on some years"]},
+ {n:"Lexus ES 350",y:"2007–2012",c:"Big sedan",lo:8000,hi:15000,r:460,mpg:23,d:.25,life:5,parts:4,diy:3,
+  get:"Any with service records; it's a fancier Camry V6",avoid:"Cars with sticky dashboards left unrepaired",
+  watch:["Dashboard melting (dealer replaced many)","Water pump","Premium price on some trim parts"]},
+ {n:"Toyota Prius",y:"2012–2015",c:"Hatch & wagon",lo:7000,hi:14000,r:410,mpg:48,d:.3,life:4,parts:4,diy:2,
+  get:"2012–2015 with a recent hybrid battery check",avoid:"2010–2011 with oil burning or head gasket signs",
+  watch:["EGR cooler clogging leads to head gasket failure","Hybrid battery ($1.5k–3k used/rebuilt)","Inverter coolant pump"]},
+ {n:"Honda CR-V",y:"2007–2011",c:"SUV",lo:7000,hi:13000,r:410,mpg:23,d:.3,life:5,parts:5,diy:4,
+  get:"Any trim, AWD or FWD",avoid:"Cars with a dead A/C that's priced like it works",
+  watch:["A/C compressor","VTC rattle on cold start","Rear differential fluid service"]},
+ {n:"Toyota RAV4",y:"2013–2018",c:"SUV",lo:11000,hi:19000,r:430,mpg:26,d:.25,life:5,parts:5,diy:4,
+  get:"2.5 LE or XLE",avoid:"2006–2009 2.4 cars that burn oil",
+  watch:["Torque converter shudder on some 2013s","Steering column clunk","Holds value, priced higher"]},
+ {n:"Toyota 4Runner",y:"2003–2009",c:"SUV",lo:9000,hi:18000,r:510,mpg:17,d:.2,life:5,parts:5,diy:4,
+  get:"4.0 V6 with a solid frame",avoid:"Rotted frames from salt states",
+  watch:["Frame rust","Head gasket on high-mile 4.0s","Cracked dashboards"]},
+ {n:"Toyota Tacoma",y:"2005–2015",c:"Truck",lo:13000,hi:25000,r:480,mpg:19,d:.15,life:5,parts:5,diy:4,
+  get:"2011–2015, or earlier with a replaced frame",avoid:"2005–2010 with an untreated rusted frame",
+  watch:["Frame rust (big recall/replacement program)","Leaf spring wear","Pricey to buy, but barely loses value"]},
+ {n:"Ford Ranger",y:"1998–2011",c:"Truck",lo:5000,hi:12000,r:480,mpg:21,d:.2,life:5,parts:5,diy:5,
+  get:"2.3 four-cylinder or 3.0 V6",avoid:"Early 4.0 SOHC with rattling timing chains",
+  watch:["Frame and bed rust","4.0 SOHC timing chain guides","Ball joints on 4x4s"]},
+ {n:"Chevy Silverado 1500",y:"1999–2006",c:"Truck",lo:6000,hi:14000,r:700,mpg:16,d:.2,life:5,parts:5,diy:5,
+  get:"5.3 V8 with a straight frame",avoid:"Rotted rockers, cab corners and brake lines",
+  watch:["Brake and fuel line rust","Instrument cluster gauges sticking","Fuel pump"]},
+ {n:"Ford F-150",y:"2011–2014",c:"Truck",lo:12000,hi:20000,r:790,mpg:17,d:.2,life:5,parts:5,diy:4,
+  get:"5.0 V8",avoid:"Early 3.5 EcoBoost with timing chain or cam phaser rattle",
+  watch:["Cam phasers / timing chain (EcoBoost)","Rear brake line rust","Spark plugs are a two-piece design on some"]},
+ {n:"Toyota Sienna",y:"2011–2020",c:"Van",lo:10000,hi:20000,r:480,mpg:21,d:.25,life:5,parts:4,diy:3,
+  get:"3.5 V6 front-wheel drive",avoid:"Sliding doors that don't work, those get pricey",
+  watch:["Power sliding door cables","Water pump","Rear hatch struts"]},
+ {n:"Jeep Cherokee XJ",y:"1997–2001",c:"SUV",lo:5000,hi:12000,r:650,mpg:17,d:.1,life:5,parts:5,diy:5,
+  get:"4.0 inline-six, any trim",avoid:"Rotted floor pans and frame rails",
+  watch:["Floor and rocker rust","Rear main seal leak","Cooling system and radiator"]},
+ {n:"Mazda Miata",y:"1999–2005",c:"Fun",lo:6000,hi:12000,r:400,mpg:26,d:.1,life:5,parts:5,diy:5,
+  get:"Any NB with a sound body",avoid:"Rusty rear rockers and sills",
+  watch:["Rear rocker rust","Convertible top drain holes","Clutch on hard-driven cars"]}
+];
+const LIFE_MI={"Chevy HHR":200,"Chevy Cobalt":180,"Toyota Matrix / Pontiac Vibe":300,"Scion xB":250,"Honda Element":280,"Toyota Corolla":300,"Honda Civic":300,"Honda Fit":250,"Mazda3":220,"Toyota Camry":300,"Honda Accord":300,"Ford Fusion":220,"Crown Vic / Grand Marquis":350,"Buick LeSabre / Park Avenue":300,"Chevy Impala":230,"Toyota Avalon":300,"Lexus ES 350":300,"Toyota Prius":280,"Honda CR-V":280,"Toyota RAV4":280,"Toyota 4Runner":350,"Toyota Tacoma":350,"Ford Ranger":300,"Chevy Silverado 1500":330,"Ford F-150":300,"Toyota Sienna":300,"Jeep Cherokee XJ":300,"Mazda Miata":250};
+CARS.forEach(c=>c.lm=LIFE_MI[c.n]||200);
+// [engine, transmission, trim advice]
+const SPEC={
+"Chevy HHR":["2.2L Ecotec (L61, later LAP) or 2.4L Ecotec LE5","4T45-E 4-speed automatic or Getrag F23 5-speed manual","LS or 1LT with the 2.2. Skip the SS: its turbo 2.0 (LNF) parts cost more. Sunroof cars often leak from clogged drains."],
+"Chevy Cobalt":["2.2L Ecotec (L61, later LAP)","4T45-E 4-speed automatic or Getrag F23 5-speed manual","LS or LT. Skip the SS supercharged and turbo models."],
+"Toyota Matrix / Pontiac Vibe":["1.8L 2ZR-FE","4-speed automatic or 5-speed manual","Base Matrix or base Vibe, front-wheel drive. Skip the S/XRS/GT 2.4 and the AWD version, which is 2.4-only."],
+"Scion xB":["2.4L 2AZ-FE","4-speed automatic or 5-speed manual","Any trim, they're all mechanically the same. Prefer 2011+ and ask how much oil it uses between changes."],
+"Honda Element":["2.4L K24 i-VTEC four-cylinder","4-speed automatic (2003–06), 5-speed automatic (2007–11) or 5-speed manual","LX or EX, front-wheel drive is simplest. Skip the SC: it's lowered with bigger wheels and rides rough on bad roads."],
+"Toyota Corolla":["1.8L 2ZR-FE","4-speed automatic (2009–13), CVT (2014–19) or 5/6-speed manual","CE, L or LE. The 2009–13 4-speed automatic is the simplest long-haul pick. Skip the 2009–10 XRS (2.4 engine)."],
+"Honda Civic":["1.8L R18Z1 i-VTEC","5-speed automatic (2012–13), CVT (2014–15) or 5-speed manual","LX. A 2012–13 with the regular 5-speed automatic avoids the CVT. Skip sunroof EX models if you can, and skip the Si unless you want it."],
+"Honda Fit":["1.5L L15A7 i-VTEC","5-speed automatic or 5-speed manual","Base or Sport. Skip the Navi package, its screen is pricey to fix."],
+"Mazda3":["2.0L Skyactiv-G (PE-VPS) or 2.5L Skyactiv-G (PY-VPS)","6-speed Skyactiv-Drive automatic or 6-speed manual","Sport or Touring with the 2.0. Skip Grand Touring extras (sunroof, adaptive headlights) that add repair cost."],
+"Toyota Camry":["2.5L 2AR-FE four-cylinder","6-speed automatic (U760E)","L, LE or SE four-cylinder. Skip the V6 (spark plugs and water pump are more labor) and the hybrid. Skip sunroofs if you can."],
+"Honda Accord":["2.4L K24W Earth Dreams four-cylinder","CVT or 6-speed manual","LX or Sport four-cylinder with documented CVT fluid changes. The 3.5 V6 with its 6-speed automatic is also durable but costs more to buy."],
+"Ford Fusion":["2.5L Duratec 25 four-cylinder","6F35 6-speed automatic or 6-speed manual","S or SE, front-wheel drive. Skip the 3.0/3.5 V6 AWD versions and their power transfer unit."],
+"Crown Vic / Grand Marquis":["4.6L 2-valve Modular V8","4R75E 4-speed automatic","Crown Victoria LX or Grand Marquis LS. A P71 Police Interceptor has heavier cooling and brakes, but usually hard miles and long idle hours."],
+"Buick LeSabre / Park Avenue":["3.8L 3800 Series II V6 (L36)","4T65-E 4-speed automatic","LeSabre Custom or Limited, or a base Park Avenue. Skip the supercharged Ultra and GT (L67)."],
+"Chevy Impala":["3.5L V6 (LZ4/LZE); 3.6L LFX on 2012–13","4T65-E 4-speed automatic; 6T70 6-speed on 2012–13","LS or LT with the 3.5 (2006–11). Skip the SS V8 and the 3.6 (timing chain stretch)."],
+"Toyota Avalon":["3.5L 2GR-FE V6","5-speed automatic (2005–06), 6-speed U660E automatic (2007–12)","XL or XLS. Skip Limited extras like cooled seats and nav that cost a lot to fix."],
+"Lexus ES 350":["3.5L 2GR-FE V6","6-speed U660E automatic","Base trim. Skip the Mark Levinson stereo and radar cruise options, and check that sunroof drains are clear."],
+"Toyota Prius":["1.8L 2ZR-FXE four-cylinder with hybrid drive","Planetary eCVT (Toyota P410)","Prius Two or Three. Skip the Five's solar roof package and big-wheel trims. The Prius v and c are different cars."],
+"Honda CR-V":["2.4L K24Z1 i-VTEC","5-speed automatic","LX or EX, front-wheel drive is simplest. With AWD, change the rear differential fluid every 30k. Skip EX-L Navi."],
+"Toyota RAV4":["2.5L 2AR-FE four-cylinder","6-speed automatic (U760E)","LE, front-wheel drive. Skip Limited's sunroof and nav, and skip the 2016+ hybrid if you work on it yourself."],
+"Toyota 4Runner":["4.0L 1GR-FE V6","5-speed automatic (A750F)","SR5 4x4 with the V6. Skip Sport and Limited models with the X-REAS suspension, its shocks are expensive."],
+"Toyota Tacoma":["2.7L 2TR-FE four-cylinder or 4.0L 1GR-FE V6","4-speed automatic (4-cyl), 5-speed automatic (V6), or 5/6-speed manual","Base or SR5 Access Cab. The 2.7 with a manual is the simplest. Skip big-wheel TRD packages if you're on a budget."],
+"Ford Ranger":["2.3L Duratec four-cylinder (2001+) or 3.0L Vulcan V6","5-speed manual, or 4-speed/5-speed automatic","XL or XLT 2WD with the 2.3 and a manual is nearly unkillable. Skip the 1998–2000 4.0 SOHC."],
+"Chevy Silverado 1500":["5.3L Vortec V8 (LM7) or 4.8L (LR4)","4L60-E 4-speed automatic","Work Truck or LS. The 4L60-E transmission is the weak spot, so look for fluid service records. Skip Quadrasteer."],
+"Ford F-150":["5.0L Coyote V8","6R80 6-speed automatic","XL or XLT with the 5.0. Skip early 3.5 EcoBoost trucks. The 3.7 V6 is a fine budget option."],
+"Toyota Sienna":["3.5L 2GR-FE V6","6-speed U660E automatic","LE, front-wheel drive. Skip AWD (run-flat tires on many) and Limited's power-everything."],
+"Jeep Cherokee XJ":["4.0L inline-six","Aisin AW4 4-speed automatic or 5-speed manual (AX15 / NV3550)","Sport or Classic 4x4 with the NP231 transfer case. Skip the 2.5 four-cylinder."],
+"Mazda Miata":["1.8L BP four-cylinder","5-speed manual (6-speed on some) or 4-speed automatic","Base or LS with a manual. Skip the automatic."]
+};
+CARS.forEach(c=>{const s=SPEC[c.n];if(s){c.eng=s[0];c.trans=s[1];c.trim=s[2];}});
+// parts-store prices, parts only: [alternator, starter, front pads+rotors, front struts/shocks pair, water pump]; null = car doesn't have that part
+const PARTS={"Chevy HHR":[180,140,110,180,60],"Chevy Cobalt":[170,130,100,170,60],"Toyota Matrix / Pontiac Vibe":[190,150,100,180,70],"Scion xB":[200,160,110,200,80],"Honda Element":[220,170,120,220,80],"Toyota Corolla":[180,140,100,170,60],"Honda Civic":[200,150,100,180,70],"Honda Fit":[200,160,100,180,70],"Mazda3":[220,180,120,200,90],"Toyota Camry":[200,160,110,200,80],"Honda Accord":[220,170,120,220,90],"Ford Fusion":[190,150,110,200,80],"Crown Vic / Grand Marquis":[170,120,120,120,70],"Buick LeSabre / Park Avenue":[170,130,110,180,60],"Chevy Impala":[180,140,110,180,60],"Toyota Avalon":[230,190,130,240,110],"Lexus ES 350":[260,220,150,280,120],"Toyota Prius":[null,null,110,200,180],"Honda CR-V":[210,170,110,220,80],"Toyota RAV4":[220,180,120,220,90],"Toyota 4Runner":[250,200,140,180,100],"Toyota Tacoma":[230,190,130,180,90],"Ford Ranger":[160,110,100,80,50],"Chevy Silverado 1500":[180,130,120,80,60],"Ford F-150":[220,170,140,100,90],"Toyota Sienna":[240,200,140,240,110],"Jeep Cherokee XJ":[160,110,100,80,50],"Mazda Miata":[180,140,100,200,60]};
+// [cam drive, spark plugs, transmission fluid, oil]
+const MAINT={"Chevy HHR":["Chain","Every 100k","Dexron VI drain-and-fill every 50k","5W-30 dexos1, 5 qt"],"Chevy Cobalt":["Chain","Every 100k","Dexron VI drain-and-fill every 50k","5W-30 dexos1, 5 qt"],"Toyota Matrix / Pontiac Vibe":["Chain","Every 120k","Toyota WS drain-and-fill every 60k","0W-20, 4.4 qt"],"Scion xB":["Chain","Every 120k","Toyota WS drain-and-fill every 60k","0W-20, 4.2 qt"],"Honda Element":["Chain","Every 105k","Honda ATF DW-1 every 30k","5W-20, 4.2 qt"],"Toyota Corolla":["Chain","Every 120k","Toyota WS (or CVT FE) every 60k","0W-20, 4.4 qt"],"Honda Civic":["Chain","Every 105k","Honda DW-1 (or HCF-2 CVT) every 30k","0W-20, 3.7 qt"],"Honda Fit":["Chain","Every 105k","Honda ATF DW-1 every 30k","0W-20, 3.6 qt"],"Mazda3":["Chain","Every 75k","Mazda FZ ATF every 60k","0W-20, 4.5 qt"],"Toyota Camry":["Chain","Every 120k","Toyota WS drain-and-fill every 60k","0W-20, 4.6 qt"],"Honda Accord":["Chain","Every 105k","Honda HCF-2 CVT fluid every 25–30k","0W-20, 4.4 qt"],"Ford Fusion":["Chain","Every 100k","Mercon LV every 60k","5W-20, 5.3 qt"],"Crown Vic / Grand Marquis":["Chain","Every 100k","Mercon V every 30k","5W-20, 6 qt"],"Buick LeSabre / Park Avenue":["Chain","Every 100k","Dexron VI every 50k","5W-30, 4.5 qt"],"Chevy Impala":["Chain","Every 100k","Dexron VI every 50k","5W-30, 4.5 qt"],"Toyota Avalon":["Chain","Every 120k","Toyota WS every 60k","5W-30, 6.4 qt"],"Lexus ES 350":["Chain","Every 120k","Toyota WS every 60k","5W-30, 6.4 qt"],"Toyota Prius":["Chain","Every 120k","Toyota WS (hybrid transaxle) every 60k","0W-20, 4.4 qt"],"Honda CR-V":["Chain","Every 105k","Honda ATF DW-1 every 30k","5W-20, 4.4 qt"],"Toyota RAV4":["Chain","Every 120k","Toyota WS every 60k","0W-20, 4.6 qt"],"Toyota 4Runner":["Chain","Every 120k","Toyota WS every 60k","5W-30, 5.5 qt"],"Toyota Tacoma":["Chain","Every 120k","Toyota WS every 60k","5W-30 (0W-20 on later years), 5.5 qt"],"Ford Ranger":["Chain","Every 100k","Mercon V every 30k","5W-20 (2.3) or 5W-30 (3.0), 4.5 qt"],"Chevy Silverado 1500":["Chain","Every 100k","Dexron VI every 50k","5W-30, 6 qt"],"Ford F-150":["Chain","Every 100k","Mercon LV every 60k","5W-20, 7.7 qt"],"Toyota Sienna":["Chain","Every 120k","Toyota WS every 60k","0W-20, 6.2 qt"],"Jeep Cherokee XJ":["Chain","Every 30k (copper plugs)","Dexron/Mercon (AW4) every 30k","10W-30, 6 qt"],"Mazda Miata":["Belt, replace every 60k with the water pump","Every 30k","75W-90 gear oil every 30k (manual)","5W-30, 4 qt"]};
+// [snow rating 1-5, tow rating, platform/parts mates]
+const MORE={"Chevy HHR":[3,"1,000 lb","Chevy Cobalt, Pontiac G5, Saturn Ion (GM Delta platform)"],"Chevy Cobalt":[2,"1,000 lb","Chevy HHR, Pontiac G5, Saturn Ion"],"Toyota Matrix / Pontiac Vibe":[3,"1,500 lb","2009–13 Corolla (engine, brakes, suspension)"],"Scion xB":[3,"Not rated","Scion tC and Camry 2.4 (2AZ engine)"],"Honda Element":[4,"1,500 lb","2002–06 Honda CR-V (engine, transmission, much running gear)"],"Toyota Corolla":[3,"Not rated","Matrix, Vibe, Scion xD"],"Honda Civic":[3,"Not rated","Other 2012–15 Civics; most body and engine parts swap across those years"],"Honda Fit":[2,"Not rated","2010–14 Honda Insight (chassis and suspension parts)"],"Mazda3":[3,"Not rated","Mazda CX-3 and CX-5 (Skyactiv engines)"],"Toyota Camry":[3,"1,000 lb","2013–18 RAV4 (2AR engine and 6-speed)"],"Honda Accord":[3,"1,000 lb","2015–16 Honda CR-V (K24W engine)"],"Ford Fusion":[3,"1,000 lb","Mercury Milan, Mazda6 (2.5 engine)"],"Crown Vic / Grand Marquis":[2,"1,500 lb","Lincoln Town Car, Police Interceptor"],"Buick LeSabre / Park Avenue":[3,"1,000 lb","Pontiac Bonneville, Olds 88, Chevy Impala and Monte Carlo (3800 V6)"],"Chevy Impala":[3,"1,000 lb","Chevy Monte Carlo, Pontiac Grand Prix, Buick LaCrosse"],"Toyota Avalon":[3,"1,000 lb","Camry V6, Sienna, Highlander (2GR V6)"],"Lexus ES 350":[3,"1,000 lb","Camry V6, Avalon"],"Toyota Prius":[3,"Not rated","Prius v, Lexus CT 200h (hybrid drivetrain)"],"Honda CR-V":[4,"1,500 lb","Honda Element, Accord 2.4 (K24 engine)"],"Toyota RAV4":[4,"1,500 lb","Camry 2.5 (2AR engine)"],"Toyota 4Runner":[5,"5,000 lb","FJ Cruiser, Tacoma V6 (1GR engine)"],"Toyota Tacoma":[4,"3,500–6,500 lb","4Runner, FJ Cruiser"],"Ford Ranger":[2,"1,600–5,800 lb","Mazda B2300/B3000/B4000 trucks"],"Chevy Silverado 1500":[4,"6,000–8,000 lb","GMC Sierra, Tahoe, Suburban, Yukon, Avalanche"],"Ford F-150":[4,"6,700–11,300 lb","Mustang GT (5.0 Coyote engine)"],"Toyota Sienna":[3,"3,500 lb","Highlander, Avalon (2GR V6)"],"Jeep Cherokee XJ":[5,"2,000–5,000 lb","Wrangler TJ and Grand Cherokee (4.0 engine, transfer cases)"],"Mazda Miata":[1,"Not rated","Every 1990–2005 Miata; many parts interchange"]};
+CARS.forEach(c=>{c.pp=PARTS[c.n];c.mt=MAINT[c.n];const m=MORE[c.n];c.snow=m[0];c.tow=m[1];c.mates=m[2];
+  const [a,b]=c.y.split("–").map(Number);c.y0=a;c.y1=b;c.id=c.n.replace(/[^a-z0-9]+/gi,"-").toLowerCase();});
+const CHECK=["Start it cold (ask the seller not to warm it up) and listen for rattles or knocks","No check engine light, and the light comes on briefly at key-on","Look under for rust on the frame, brake lines and rocker panels","Oil isn't milky or sludgy; coolant isn't brown or oily","Transmission shifts smoothly, no slipping or flare","Brakes stop straight with no grinding or pulsing","A/C blows cold and the heater gets hot","Tires wear evenly (uneven wear means alignment or suspension trouble)","Title is clean and matches the seller's ID","Ask for service records"];
+let compare=[];
+const store={get(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let checks=store.get("kc-checks")||{};
+const CATS=["All",...new Set(CARS.map(c=>c.c))];
+let cat="All";
+const $=id=>document.getElementById(id);
+const money=n=>"$"+Math.round(n).toLocaleString("en-US");
+const kk=n=>(n/1000).toFixed(n%1000?1:0);
+function priceTier(m){return m<6000?1:m<9000?2:m<13000?3:m<18000?4:5}
+function calc(){
+  const gas=Math.max(1,parseFloat($("gas").value)||3.25), mi=Math.max(1000,parseFloat($("mi").value)||12000);
+  CARS.forEach(c=>{const mid=(c.lo+c.hi)/2;c.mid=mid;
+    c.fuel=mi/c.mpg*gas*5;c.dep=mid*c.d;c.tco=c.r*5+c.fuel+c.dep;
+    // years 6-10: repairs run ~50% higher as the car ages; value loss continues but slows
+    c.rep10=c.r*5+c.r*1.5*5+(c.big||0);c.fuel10=c.fuel*2;c.dep10=Math.min(mid*.9,mid*c.d*1.7);c.tco10=c.rep10+c.fuel10+c.dep10;
+    if(partsMode){c.tco-=c.fuel;c.tco10-=c.fuel10;}
+    // parts mode score: repair dollars, scaled up 15% for each point a car's parts rating falls below 5
+    c.ps=(horizon===10?c.rep10:c.r*5)*(1+.15*(5-c.parts));
+    c.odo10=mi*10;});
+  const k=partsMode?"ps":horizon===10?"tco10":"tco";
+  const sorted=[...CARS].sort((a,b)=>a[k]-b[k]);
+  sorted.forEach((c,i)=>{const p=i/sorted.length;c.grade=p<.2?"A":p<.4?"B":p<.6?"C":p<.8?"D":"F";});
+}
+let horizon=5,only250=false,partsMode=false;
+CARS.find(c=>c.n==="Toyota Prius").big=2500; // expected hybrid battery replacement within 10 years
+const esc=s=>String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const dots=n=>`<span class="dots" aria-label="${n} of 5">${"●".repeat(n)}<i>${"●".repeat(5-n)}</i></span> ${["","Poor","Fair","OK","Good","Great"][n]}`;
+const prog=c=>{const n=(checks[c.id]?.b||[]).length,t=CHECK.length+c.watch.length;return n?`${n}/${t}`:""};
+const openD=new Set();
+function bar(label,v){return `<div class="bar"><span>${label}</span><div class="t"><span style="width:${v*20}%"></span></div><span class="n">${v}</span></div>`}
+function render(){
+  calc();
+  const q=$("q").value.trim().toLowerCase(), s=$("sort").value;
+  let list=CARS.filter(c=>(cat==="All"||c.c===cat)&&(!only250||c.lm>=250)&&(!q||(c.n+" "+c.c+" "+c.get+" "+c.eng+" "+c.trans+" "+c.trim).toLowerCase().includes(q)));
+  const key={tco:c=>partsMode?c.ps:horizon===10?c.tco10:c.tco,miles:c=>-c.lm*100+c.tco/1e4,price:c=>c.mid,repair:c=>c.r,life:c=>-c.life*1000+c.tco/1e4,diy:c=>-c.diy*1000+c.tco/1e4}[s];
+  list.sort((a,b)=>key(a)-key(b));
+  $("count").textContent=`${list.length} of ${CARS.length} cars`+(partsMode?` · Parts & repairs only: fuel is left out (*), and grades rank repair cost and parts availability`:"");
+  $("grid").innerHTML=list.length?list.map(c=>{const t=priceTier(c.mid);return `
+  <article class="card" data-card="${c.id}">
+    <div class="top">
+      <div class="name"><h2>${c.n}</h2><div class="yrs">${c.y} · ${c.mpg} mpg</div><div class="tags"><span class="cat">${c.c}</span>${c.lm>=250?`<span class="club">250K+ club</span>`:""}</div></div>
+      <div class="sticker g-${c.grade}" title="${partsMode?"Parts and repairs":horizon+"-year cost"} grade"><b>${c.grade}</b><small>${partsMode?"PARTS":horizon+"-YR"}</small></div>
+    </div>
+    <div class="nums">
+      <div><div class="k">Buy for</div><div class="v">$${kk(c.lo)}–${kk(c.hi)}k</div><div class="dollars" aria-label="price tier ${t} of 5">${"$".repeat(t)}<i>${"$".repeat(5-t)}</i></div></div>
+      <div><div class="k">Repairs / yr</div><div class="v">${money(c.r)}</div></div>
+      <div><div class="k">Lasts to</div><div class="v">${c.lm}k mi</div></div>
+      <div><div class="k">5-yr cost${partsMode?"*":""}</div><div class="v ${horizon===5&&!partsMode?"hl":""}">${money(c.tco)}</div></div>
+      <div><div class="k">10-yr cost${partsMode?"*":""}</div><div class="v ${horizon===10&&!partsMode?"hl":""}">${money(c.tco10)}</div></div>
+      <div><div class="k">Per year (10)</div><div class="v">${money(c.tco10/10)}</div></div>
+    </div>
+    <div class="bars">${bar("Lasts",c.life)}${bar("Parts",c.parts)}${bar("DIY",c.diy)}</div>
+    <dl class="spec"><dt>Engine</dt><dd>${c.eng}</dd><dt>Trans</dt><dd>${c.trans}</dd><dt>Best trim</dt><dd>${c.trim}</dd><dt>Snow</dt><dd>${dots(c.snow)}</dd><dt>Tows</dt><dd>${c.tow}</dd><dt>Shares parts</dt><dd>${c.mates}</dd></dl>
+    <div class="get"><b>Get:</b> ${c.get}<br><b class="avoid">Avoid:</b> ${c.avoid}</div>
+    <details><summary>Known problems &amp; cost split</summary><ul>${c.watch.map(w=>`<li>${w}</li>`).join("")}</ul>
+      <div style="margin-top:6px;color:var(--muted);font-size:12.5px">5-yr split: repairs ${money(c.r*5)} · fuel ${money(c.fuel)} · value lost ${money(c.dep)}<br>10-yr split: repairs ${money(c.rep10)} · fuel ${money(c.fuel10)} · value lost ${money(c.dep10)}<br>${c.lm>=250?`Well-kept examples regularly pass 250,000 miles.`:`Most are done around ${c.lm},000 miles; budget for a major repair past that.`}</div></details>
+    <details><summary>Part prices</summary>
+      <table class="pt"><tbody>${["Alternator","Starter","Front pads + rotors","Front struts/shocks (pair)","Water pump"].map((l,i)=>`<tr><td>${l}</td><td>${c.pp[i]==null?"None (hybrid)":money(c.pp[i])}</td></tr>`).join("")}</tbody></table>
+      <div class="note">Typical new aftermarket parts at chain parts stores, parts only. Junkyard parts often cost a third of this.</div></details>
+    <details><summary>Maintenance</summary>
+      <dl class="spec mini"><dt>Cam drive</dt><dd>${c.mt[0]}${/Belt/.test(c.mt[0])?` <b class="avoid">· ask when it was done</b>`:""}</dd><dt>Spark plugs</dt><dd>${c.mt[1]}</dd><dt>Trans fluid</dt><dd>${c.mt[2]}</dd><dt>Oil</dt><dd>${c.mt[3]}</dd></dl></details>
+    <details class="chk" data-id="${c.id}"><summary>Test-drive checklist <span class="prog">${prog(c)}</span></summary>
+      <div class="clist">${CHECK.concat(c.watch).map((t,i)=>`<label><input type="checkbox" data-i="${i}" ${(checks[c.id]?.b||[]).includes(i)?"checked":""}> <span>${i>=CHECK.length?`<b>${c.n}:</b> `:""}${t}</span></label>`).join("")}</div>
+      <label class="nl" for="n-${c.id}">Notes on the one you looked at</label>
+      <textarea id="n-${c.id}" rows="3" placeholder="Year, miles, asking price, what you noticed…">${esc(checks[c.id]?.n||"")}</textarea>
+      <button type="button" class="chip clr">Clear checklist</button></details>
+    <div class="acts">
+      <label class="cmp"><input type="checkbox" data-cmp="${c.id}" ${compare.includes(c.id)?"checked":""}> Compare</label>
+      <a href="https://www.nhtsa.gov/recalls" target="_blank" rel="noopener">Check recalls by VIN ↗</a>
+    </div>
+  </article>`}).join(""):`<div class="empty">No cars match. Try a different search or body style.</div>`;
+  $("grid").querySelectorAll(".card").forEach(card=>card.querySelectorAll("details").forEach((d,i)=>{if(openD.has(card.dataset.card+":"+i))d.open=true;}));
+  renderCompare();deal();
+}
+const byId=id=>CARS.find(c=>c.id===id);
+function renderCompare(){
+  const box=$("cmpbox"),cars=compare.map(byId);
+  if(cars.length<2){box.hidden=!cars.length;box.innerHTML=cars.length?`<div class="cmphead"><b>Compare:</b> ${cars[0].n} <span class="muted">— pick one or two more cars to compare</span> <button type="button" class="chip" data-cmpclear>Clear</button></div>`:"";return;}
+  box.hidden=false;
+  const rows=[["Buy for",c=>`$${kk(c.lo)}–${kk(c.hi)}k`],["Repairs / yr",c=>money(c.r)],["5-yr cost"+(partsMode?"*":""),c=>money(c.tco)],["10-yr cost"+(partsMode?"*":""),c=>money(c.tco10)],["Lasts to",c=>c.lm+"k mi"],["MPG",c=>c.mpg],["Engine",c=>c.eng],["Transmission",c=>c.trans],["Cam drive",c=>c.mt[0]],["Parts",c=>c.parts+" / 5"],["DIY",c=>c.diy+" / 5"],["Snow",c=>c.snow+" / 5"],["Tows",c=>c.tow],["Alternator",c=>c.pp[0]==null?"None":money(c.pp[0])],["Front brakes",c=>money(c.pp[2])]];
+  box.innerHTML=`<div class="cmphead"><b>Comparing ${cars.length} cars</b> <button type="button" class="chip" data-cmpclear>Clear</button></div>
+  <div class="tscroll"><table class="ct"><thead><tr><th></th>${cars.map(c=>`<th>${c.n}<div class="muted">${c.y}</div></th>`).join("")}</tr></thead>
+  <tbody>${rows.map(([l,f])=>`<tr><td>${l}</td>${cars.map(c=>`<td>${f(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function deal(){
+  const c=byId($("dcar").value),out=$("dout");if(!c){out.innerHTML="";return;}
+  const yr=+$("dyear").value,mil=+$("dmiles").value,pr=+$("dprice").value;
+  if(!yr||!mil||!pr){out.innerHTML=`<span class="muted">Enter the year, miles and asking price from the listing.</span>`;return;}
+  const cl=v=>Math.max(0,Math.min(1,v));
+  const yp=cl((yr-c.y0)/Math.max(1,c.y1-c.y0)),mp=cl(mil/(c.lm*1000*.75));
+  const exp=c.lo+(c.hi-c.lo)*(.5*yp+.5*(1-mp)),ratio=pr/exp;
+  const [cls,verdict]=ratio<.85?["good","Good deal"]:ratio<=1.12?["mid","Fair price"]:["bad","Priced high"];
+  const notes=[];
+  if(yr<c.y0||yr>c.y1)notes.push(`${yr} is outside the ${c.y} years this guide covers for the ${c.n}, so treat this as a rough guess.`);
+  if(mil>c.lm*1000*.8)notes.push(`At ${mil.toLocaleString()} miles it's near the ${c.lm}k most of these reach. Budget for a big repair.`);
+  if(ratio<.7)notes.push("Very cheap for what it is. Look hard for rust, a bad transmission, or a title problem.");
+  out.innerHTML=`<div class="verdict ${cls}">${verdict}</div><div>A ${yr} ${c.n} with ${mil.toLocaleString()} miles typically sells around <b>${money(exp*.9)}–${money(exp*1.1)}</b>. Asking ${money(pr)} is ${Math.abs(Math.round((ratio-1)*100))}% ${ratio<1?"under":"over"} the middle of that range.</div>${notes.map(n=>`<div class="muted">${n}</div>`).join("")}`;
+}
+$("dcar").innerHTML=`<option value="">Pick a car…</option>`+[...CARS].sort((a,b)=>a.n.localeCompare(b.n)).map(c=>`<option value="${c.id}">${c.n} (${c.y})</option>`).join("");
+["dcar","dyear","dmiles","dprice"].forEach(id=>$(id).addEventListener("input",deal));
+const grid=$("grid");
+grid.addEventListener("toggle",e=>{const d=e.target;if(d.tagName!=="DETAILS")return;const card=d.closest(".card");
+  const i=[...card.querySelectorAll("details")].indexOf(d),k=card.dataset.card+":"+i;d.open?openD.add(k):openD.delete(k);},true);
+grid.addEventListener("change",e=>{const t=e.target;
+  if(t.dataset.cmp){const id=t.dataset.cmp;if(t.checked){if(compare.length>=3){t.checked=false;return;}compare.push(id);}else compare=compare.filter(x=>x!==id);renderCompare();return;}
+  const box=t.closest(".chk");if(box&&t.type==="checkbox"){const id=box.dataset.id,rec=checks[id]||(checks[id]={b:[],n:""});
+    rec.b=[...box.querySelectorAll("input[type=checkbox]")].filter(x=>x.checked).map(x=>+x.dataset.i);store.set("kc-checks",checks);
+    box.querySelector(".prog").textContent=prog(byId(id));}});
+grid.addEventListener("input",e=>{const t=e.target;if(t.tagName!=="TEXTAREA")return;const id=t.closest(".chk").dataset.id;
+  (checks[id]||(checks[id]={b:[],n:""})).n=t.value;store.set("kc-checks",checks);});
+grid.addEventListener("click",e=>{const b=e.target.closest(".clr");if(!b)return;const box=b.closest(".chk"),id=box.dataset.id;
+  delete checks[id];store.set("kc-checks",checks);box.querySelectorAll("input[type=checkbox]").forEach(x=>x.checked=false);box.querySelector("textarea").value="";box.querySelector(".prog").textContent="";});
+$("cmpbox").addEventListener("click",e=>{if(!e.target.closest("[data-cmpclear]"))return;compare=[];
+  grid.querySelectorAll("[data-cmp]").forEach(x=>x.checked=false);renderCompare();});
+$("chips").innerHTML=CATS.map(c=>`<button type="button" class="chip" aria-pressed="${c==="All"}" data-c="${c}">${c}</button>`).join("");
+$("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;cat=b.dataset.c;
+  $("chips").querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===b));render();});
+$("hz").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;horizon=+b.dataset.h;
+  $("hz").querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===b));render();});
+$("pm").addEventListener("click",()=>{partsMode=!partsMode;$("pm").setAttribute("aria-pressed",partsMode);
+  $("gas").disabled=partsMode;render();});
+$("k250").addEventListener("click",()=>{only250=!only250;$("k250").setAttribute("aria-pressed",only250);render();});
+["q","gas","mi","sort"].forEach(id=>$(id).addEventListener("input",render));
+render();
+</script>
+
+</body>
+</html>

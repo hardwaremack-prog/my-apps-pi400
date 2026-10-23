@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PiMesh</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0e13;color:#e6edf3;font:16px/1.5 system-ui,sans-serif;padding:16px;box-sizing:border-box}
+.box{max-width:580px;background:#11171f;border:1px solid #1f2a37;border-radius:16px;padding:28px}
+h1{margin:0 0 4px;font-size:24px;display:flex;align-items:center;gap:12px} img{width:48px;height:48px}
+p{color:#8693a4} code{background:#0a0e13;border:1px solid #1f2a37;border-radius:6px;padding:2px 6px;color:#58a6ff;font-size:14px}
+ol{padding-left:20px} li{margin:8px 0} #st{color:#e3a325}
+.go{display:flex;gap:8px;margin-top:6px} input{flex:1;min-width:0;font:15px monospace;background:#0a0e13;color:#e6edf3;border:1px solid #1f2a37;border-radius:8px;padding:8px}
+button{font:600 15px system-ui;background:#2a1520;color:#ffc2d1;border:1px solid #e5315f;border-radius:8px;padding:8px 14px;cursor:pointer}
+</style></head><body><div class="box">
+<h1><img src="pimesh-icon.png" alt="">PiMesh</h1>
+<p id="st">Looking for PiMesh...</p>
+<div id="help" hidden>
+<p>PiMesh runs in the background on each Pi, so it has to be started first.</p>
+<ol>
+<li><b>Set it up on a Pi:</b> run <code>sudo ./install.sh</code> in this folder once on every Pi. They find each other automatically and it starts on every boot.</li>
+<li><b>Just looking?</b> Double-click the <b>PiMesh (demo)</b> icon on the Pi Desktop, or <b>Try PiMesh (demo).bat</b> on Windows. It shows 6 pretend Pis.</li>
+</ol>
+<p>Any Pi in the mesh shows the whole mesh. Type one's address:</p>
+<div class="go"><input id="host" placeholder="192.168.1.50"><button onclick="openHost()">Open</button></div>
+<p style="margin-top:14px">This page keeps checking and jumps to PiMesh as soon as it's running here.</p>
+</div></div>
+<script>
+// PiMesh answers /pm.js; other programs won't, so we never open the wrong app.
+const PORTS=[8470];
+let saved=''; try{saved=localStorage.getItem('pimesh-host')||''}catch(e){}
+function openHost(){let h=document.getElementById('host').value.trim();if(!h)return;
+  try{localStorage.setItem('pimesh-host',h)}catch(e){}
+  location.href='http://'+(h.includes(':')?h:h+':8470')+'/'}
+function probe(){window.__pimesh=[];let left=PORTS.length;
+  PORTS.forEach(p=>{const sc=document.createElement('script');sc.src='http://127.0.0.1:'+p+'/pm.js?'+Date.now();
+    sc.onload=sc.onerror=()=>{sc.remove();if(--left===0)done()};document.head.appendChild(sc)})}
+function done(){const p=(window.__pimesh||[])[0];
+  if(p){location.replace('http://127.0.0.1:'+p+'/');return}
+  document.getElementById('st').textContent='PiMesh isn\'t running on this computer yet.';
+  const h=document.getElementById('help'); if(h.hidden){h.hidden=false;document.getElementById('host').value=saved}
+  setTimeout(probe,2500)}
+probe();
+</script></body></html>

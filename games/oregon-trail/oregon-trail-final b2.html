@@ -1,0 +1,1973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Willamette Trail, 1847</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@400;600;700&family=Courier+Prime:wght@400;700&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parchment: #e8dcc4;
+    --parchment-dark: #d9c9a3;
+    --ink: #2e2418;
+    --ink-soft: #4a3b28;
+    --sage: #6b7a5e;
+    --sage-dark: #4c5842;
+    --rust: #b5451b;
+    --pine: #2c4a3e;
+    --gold: #b8891f;
+    --danger: #7a2418;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--parchment);
+    background-image:
+      radial-gradient(ellipse at top left, rgba(255,255,255,0.15), transparent 60%),
+      radial-gradient(ellipse at bottom right, rgba(0,0,0,0.06), transparent 60%);
+    color: var(--ink);
+    font-family: 'Lora', serif;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap{ max-width: 720px; margin: 0 auto; }
+
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes bounceWagon{ 0%,100%{transform:translateY(0px);} 50%{transform:translateY(-3px);} }
+  @keyframes pulseSick{ 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+  @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-3px);} 75%{transform:translateX(3px);} }
+  @keyframes riverFlow{ 0%{background-position:0 0;} 100%{background-position:60px 0;} }
+  @keyframes popIn{ 0%{transform:scale(0.7); opacity:0;} 100%{transform:scale(1); opacity:1;} }
+
+  .sheet{
+    background: var(--parchment);
+    border: 1px solid rgba(46,36,24,0.35);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 6px 18px rgba(0,0,0,0.18);
+    position: relative;
+    padding: 28px 26px 24px;
+    margin-bottom: 18px;
+    animation: fadeIn 0.4s ease;
+  }
+  .sheet::before{
+    content:"";
+    position:absolute; inset:6px;
+    border: 1px dashed rgba(46,36,24,0.25);
+    pointer-events:none;
+  }
+
+  h1,h2,h3{ font-family:'Bitter',serif; margin:0 0 6px; letter-spacing:0.01em; }
+  .masthead{ text-align:center; padding-bottom:10px; }
+  .masthead h1{
+    font-size: 2.1rem; font-weight:700; text-transform:uppercase;
+    letter-spacing: 0.06em; color: var(--ink);
+  }
+  .masthead .sub{
+    font-family:'Courier Prime', monospace; font-size:0.78rem;
+    color: var(--ink-soft); letter-spacing:0.12em; text-transform:uppercase;
+  }
+  .rule{ height:2px; background: linear-gradient(90deg, transparent, var(--ink) 15%, var(--ink) 85%, transparent); margin: 10px 0 16px; opacity:0.55; }
+  .rule.thin{ height:1px; margin:14px 0; opacity:0.3;}
+
+  .trail-track{ position:relative; margin: 6px 0 22px; overflow:visible; }
+  .trail-track svg{ width:100%; height:54px; display:block; overflow:visible; }
+  .trail-label{
+    font-family:'Courier Prime',monospace; font-size:0.72rem; color: var(--ink-soft);
+    display:flex; justify-content:space-between; letter-spacing:0.04em;
+  }
+  .wagon-bounce{ animation: bounceWagon 1.1s ease-in-out infinite; transform-origin:center; }
+
+  p{ line-height:1.55; margin: 0 0 12px; }
+  .log{ font-family:'Courier Prime', monospace; font-size:0.86rem; color: var(--ink-soft); background: rgba(0,0,0,0.03); border-left: 3px solid var(--rust); padding: 10px 12px; margin: 10px 0; }
+  .log-entry{ display:block; padding:3px 0; animation: fadeIn 0.35s ease; }
+
+  .stat-grid{ display:grid; grid-template-columns: repeat(4,1fr); gap:10px; margin: 4px 0 4px; }
+  .stat{ text-align:center; border:1px solid rgba(46,36,24,0.25); padding:8px 4px; background: rgba(255,255,255,0.25); }
+  .stat .v{ font-family:'Courier Prime',monospace; font-weight:700; font-size:1.05rem; }
+  .stat .k{ font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); }
+
+  .party{ display:flex; flex-wrap:wrap; gap:8px; margin: 10px 0; }
+  .member{ font-family:'Courier Prime',monospace; font-size:0.78rem; padding:5px 9px; border:1px solid rgba(46,36,24,0.3); background: rgba(255,255,255,0.3); }
+  .member.sick{ color: var(--danger); border-color: var(--danger); animation: pulseSick 1.3s ease-in-out infinite; }
+  .member.dead{ text-decoration: line-through; opacity:0.5; }
+
+  .btn-row{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; align-items:center; }
+  button{
+    font-family:'Bitter',serif; font-weight:600; font-size:0.92rem;
+    background: var(--sage); color: var(--parchment);
+    border: 1px solid var(--sage-dark);
+    padding: 10px 18px; cursor:pointer;
+    box-shadow: 0 2px 0 var(--sage-dark);
+    transition: transform 0.08s ease, filter 0.15s ease;
+  }
+  button:hover{ filter: brightness(1.08); }
+  button:active{ transform: translateY(2px); box-shadow: 0 0 0 var(--sage-dark); }
+  button.rust{ background: var(--rust); border-color:#7c2c10; box-shadow:0 2px 0 #7c2c10; }
+  button.ink{ background: var(--ink); border-color:#000; box-shadow:0 2px 0 #000; }
+  button.ghost{ background:transparent; color:var(--ink); border:1px solid var(--ink); box-shadow:none; }
+  button:disabled{ opacity:0.45; cursor:not-allowed; }
+  button.small{ padding:6px 12px; font-size:0.8rem; }
+
+  select, input[type=text], input[type=number]{
+    font-family:'Courier Prime',monospace; font-size:0.9rem;
+    background: rgba(255,255,255,0.5); border:1px solid rgba(46,36,24,0.4);
+    padding:7px 9px; color:var(--ink);
+  }
+  label{ font-family:'Courier Prime',monospace; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); display:block; margin-bottom:4px;}
+
+  .choice-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin: 10px 0; }
+  @media (max-width:520px){ .choice-grid{ grid-template-columns: 1fr; } .stat-grid{grid-template-columns: repeat(2,1fr);} }
+
+  .card-opt{
+    border:1px solid rgba(46,36,24,0.35); padding:12px; cursor:pointer; background: rgba(255,255,255,0.25);
+    transition: transform 0.12s ease, background 0.12s ease;
+  }
+  .card-opt:hover{ background: rgba(255,255,255,0.5); transform: translateY(-2px); }
+  .card-opt.selected{ border-color: var(--rust); background: rgba(181,69,27,0.12); }
+  .card-opt h3{ font-size:1rem; }
+  .card-opt .price{ font-family:'Courier Prime',monospace; color: var(--rust); font-weight:700; }
+  .muted{ color: var(--ink-soft); font-size:0.85rem; }
+
+  .scene-svg{ width:100%; height:auto; display:block; margin-bottom:12px; border:1px solid rgba(46,36,24,0.35); animation: fadeIn 0.6s ease; }
+
+  .postcard-frame{ position:relative; overflow:hidden; border:4px double var(--ink); margin:10px 0 14px; box-shadow:0 4px 16px rgba(0,0,0,0.25); }
+  .postcard-frame .scene-svg{ border:none; margin-bottom:0; animation: kenBurns 9s ease-in-out infinite alternate; }
+  @keyframes kenBurns{ from{ transform:scale(1) translate(0,0);} to{ transform:scale(1.08) translate(-1.5%,-1%);} }
+  .postcard-caption{
+    position:absolute; bottom:0; left:0; right:0; background:rgba(46,36,24,0.72); color:var(--parchment);
+    font-family:'Bitter',serif; font-weight:700; text-align:center; padding:9px 10px;
+    letter-spacing:0.05em; text-transform:uppercase; font-size:0.95rem;
+  }
+
+  .history-note{ background: rgba(255,255,255,0.3); border-left: 3px solid var(--ink-soft); padding: 4px 16px; margin: 14px 0; }
+  .history-note p{ font-size:0.92rem; }
+  .fact-callout{
+    position:relative; margin: 16px 0 10px; padding: 12px 16px 12px 44px;
+    background: rgba(184,137,31,0.1); border: 1px dashed var(--gold);
+    transform: rotate(-0.6deg); font-size: 0.86rem; color: var(--ink-soft);
+  }
+  .fact-callout::before{
+    content:"✦"; position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    font-size:1.3rem; color: var(--gold);
+  }
+  .fact-callout strong{ color: var(--ink); font-family:'Bitter',serif; }
+
+  .trade-row{ display:flex; align-items:center; gap:8px; margin:10px 0; flex-wrap:wrap; }
+  .trade-row .name{ flex:1; min-width:160px; }
+  .trade-row .price{ font-family:'Courier Prime',monospace; font-size:0.8rem; color:var(--ink-soft); min-width:110px; }
+  .trade-qty{ font-family:'Courier Prime',monospace; width:72px; flex-shrink:0; text-align:center; display:inline-block; }
+
+  .mute-btn{
+    position:fixed; top:14px; right:14px; z-index:60; width:38px;height:38px;border-radius:50%;
+    background:var(--ink); color:var(--parchment); border:1px solid #000; font-size:16px; cursor:pointer;
+    box-shadow:0 2px 6px rgba(0,0,0,0.35); padding:0; display:flex; align-items:center; justify-content:center;
+  }
+
+  .walker-scene{ position:relative; height:110px; overflow:hidden; border:2px solid var(--ink); background: linear-gradient(180deg, #cfe3c9 0%, #cfe3c9 60%, transparent 60%); margin:14px 0 6px; }
+  .weather-strip{ display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 4px; animation: fadeIn 0.4s ease; }
+  .weather-day{ font-family:'Courier Prime',monospace; font-size:0.7rem; color:var(--ink-soft); background: rgba(255,255,255,0.35); border:1px solid rgba(46,36,24,0.25); padding:4px 8px; display:flex; align-items:center; gap:5px; }
+  .weather-day-label{ opacity:0.7; }
+  .weather-day-emoji{ font-size:1rem; }
+  .walker-ground{ position:absolute; left:0; right:0; bottom:0; height:36px; background: repeating-linear-gradient(90deg, #8a9468 0 20px, #6b7a5e 20px 40px); animation: groundScroll 0.5s linear infinite; }
+  .walker-track{ position:absolute; left:0; right:0; bottom:34px; height:2px; background: repeating-linear-gradient(90deg, #4a3b28 0 8px, transparent 8px 16px); opacity:0.5; }
+  .walker-rig{ position:absolute; bottom:32px; transition-property:left; transition-timing-function:linear; }
+  .rig-svg{ width:170px; height:70px; display:block; }
+  .wheel-group{ animation: spinWheel 0.5s linear infinite; }
+  .leg{ animation: legSwing 0.5s ease-in-out infinite; }
+  .leg-a{ animation-delay:0s; }
+  .leg-b{ animation-delay:0.25s; }
+  @keyframes spinWheel{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+  @keyframes legSwing{ 0%,100%{transform:rotate(20deg);} 50%{transform:rotate(-20deg);} }
+  @keyframes groundScroll{ from{background-position-x:0;} to{background-position-x:-40px;} }
+
+  /* weather overlay during travel */
+  .walker-scene.weather-rain::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 16px);
+    animation: rainFall 0.35s linear infinite;
+  }
+  .walker-scene.weather-snow::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.9) 1.6px, transparent 1.6px);
+    background-size: 20px 20px;
+    animation: snowFall 1.3s linear infinite;
+  }
+  @keyframes rainFall{ from{background-position:0 0;} to{background-position:-18px 34px;} }
+  @keyframes snowFall{ from{background-position:0 0;} to{background-position:12px 44px;} }
+  .walker-scene.weather-rain .walker-ground{ position:absolute; }
+  .walker-scene.weather-rain .walker-ground::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(circle at 15% 65%, rgba(45,32,18,0.65) 0 5px, transparent 6px),
+      radial-gradient(circle at 38% 30%, rgba(45,32,18,0.6) 0 4px, transparent 5px),
+      radial-gradient(circle at 58% 70%, rgba(45,32,18,0.65) 0 5px, transparent 6px),
+      radial-gradient(circle at 78% 35%, rgba(45,32,18,0.6) 0 4px, transparent 5px),
+      radial-gradient(circle at 92% 68%, rgba(45,32,18,0.6) 0 4px, transparent 5px),
+      rgba(45,32,18,0.4);
+    background-size: 46px 46px, 46px 46px, 46px 46px, 46px 46px, 46px 46px, auto;
+  }
+  .walker-scene.weather-snow .walker-ground::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background: rgba(240,245,240,0.82);
+  }
+
+  /* event vignettes */
+  .vignette-frame{ margin:14px 0 6px; }
+  @keyframes fireGlow{ 0%,100%{opacity:0.45;} 50%{opacity:0.75;} }
+  .fire-glow{ animation: fireGlow 1s ease-in-out infinite; }
+  @keyframes sneakCreep{ 0%{transform:translateX(0);} 100%{transform:translateX(-70px);} }
+  .sneak-anim{ animation: sneakCreep 1.8s ease-in forwards; transform-box:fill-box; }
+  @keyframes stealArc{ 0%{transform:translate(0,0) rotate(0deg); opacity:1;} 100%{transform:translate(-90px,-15px) rotate(-30deg); opacity:0;} }
+  .steal-anim{ animation: stealArc 1.8s ease-in forwards; transform-box:fill-box; }
+  @keyframes rollAway{ 0%{transform:translate(0,0) rotate(0deg);} 100%{transform:translate(140px,6px) rotate(300deg);} }
+  .roll-away{ animation: rollAway 1.6s cubic-bezier(.3,.6,.6,1) forwards; transform-box:fill-box; }
+  @keyframes dustPuff{ 0%{opacity:0.6; transform:scale(0.6);} 100%{opacity:0; transform:scale(1.6) translateY(-6px);} }
+  .dust-puff{ animation: dustPuff 1s ease-out infinite; transform-box:fill-box; transform-origin:center; }
+  .dust-2{ animation-delay:0.25s; }
+  .dust-3{ animation-delay:0.5s; }
+  @keyframes dizzySwirl{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-3px);} }
+  .dizzy-lines{ animation: dizzySwirl 1.2s ease-in-out infinite; transform-box:fill-box; }
+  @keyframes hailDrop{ 0%{transform:translateY(-8px); opacity:0;} 25%{opacity:1;} 100%{transform:translateY(16px); opacity:0;} }
+  .hail-stone{ animation: hailDrop 0.7s linear infinite; transform-box:fill-box; transform-origin:center; }
+  @keyframes bushSway{ 0%,100%{transform:rotate(-1.5deg);} 50%{transform:rotate(1.5deg);} }
+  .berry-bush{ animation: bushSway 2.6s ease-in-out infinite; transform-box:fill-box; transform-origin:bottom center; }
+
+  canvas#huntCanvas{ width:100%; height:auto; display:block; background:#cfe3c9; border:2px solid var(--ink); touch-action:none; }
+  .hunt-hud{ display:flex; justify-content:space-between; font-family:'Courier Prime',monospace; font-size:0.82rem; margin-bottom:6px; }
+  .hunt-controls{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; flex-wrap:wrap; gap:16px; }
+  .dpad{ display:grid; grid-template-columns:repeat(3,42px); grid-template-rows:repeat(3,42px); gap:4px; }
+  .dpad button{ padding:0; font-size:1.1rem; line-height:1; }
+  .dpad .spacer{ visibility:hidden; }
+  .shoot-btn{ width:76px; height:76px; border-radius:50%; font-size:0.85rem; }
+  .hunt-tip{ font-family:'Courier Prime',monospace; font-size:0.72rem; color:var(--ink-soft); margin-top:6px; }
+
+  footer.credit{ text-align:center; font-family:'Courier Prime',monospace; font-size:0.68rem; color: var(--ink-soft); opacity:0.6; margin-top: 10px;}
+
+  .highscore-table{ margin: 10px 0; }
+  .hs-row{
+    display:flex; align-items:center; gap:12px; padding:7px 10px;
+    border-bottom:1px solid rgba(46,36,24,0.15); font-family:'Courier Prime',monospace; font-size:0.85rem;
+  }
+  .hs-row:first-child{ border-top:1px solid rgba(46,36,24,0.15); }
+  .hs-rank{ color:var(--ink-soft); width:2.2em; flex-shrink:0; }
+  .hs-initials{ font-weight:700; letter-spacing:0.08em; width:3em; flex-shrink:0; color:var(--rust); }
+  .hs-score{ font-weight:700; width:4.5em; flex-shrink:0; }
+  .hs-meta{ color:var(--ink-soft); font-size:0.78rem; }
+  .hs-row.hs-new{ background: rgba(184,137,31,0.15); animation: pulseSick 1.4s ease-in-out 2; border-left:3px solid var(--gold); padding-left:7px; }
+  .initials-row{ display:flex; gap:10px; align-items:center; margin:10px 0; }
+  .initials-row input{
+    font-family:'Courier Prime',monospace; font-size:1.3rem; font-weight:700; letter-spacing:0.2em;
+    width:4.5em; text-align:center; padding:8px 4px; border:1px solid rgba(46,36,24,0.4);
+    background: rgba(255,255,255,0.5); color:var(--ink);
+  }
+
+  .epitaph-box{ margin:14px 0; padding:12px 14px; background: rgba(255,255,255,0.3); border:1px dashed rgba(46,36,24,0.35); animation: fadeIn 0.4s ease; }
+  .epitaph-box label{ margin-bottom:6px; }
+  .epitaph-box textarea{
+    width:100%; font-family:'Lora',serif; font-style:italic; font-size:0.92rem; color:var(--ink);
+    background: rgba(255,255,255,0.5); border:1px solid rgba(46,36,24,0.35); padding:8px 10px; resize:vertical;
+  }
+  .memorial-box{ margin:12px 0; padding:10px 14px; background: rgba(74,59,40,0.06); border-left:3px solid var(--ink-soft); animation: fadeIn 0.4s ease; }
+  .memorial-title{ font-family:'Bitter',serif; font-weight:700; font-size:0.85rem; margin-bottom:6px; }
+  .memorial-entry{ font-size:0.85rem; font-style:italic; color:var(--ink-soft); margin:3px 0; }
+</style>
+</head>
+<body>
+<button class="mute-btn" id="muteBtn" onclick="toggleMute()">🔊</button>
+<div class="wrap" id="app"></div>
+
+<script>
+/* =================== AUDIO ENGINE =================== */
+const AudioEngine = (function(){
+  let ctx = null, muted = false, ambientGain = null;
+  function ensureCtx(){
+    if(!ctx){ ctx = new (window.AudioContext||window.webkitAudioContext)(); }
+    if(ctx.state === 'suspended'){ ctx.resume(); }
+    return ctx;
+  }
+  function tone(freq, dur, type, vol, delay){
+    if(muted) return;
+    type = type || 'sine'; vol = vol===undefined?0.18:vol; delay = delay||0;
+    const c = ensureCtx();
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(c.destination);
+    const t0 = c.currentTime + delay;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    o.start(t0); o.stop(t0+dur+0.03);
+  }
+  function noiseBurst(dur, vol, filterFreq){
+    if(muted) return;
+    dur=dur||0.2; vol=vol||0.15; filterFreq=filterFreq||1500;
+    const c = ensureCtx();
+    const size = Math.max(1,Math.floor(c.sampleRate*dur));
+    const buffer = c.createBuffer(1,size,c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<size;i++){ data[i] = (Math.random()*2-1) * (1 - i/size); }
+    const src = c.createBufferSource(); src.buffer = buffer;
+    const filt = c.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=filterFreq;
+    const g = c.createGain(); g.gain.value = vol;
+    src.connect(filt); filt.connect(g); g.connect(c.destination);
+    src.start();
+  }
+  function startAmbient(){
+    if(ambientGain) return;
+    const c = ensureCtx();
+    const size = c.sampleRate*2;
+    const buffer = c.createBuffer(1,size,c.sampleRate);
+    const data = buffer.getChannelData(0);
+    let last = 0;
+    for(let i=0;i<size;i++){
+      const white = Math.random()*2-1;
+      last = (last + 0.02*white) / 1.02;
+      data[i] = last * 3.2;
+    }
+    const src = c.createBufferSource(); src.buffer = buffer; src.loop = true;
+    const filt = c.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value = 450;
+    ambientGain = c.createGain(); ambientGain.gain.value = muted?0:0.03;
+    src.connect(filt); filt.connect(ambientGain); ambientGain.connect(c.destination);
+    src.start();
+  }
+  function setMuted(m){ muted = m; if(ambientGain) ambientGain.gain.value = muted?0:0.03; }
+  let travelTimer = null;
+  function startTravelTune(){
+    stopTravelTune();
+    const notes = [196.0,246.9,220.0,196.0, 174.6,196.0,220.0,246.9];
+    let i = 0;
+    function playNext(){
+      tone(notes[i % notes.length], 0.16, 'triangle', 0.09);
+      if(i % 4 === 0) tone(notes[i % notes.length]/2, 0.2, 'sine', 0.05);
+      i++;
+      travelTimer = setTimeout(playNext, 210);
+    }
+    playNext();
+  }
+  function stopTravelTune(){
+    if(travelTimer){ clearTimeout(travelTimer); travelTimer = null; }
+  }
+  return {
+    click: ()=> tone(700,0.08,'square',0.05),
+    buy: ()=> { tone(1046,0.06,'square',0.08); tone(1318,0.08,'square',0.08,0.05); },
+    shoot: ()=> { tone(140,0.09,'square',0.16); noiseBurst(0.12,0.14,3200); },
+    hit: ()=> { tone(880,0.12,'triangle',0.2); tone(1320,0.16,'triangle',0.15,0.05); },
+    footstep: ()=> tone(90,0.04,'square',0.03),
+    arrive: ()=> { tone(523,0.22,'triangle',0.16); tone(659,0.22,'triangle',0.15,0.16); tone(784,0.32,'triangle',0.18,0.32); },
+    river: ()=> noiseBurst(0.6,0.12,700),
+    wagon: ()=> noiseBurst(0.3,0.05,500),
+    sick: ()=> tone(220,0.4,'sawtooth',0.09),
+    death: ()=> { tone(196,0.5,'sine',0.15); tone(147,0.6,'sine',0.12,0.3); },
+    theft: ()=> { tone(300,0.09,'square',0.12); tone(180,0.14,'square',0.1,0.09); },
+    axle: ()=> { noiseBurst(0.22,0.22,2200); tone(90,0.15,'square',0.1,0.05); },
+    hail: ()=> { noiseBurst(0.18,0.16,4200); tone(1200,0.05,'square',0.07,0.06); tone(950,0.05,'square',0.06,0.14); tone(1100,0.05,'square',0.06,0.22); },
+    berries: ()=> { tone(660,0.14,'triangle',0.14); tone(880,0.16,'triangle',0.13,0.12); },
+    win: ()=> { [523,659,784,1046].forEach((f,i)=> tone(f,0.32,'triangle',0.18,i*0.15)); },
+    lose: ()=> { tone(220,0.6,'sawtooth',0.1); tone(196,0.8,'sawtooth',0.1,0.3); tone(174,1.0,'sawtooth',0.1,0.6); },
+    startAmbient: startAmbient,
+    startTravelTune: startTravelTune,
+    stopTravelTune: stopTravelTune,
+    toggleMute: ()=> { setMuted(!muted); return muted; }
+  };
+})();
+function toggleMute(){
+  const m = AudioEngine.toggleMute();
+  document.getElementById('muteBtn').textContent = m ? '🔇' : '🔊';
+}
+
+/* =================== STATE =================== */
+const TOTAL_MILES = 2000;
+const STOPS = [
+  {mile:0, name:"Independence, MO", theme:"plains",
+   blurb:"The jumping-off point. Behind you, civilization; ahead, two thousand miles of grass and gamble.",
+   history:["Every spring in the 1840s, Independence swelled with families waiting for the prairie grass to grow tall enough to feed their livestock. Wagons couldn't leave too early — there'd be nothing for the oxen to graze on — and they couldn't leave too late, or snow would catch them in the mountains ahead.","Blacksmiths, wheelwrights, and outfitters did a season's worth of business in a few frantic weeks. Some families waited here for over a month, trading rumors about water, grass, and Native nations along the route."],
+   fact:"Over 300,000 emigrants would eventually follow this same route west between the 1840s and 1860s."},
+  {mile:100, name:"Kansas River Crossing", theme:"river",
+   blurb:"Your first river. The current is a lesson before the mountains test you harder.",
+   history:["This crossing came fast — barely a week out from Independence — and it taught new emigrants what the rest of the trail would demand of them. In dry years wagons could ford it easily; after spring rains it became a genuine hazard.","Kickapoo, Delaware, and Shawnee families living along the river often operated ferries and charged tolls, a fact that surprised emigrants expecting empty wilderness."],
+   fact:"A ferry crossing here could cost $1 to $5 per wagon — real money when a whole outfit cost a few hundred dollars."},
+  {mile:340, name:"Fort Kearney", theme:"fort",
+   blurb:"A welcome sight of walls and a flag after weeks of open prairie. Traders keep a small outpost here.",
+   history:["Established in 1848 along the Platte River, Fort Kearny was built to protect the growing traffic of emigrants, not to fight them — most of its garrison spent the season logging wagon counts and delivering mail rather than fighting battles.","For travelers, it was the first real proof that the U.S. government's reach extended this far. It also meant real news for the first time in weeks: letters, newspapers, and word of trains ahead and behind."],
+   fact:"Army clerks at Fort Kearny counted wagon traffic each season — some years saw more than 5,000 wagons pass through."},
+  {mile:520, name:"Chimney Rock", theme:"rock",
+   blurb:"A spire of pale stone visible for days before you reach it, scratched with initials of travelers before you.",
+   history:["Rising some 300 feet above the North Platte valley, Chimney Rock could be seen for over thirty miles in the clear plains air — travelers wrote of watching it for two or three full days before finally drawing level with it.","It appears in more pioneer diaries and letters than almost any other single landmark on the entire trail, often described as looking like a factory chimney, a candle, or an upturned funnel, depending on who was doing the describing."],
+   fact:"The soft clay and sandstone spire has eroded even in the last 150 years — it was likely taller in 1847 than it is today."},
+  {mile:640, name:"Fort Laramie", theme:"fort",
+   blurb:"The last real fort before the mountains begin in earnest. Prices are steep, and so is what's ahead.",
+   history:["Fort Laramie began in 1834 as a private fur-trading post called Fort William, deep in Lakota, Cheyenne, and Arapaho territory. The U.S. Army bought it in 1849 to garrison the trail, but in 1847 it's still very much a trading post first.","For emigrants it marked roughly a third of the distance to Oregon, and the last chance at real blacksmithing and resupply before the Rockies. Prices here were notoriously high — everything had been hauled in the same hard way you're hauling it now."],
+   fact:"The fort takes its name from Jacques La Ramée, a French-Canadian trapper who vanished on the nearby river around 1821."},
+  {mile:830, name:"Independence Rock", theme:"rock",
+   blurb:"Emigrants who reach this granite dome by early July call it the register of the desert.",
+   history:["A great granite whaleback rising from the Sweetwater valley, Independence Rock earned its name from trappers who celebrated the Fourth of July here in 1830. By the wagon-train years it had become an informal deadline: reach it by early July, and you'd likely clear the mountains before snowfall.","Thousands of travelers carved, painted, or tar-marked their names into its surface — a tradition that predates the wagon trains and continued long after the railroad made them obsolete."],
+   fact:"Jesuit missionary Pierre-Jean De Smet held Catholic mass here in the 1840s and is credited with the nickname 'Register of the Desert.'"},
+  {mile:1000, name:"South Pass", theme:"mountain",
+   blurb:"A gentle break in the Rockies. The Continental Divide, crossed almost without noticing.",
+   history:["Unlike the jagged peaks travelers expected, South Pass is a wide, gradually rising saddle nearly twenty miles across — gentle enough that wagons could cross the entire Continental Divide without a single steep grade.","Fur trappers found the route in the 1810s and 1820s, but it took until the 1830s and 40s for wagon parties to prove it could carry more than pack mules. Without this pass, no wagon road to Oregon would have existed at all."],
+   fact:"The grade is so mild that some emigrant diaries don't even mention crossing the Divide — they simply didn't notice it happening."},
+  {mile:1250, name:"Fort Bridger", theme:"fort",
+   blurb:"A trading post run by mountain men, tucked in a green valley. A chance to mend wagons before the desert.",
+   history:["Mountain man Jim Bridger and his partner Louis Vasquez built this post in 1843, betting correctly that the growing wagon traffic would need blacksmithing, fresh oxen, and supplies more than it needed beaver pelts.","It sits near where the trail forks — one branch continuing toward Oregon, another dropping south toward California and Utah. For many families, this was the last major decision point of the entire journey."],
+   fact:"Jim Bridger was one of the first non-Native men to see the Great Salt Lake, which he reportedly first mistook for the Pacific Ocean."},
+  {mile:1400, name:"Fort Hall", theme:"fort",
+   blurb:"Half-abandoned, but still a lifeline for wagons running low on nearly everything.",
+   history:["Built in 1834 by Boston merchant Nathaniel Wyeth and later sold to the British Hudson's Bay Company, Fort Hall became a crucial waypoint precisely because it was so remote — by the time wagons reached it, most families were dangerously low on food and short on healthy oxen.","Hudson's Bay traders here had every incentive to talk emigrants into turning south toward California instead of continuing to Oregon, and trail diaries are full of complaints about the pitch."],
+   fact:"This is roughly the point where the California Trail splits away — more forks, more decisions, further from any way back."},
+  {mile:1600, name:"Snake River Crossing", theme:"river",
+   blurb:"Wide, cold, and fast. More wagons are lost here than almost anywhere else on the trail.",
+   history:["Fed by mountain snowmelt from hundreds of miles away, the Snake River runs cold even in the height of summer, and its current is deceptively strong. Diaries from this stretch of trail contain a disproportionate share of the journey's drownings and lost livestock.","Later years saw emigrants pioneer alternate routes specifically to avoid the worst of these crossings, but in 1847 there's no way around it — only through."],
+   fact:"Some emigrant families reported floating their wagon beds like makeshift boats to get possessions across dry."},
+  {mile:1780, name:"Blue Mountains", theme:"mountain",
+   blurb:"Dense timber and steep grades slow the wagons to a crawl. Oxen strain against the yoke.",
+   history:["After hundreds of miles of open plains and high desert, the Blue Mountains come as a shock: thick timber, steep pitches, and trail barely wide enough for a wagon axle. Progress here was measured in single miles per day.","On the steepest downhill grades, some parties lowered their wagons by rope, tied off to trees, rather than risk a runaway team on the descent."],
+   fact:"Exhausted teams and worn-out wagons meant this stretch saw some of the highest rates of abandoned possessions on the entire trail."},
+  {mile:1900, name:"The Dalles", theme:"river",
+   blurb:"The Columbia River, and a choice: raft the rapids or grind over the punishing Barlow Road.",
+   history:["For years, The Dalles was the literal end of the wagon road. Families had to dismantle their outfits and raft the Columbia River's rapids — a notoriously dangerous passage that claimed lives nearly every season.","In 1846, Sam Barlow blazed an overland toll road around the south side of Mount Hood specifically so wagons could avoid the river. It was brutal, steep, and expensive — but for many, still safer than the rapids."],
+   fact:"Before the Barlow Road opened, some families spent their very last money building or buying passage on a raft for this final stretch."},
+  {mile:2000, name:"Willamette Valley", theme:"valley",
+   blurb:"Green, wide, and finally still. The journey ends here, one way or another.",
+   history:["The fertile, mild valley waiting at the end of the trail was the entire reason for the journey — glowing letters and newspaper accounts of 'Oregon Fever' had convinced tens of thousands of families that free, rich farmland lay just past the mountains.","Congress made it official in 1850 with the Donation Land Claim Act, granting land outright to those who settled here. For families who'd buried loved ones along the way, arrival was rarely simple relief — but it was, finally, an ending."],
+   fact:"Married couples could claim up to 640 acres under the later Donation Land Claim Act — double what a single settler could claim alone."}
+];
+const RIVER_STOPS = [1,9,11];
+
+let S = null;
+
+function newState(){
+  return {
+    screen: 'title',
+    month: 3, day: 1,
+    occupation: null,
+    money: 0,
+    oxen: 0, food: 0, clothing: 0, ammo: 0, parts: 0, medicine: 0,
+    miles: 0,
+    pace: 'steady',
+    rations: 'filling',
+    party: [],
+    log: [],
+    gameOver: null,
+    lastStopIdx: 0,
+    eventQueue: [],
+    reachedEnd: false,
+    arrivalIdx: 0,
+    tradePrices: null,
+    currentWeather: rollWeather(3),
+    _weekWeather: [],
+    graves: []
+  };
+}
+
+function addLog(msg){
+  S.log.unshift(msg);
+  if(S.log.length > 6) S.log.pop();
+}
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = SCREENS[S.screen]();
+}
+
+function money(n){ return '$' + n.toFixed(0); }
+function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
+function rand(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function aliveMembers(){ return S.party.filter(m=>m.alive); }
+
+function currentStop(){
+  let idx = 0;
+  for(let i=0;i<STOPS.length;i++){ if(STOPS[i].mile<=S.miles) idx=i; }
+  return idx;
+}
+function nextStop(){
+  const idx = currentStop();
+  return STOPS[Math.min(idx+1, STOPS.length-1)];
+}
+function monthName(m){
+  return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1];
+}
+function advanceDate(days){
+  S.day += days;
+  while(S.day > 30){ S.day -= 30; S.month += 1; if(S.month>12) S.month=1; }
+}
+
+function trailSVG(){
+  const pct = clamp(S.miles/TOTAL_MILES,0,1);
+  const w = 640, h=54;
+  let dots = '';
+  STOPS.forEach((st)=>{
+    const x = 10 + (st.mile/TOTAL_MILES)*(w-20);
+    const passed = S.miles >= st.mile;
+    dots += '<circle cx="'+x+'" cy="34" r="4" fill="'+(passed?'#b5451b':'#4a3b28')+'" opacity="'+(passed?1:0.35)+'"/>';
+  });
+  let graveMarks = '';
+  (S.graves||[]).forEach(function(g){
+    const gx = 10 + clamp(g.mile/TOTAL_MILES,0,1)*(w-20);
+    const tooltip = g.epitaph ? (g.name+' — "'+g.epitaph+'"') : g.name;
+    graveMarks += '<g transform="translate('+gx+',44)">'+
+      '<title>'+escapeHtml(tooltip)+'</title>'+
+      '<line x1="-4" y1="1" x2="4" y2="1" stroke="#3a2c1c" stroke-width="1.6"/>'+
+      '<line x1="0" y1="-6" x2="0" y2="3" stroke="#3a2c1c" stroke-width="1.6"/>'+
+      '</g>';
+  });
+  const wagonX = 10 + pct*(w-20);
+  return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" style="overflow:visible;">'+
+    '<line x1="10" y1="34" x2="'+(w-10)+'" y2="34" stroke="#4a3b28" stroke-width="2" stroke-dasharray="1,7" opacity="0.5"/>'+
+    dots+
+    graveMarks+
+    '<text x="'+wagonX+'" y="26" font-size="16" text-anchor="middle" class="wagon-bounce">🐎</text>'+
+    '</svg>';
+}
+
+function partyHTML(){
+  return '<div class="party">' + S.party.map(function(m){
+    const cls = 'member' + (!m.alive?' dead':(m.sick?' sick':''));
+    const status = !m.alive ? 'deceased' : (m.sick ? m.sick : 'fit');
+    return '<span class="'+cls+'">'+escapeHtml(m.name)+' — '+escapeHtml(status)+'</span>';
+  }).join('') + '</div>';
+}
+
+function statGrid(){
+  return '<div class="stat-grid">'+
+    '<div class="stat"><div class="v">'+money(S.money)+'</div><div class="k">Cash</div></div>'+
+    '<div class="stat"><div class="v">'+S.food+' lb</div><div class="k">Food</div></div>'+
+    '<div class="stat"><div class="v">'+S.miles+' mi</div><div class="k">Traveled</div></div>'+
+    '<div class="stat"><div class="v">'+monthName(S.month)+' '+S.day+'</div><div class="k">Date</div></div>'+
+    '</div>';
+}
+
+/* =================== SCENE ART =================== */
+function cloudsSVG(variant){
+  const sets = [
+    '<g opacity="0.55"><ellipse cx="40" cy="22" rx="18" ry="8" fill="#fff"/><ellipse cx="58" cy="18" rx="14" ry="7" fill="#fff"/><ellipse cx="255" cy="30" rx="20" ry="9" fill="#fff"/><ellipse cx="275" cy="24" rx="12" ry="6" fill="#fff"/></g>',
+    '<g opacity="0.5"><ellipse cx="90" cy="16" rx="16" ry="7" fill="#fff"/><ellipse cx="105" cy="12" rx="12" ry="6" fill="#fff"/><ellipse cx="200" cy="20" rx="18" ry="8" fill="#fff"/></g>',
+    '<g opacity="0.45"><ellipse cx="30" cy="28" rx="14" ry="6" fill="#fff"/><ellipse cx="180" cy="14" rx="20" ry="8" fill="#fff"/><ellipse cx="196" cy="20" rx="10" ry="5" fill="#fff"/></g>'
+  ];
+  return sets[variant % sets.length];
+}
+function birdsSVG(variant){
+  const sets = [
+    '<g stroke="#2e2418" stroke-width="1.3" fill="none" opacity="0.6"><path d="M20,45 q6,-6 12,0 q6,-6 12,0"/><path d="M45,32 q5,-5 10,0 q5,-5 10,0"/></g>',
+    '<g stroke="#2e2418" stroke-width="1.3" fill="none" opacity="0.55"><path d="M250,50 q6,-6 12,0 q6,-6 12,0"/></g>',
+    ''
+  ];
+  return sets[variant % sets.length];
+}
+function sceneSVG(theme, idx){
+  idx = idx===undefined ? -1 : idx;
+  switch(theme){
+    case 'plains': return (
+      '<svg viewBox="0 0 320 150" class="scene-svg" preserveAspectRatio="none">'+
+      '<rect width="320" height="150" fill="#eee2c2"/>'+
+      cloudsSVG(0)+
+      '<ellipse cx="230" cy="35" rx="20" ry="20" fill="#e8c86a" opacity="0.8"/>'+
+      birdsSVG(0)+
+      '<path d="M0,100 Q80,80 160,95 T320,90 V150 H0 Z" fill="#8a9468"/>'+
+      '<path d="M0,118 Q80,102 160,114 T320,110 V150 H0 Z" fill="#6b7a5e"/>'+
+      '<g opacity="0.45" fill="#2e2418"><ellipse cx="245" cy="112" rx="7" ry="4"/><ellipse cx="258" cy="114" rx="6" ry="3.5"/><ellipse cx="270" cy="111" rx="7" ry="4"/><ellipse cx="282" cy="113" rx="5" ry="3"/></g>'+
+      '<path d="M0,135 Q80,124 160,132 T320,128 V150 H0 Z" fill="#4c5842"/>'+
+      (idx===0 ? (
+        '<g transform="translate(40,108)">'+
+        '<rect x="-2" y="-22" width="4" height="22" fill="#4a3b28"/><rect x="10" y="-22" width="4" height="22" fill="#4a3b28"/>'+
+        '<rect x="22" y="-22" width="4" height="22" fill="#4a3b28"/><rect x="34" y="-22" width="4" height="22" fill="#4a3b28"/>'+
+        '<line x1="-2" y1="-14" x2="38" y2="-14" stroke="#4a3b28" stroke-width="2"/>'+
+        '<line x1="-2" y1="-4" x2="38" y2="-4" stroke="#4a3b28" stroke-width="2"/>'+
+        '</g>'
+      ) : '')+
+      '<g transform="translate(150,88)"><g class="wagon-bounce">'+
+      '<rect x="-16" y="-8" width="32" height="16" fill="#7c4a24" stroke="#2e2418" stroke-width="1.5"/>'+
+      '<path d="M-16,-8 Q0,-24 16,-8" fill="none" stroke="#e8dcc4" stroke-width="2.5"/>'+
+      '<circle cx="-10" cy="10" r="5" fill="#2e2418"/><circle cx="10" cy="10" r="5" fill="#2e2418"/>'+
+      '</g></g></svg>' );
+    case 'river': return (
+      '<svg viewBox="0 0 320 150" class="scene-svg" preserveAspectRatio="none">'+
+      '<rect width="320" height="150" fill="#e3dcc0"/>'+
+      cloudsSVG(1)+
+      (idx===9 ? '<rect x="0" y="60" width="320" height="40" fill="#8a7a5e" opacity="0.25"/>' : '')+
+      '<path d="M0,80 Q60,65 120,80 T240,80 T320,75 V150 H0 Z" fill="#8a9468"/>'+
+      '<path d="M0,100 L320,90 L320,150 L0,150 Z" fill="'+(idx===9?'#5f7a8a':'#8a6a3f')+'" opacity="0.9"/>'+
+      (idx===9 || idx===11 ? (
+        '<g fill="#f0ead8" opacity="0.6">'+
+        '<path d="M30,108 l6,-6 l6,6 l6,-6 l6,6"/>'+
+        '<path d="M120,118 l6,-6 l6,6 l6,-6 l6,6"/>'+
+        '<path d="M220,112 l6,-6 l6,6 l6,-6 l6,6"/>'+
+        '</g>'
+      ) : (
+        '<path d="M0,105 Q40,100 80,106 T160,104 T240,108 T320,102" fill="none" stroke="#e8dcc4" stroke-width="2" opacity="0.5"/>'+
+        '<path d="M0,120 Q40,115 80,121 T160,119 T240,123 T320,117" fill="none" stroke="#e8dcc4" stroke-width="2" opacity="0.4"/>'+
+        '<path d="M0,135 Q40,130 80,136 T160,134 T240,138 T320,132" fill="none" stroke="#e8dcc4" stroke-width="2" opacity="0.3"/>'
+      ))+
+      (idx===11 ? (
+        '<path d="M240,80 Q260,65 250,45 Q270,35 260,15" fill="none" stroke="#8a7a5e" stroke-width="4" opacity="0.5"/>'
+      ) : (
+        '<g transform="translate(40,95)"><rect x="-1" y="-14" width="2" height="14" fill="#4c5842"/><ellipse cx="0" cy="-16" rx="6" ry="3" fill="#6b7a5e"/></g>'+
+        '<g transform="translate(55,98)"><rect x="-1" y="-10" width="2" height="10" fill="#4c5842"/><ellipse cx="0" cy="-12" rx="5" ry="2.5" fill="#6b7a5e"/></g>'
+      ))+
+      '</svg>' );
+    case 'fort': return (
+      '<svg viewBox="0 0 320 150" class="scene-svg" preserveAspectRatio="none">'+
+      '<rect width="320" height="150" fill="#e9dfc4"/>'+
+      cloudsSVG(2)+
+      (idx===7 ? '<polygon points="0,70 60,35 130,70 200,30 260,65 320,70 320,150 0,150" fill="#4c5842" opacity="0.35"/>' : '')+
+      (idx===8 ? '<path d="M0,95 L320,88 L320,150 L0,150 Z" fill="#5f7a8a" opacity="0.4"/>' : '')+
+      '<path d="M0,110 Q160,95 320,110 V150 H0 Z" fill="#8a9468"/>'+
+      '<rect x="70" y="55" width="180" height="60" fill="#9a6b3f" stroke="#2e2418" stroke-width="1.5"/>'+
+      '<g stroke="#2e2418" stroke-width="1" opacity="0.4">'+
+      '<line x1="85" y1="55" x2="85" y2="115"/><line x1="100" y1="55" x2="100" y2="115"/>'+
+      '<line x1="115" y1="55" x2="115" y2="115"/><line x1="130" y1="55" x2="130" y2="115"/>'+
+      '<line x1="145" y1="55" x2="145" y2="115"/><line x1="160" y1="55" x2="160" y2="115"/>'+
+      '<line x1="175" y1="55" x2="175" y2="115"/><line x1="190" y1="55" x2="190" y2="115"/>'+
+      '<line x1="205" y1="55" x2="205" y2="115"/><line x1="220" y1="55" x2="220" y2="115"/>'+
+      '<line x1="235" y1="55" x2="235" y2="115"/></g>'+
+      (idx===4 ? '<rect x="75" y="45" width="14" height="14" fill="#9a6b3f" stroke="#2e2418" stroke-width="1.2"/><rect x="231" y="45" width="14" height="14" fill="#9a6b3f" stroke="#2e2418" stroke-width="1.2"/>' : '')+
+      '<rect x="145" y="80" width="30" height="35" fill="#4a3b28" stroke="#2e2418"/>'+
+      '<rect x="158" y="30" width="3" height="30" fill="#4a3b28"/>'+
+      '<path class="wagon-bounce" d="M159,30 L180,38 L159,46 Z" fill="'+
+        (idx===2?'#b5451b': idx===4?'#2c4a3e': idx===7?'#b8891f': idx===8?'#4c5842':'#b5451b')+
+      '"/>'+
+      '</svg>' );
+    case 'rock': return (
+      '<svg viewBox="0 0 320 150" class="scene-svg" preserveAspectRatio="none">'+
+      '<rect width="320" height="150" fill="#e9dcc0"/>'+
+      cloudsSVG(0)+
+      '<path d="M0,115 Q160,100 320,115 V150 H0 Z" fill="#8a9468"/>'+
+      (idx===5 ? (
+        '<polygon points="90,90 105,45 135,35 190,40 215,90" fill="#a9754a" stroke="#2e2418" stroke-width="1.5"/>'+
+        '<polygon points="105,45 135,35 150,55 120,60" fill="#c79363" opacity="0.6"/>'
+      ) : (
+        '<polygon points="160,15 178,90 142,90" fill="#a9754a" stroke="#2e2418" stroke-width="1.5"/>'+
+        '<polygon points="160,15 169,48 151,48" fill="#c79363" opacity="0.7"/>'
+      ))+
+      '<polygon points="120,90 160,88 200,90 195,115 125,115" fill="#8a5a38" stroke="#2e2418" stroke-width="1.2"/>'+
+      '<g stroke="#3a2c1c" stroke-width="0.8" opacity="0.55" fill="none">'+
+      (idx===5 ?
+        '<path d="M140,105 l6,6 M146,105 l-6,6"/><path d="M160,100 l0,9"/><path d="M175,108 l5,4 M180,108 l-5,4"/>'
+        :
+        '<path d="M148,100 l5,5 M153,100 l-5,5"/><path d="M168,105 l0,7"/>'
+      )+
+      '</g>'+
+      '<g transform="translate(250,105)"><g class="wagon-bounce">'+
+      '<rect x="-12" y="-6" width="24" height="12" fill="#7c4a24" stroke="#2e2418" stroke-width="1.2"/>'+
+      '<circle cx="-7" cy="7" r="4" fill="#2e2418"/><circle cx="7" cy="7" r="4" fill="#2e2418"/>'+
+      '</g></g></svg>' );
+    case 'mountain': return (
+      '<svg viewBox="0 0 320 150" class="scene-svg" preserveAspectRatio="none">'+
+      '<rect width="320" height="150" fill="#cfe0d6"/>'+
+      cloudsSVG(1)+
+      '<polygon points="0,110 60,45 110,95 160,30 220,95 270,55 320,110" fill="#4c5842" opacity="0.55"/>'+
+      '<polygon points="0,125 50,75 100,110 150,60 210,115 260,80 320,125" fill="#2c4a3e"/>'+
+      (idx===10 ? (
+        '<g fill="#1f3329">'+
+        '<polygon points="40,125 46,100 52,125"/><polygon points="70,125 76,95 82,125"/>'+
+        '<polygon points="230,125 236,98 242,125"/><polygon points="260,125 266,102 272,125"/>'+
+        '</g>'
+      ) : (
+        '<polygon points="150,60 160,72 140,72" fill="#e8dcc4" opacity="0.85"/>'+
+        '<polygon points="210,115 218,102 202,102" fill="#e8dcc4" opacity="0.7"/>'+
+        '<circle cx="90" cy="118" r="2" fill="#b8891f" opacity="0.8"/><circle cx="240" cy="122" r="2" fill="#b5451b" opacity="0.7"/>'
+      ))+
+      '<path d="M0,140 Q160,128 320,140 V150 H0 Z" fill="#6b7a5e"/>'+
+      '</svg>' );
+    case 'valley': return (
+      '<svg viewBox="0 0 320 150" class="scene-svg" preserveAspectRatio="none">'+
+      '<rect width="320" height="150" fill="#eaf2df"/>'+
+      '<circle cx="260" cy="35" r="22" fill="#e8c86a"/>'+
+      '<path d="M50,55 A90,90 0 0 1 270,55" fill="none" stroke="#b5451b" stroke-width="2" opacity="0.35"/>'+
+      '<path d="M56,60 A82,82 0 0 1 264,60" fill="none" stroke="#b8891f" stroke-width="2" opacity="0.35"/>'+
+      '<path d="M62,65 A74,74 0 0 1 258,65" fill="none" stroke="#6b7a5e" stroke-width="2" opacity="0.35"/>'+
+      birdsSVG(1)+
+      '<path d="M0,95 Q80,75 160,90 T320,80 V150 H0 Z" fill="#8fae6f"/>'+
+      '<path d="M0,115 Q80,98 160,110 T320,102 V150 H0 Z" fill="#6b7a5e"/>'+
+      '<path d="M0,132 Q80,120 160,128 T320,122 V150 H0 Z" fill="#4c5842"/>'+
+      '<g transform="translate(70,100)"><rect x="-1.5" y="-20" width="3" height="20" fill="#4a3b28"/><ellipse cx="0" cy="-24" rx="10" ry="9" fill="#6b7a5e"/></g>'+
+      '<g transform="translate(240,110)"><rect x="-1.5" y="-16" width="3" height="16" fill="#4a3b28"/><ellipse cx="0" cy="-19" rx="8" ry="7" fill="#6b7a5e"/></g>'+
+      '<g transform="translate(100,115)"><rect x="-1.5" y="-14" width="3" height="14" fill="#4a3b28"/><ellipse cx="0" cy="-17" rx="7" ry="6" fill="#4c5842"/></g>'+
+      '<g transform="translate(150,105)"><g class="wagon-bounce">'+
+      '<rect x="-14" y="-7" width="28" height="14" fill="#7c4a24" stroke="#2e2418" stroke-width="1.5"/>'+
+      '<path d="M-14,-7 Q0,-22 14,-7" fill="none" stroke="#e8dcc4" stroke-width="2.5"/>'+
+      '<circle cx="-9" cy="9" r="4.5" fill="#2e2418"/><circle cx="9" cy="9" r="4.5" fill="#2e2418"/>'+
+      '</g></g></svg>' );
+    default: return '';
+  }
+}
+
+/* =================== WAGON RIG (travel animation) =================== */
+function oxenGroupSVG(bodyColor, legAFirst){
+  const legA = legAFirst ? 'leg-a' : 'leg-b';
+  const legB = legAFirst ? 'leg-b' : 'leg-a';
+  return '<g>'+
+    '<line x1="2" y1="22" x2="-5" y2="31" stroke="#2e2418" stroke-width="2"/>'+
+    '<ellipse cx="16" cy="24" rx="14" ry="9" fill="'+bodyColor+'" stroke="#2e2418" stroke-width="1.5"/>'+
+    '<circle cx="31" cy="19" r="6.5" fill="'+bodyColor+'" stroke="#2e2418" stroke-width="1.5"/>'+
+    '<ellipse cx="26" cy="14" rx="3" ry="2" fill="'+bodyColor+'" stroke="#2e2418" stroke-width="1"/>'+
+    '<polygon points="27,11 30,3 33,11" fill="#3a2c1c"/>'+
+    '<polygon points="31,11 34,3 37,11" fill="#3a2c1c"/>'+
+    '<circle cx="34" cy="18" r="1.1" fill="#2e2418"/>'+
+    '<rect class="leg '+legA+'" x="8" y="32" width="4" height="14" fill="#2e2418" style="transform-box:fill-box; transform-origin:top center;"/>'+
+    '<rect class="leg '+legB+'" x="22" y="32" width="4" height="14" fill="#2e2418" style="transform-box:fill-box; transform-origin:top center;"/>'+
+    '</g>';
+}
+function wagonRigSVG(){
+  return '<svg viewBox="0 0 165 60" class="rig-svg">'+
+    '<g transform="translate(0,6)">'+
+    '<path d="M0,12 Q25,-9 50,12 Z" fill="#f5efdc" stroke="#2e2418" stroke-width="1.6"/>'+
+    '<rect x="0" y="12" width="50" height="22" fill="#7c4a24" stroke="#2e2418" stroke-width="1.5"/>'+
+    '<g class="wheel-group" style="transform-box:fill-box; transform-origin:center;">'+
+    '<circle cx="12" cy="40" r="8" fill="none" stroke="#2e2418" stroke-width="2"/>'+
+    '<line x1="12" y1="32" x2="12" y2="48" stroke="#2e2418" stroke-width="1.5"/>'+
+    '<line x1="4" y1="40" x2="20" y2="40" stroke="#2e2418" stroke-width="1.5"/>'+
+    '</g>'+
+    '<g class="wheel-group" style="transform-box:fill-box; transform-origin:center;">'+
+    '<circle cx="38" cy="40" r="8" fill="none" stroke="#2e2418" stroke-width="2"/>'+
+    '<line x1="38" y1="32" x2="38" y2="48" stroke="#2e2418" stroke-width="1.5"/>'+
+    '<line x1="30" y1="40" x2="46" y2="40" stroke="#2e2418" stroke-width="1.5"/>'+
+    '</g>'+
+    '<line x1="50" y1="22" x2="70" y2="22" stroke="#4a3b28" stroke-width="3"/>'+
+    '</g>'+
+    '<line x1="120" y1="25" x2="145" y2="25" stroke="#4a3b28" stroke-width="3"/>'+
+    '<g transform="translate(70,6)">'+ oxenGroupSVG('#8a5a38', true) + '</g>'+
+    '<g transform="translate(104,6)">'+ oxenGroupSVG('#7c4a24', false) + '</g>'+
+    '</svg>';
+}
+
+function playDaySequence(index){
+  if(!S._dayResults || index >= S._dayResults.length){
+    S._vignette = null;
+    processQueue();
+    return;
+  }
+  const day = S._dayResults[index];
+  animateDayWalk(day, function(){
+    const remaining = (day.notable || []).slice();
+    function nextNotable(){
+      if(remaining.length === 0){
+        playDaySequence(index+1);
+        return;
+      }
+      const ev = remaining.shift();
+      showEventVignette(ev, nextNotable);
+    }
+    nextNotable();
+  });
+}
+
+function animateDayWalk(day, callback){
+  const duration = clamp(500 + Math.abs(day.milesAfter-day.milesBefore)*8, 550, 1300);
+  S.screen = 'traveling';
+  S._vignette = null;
+  S._travelData = {fromMiles:day.milesBefore, toMiles:day.milesAfter, weather:day.weather};
+  render();
+  AudioEngine.startTravelTune();
+  requestAnimationFrame(function(){
+    const rig = document.getElementById('travelRig');
+    const walkFrom = 6, walkTo = 88;
+    if(rig){
+      rig.style.left = walkFrom + '%';
+      requestAnimationFrame(function(){
+        rig.style.transitionDuration = (duration/1000)+'s';
+        requestAnimationFrame(function(){
+          rig.style.left = walkTo + '%';
+        });
+      });
+    }
+    const start = performance.now();
+    function tick(now){
+      const elapsed = now - start;
+      const p = clamp(elapsed/duration, 0, 1);
+      const milesLbl = document.getElementById('travelMiles');
+      if(milesLbl) milesLbl.textContent = Math.round(day.milesBefore + (day.milesAfter-day.milesBefore)*p);
+      if(p < 1){ requestAnimationFrame(tick); }
+      else {
+        AudioEngine.stopTravelTune();
+        setTimeout(callback, 150);
+      }
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+function showEventVignette(ev, callback){
+  S._vignette = ev;
+  S._vignetteCallback = callback;
+  render();
+  if(AudioEngine[ev.type]) AudioEngine[ev.type]();
+  if(ev.type === 'death'){
+    return; // waits for the player to submit an epitaph via submitEpitaph()
+  }
+  const dur = 2000;
+  setTimeout(function(){
+    S._vignette = null;
+    callback();
+  }, dur);
+}
+
+function submitEpitaph(){
+  const el = document.getElementById('epitaphInput');
+  const text = el ? el.value.trim().slice(0,140) : '';
+  const ev = S._vignette;
+  if(ev && ev.grave){
+    ev.grave.epitaph = text;
+    saveGraveToMemorial(ev.grave);
+  }
+  const cb = S._vignetteCallback;
+  S._vignette = null;
+  S._vignetteCallback = null;
+  render();
+  if(cb) cb();
+}
+
+function vignetteSVG(ev){
+  if(ev.type==='theft') return (
+    '<svg viewBox="0 0 320 130" class="scene-svg" preserveAspectRatio="none">'+
+    '<rect width="320" height="130" fill="#1c2b24"/>'+
+    '<circle cx="264" cy="28" r="13" fill="#e8dcc4" opacity="0.85"/>'+
+    '<circle cx="90" cy="95" r="16" fill="#e8963c" opacity="0.5" class="fire-glow"/>'+
+    '<polygon points="90,100 84,88 96,88" fill="#b5451b"/>'+
+    '<g transform="translate(235,80)">'+
+    '<rect x="-18" y="-10" width="36" height="20" fill="#3a2c1c" stroke="#000" stroke-width="1"/>'+
+    '<path d="M-18,-10 Q0,-24 18,-10" fill="none" stroke="#5a4a38" stroke-width="2.5"/>'+
+    '</g>'+
+    '<g class="sneak-anim">'+
+    '<polygon points="150,70 165,40 180,70" fill="#14201a" stroke="#000" stroke-width="1"/>'+
+    '<circle cx="165" cy="36" r="6" fill="#14201a"/>'+
+    '</g>'+
+    '<text x="200" y="65" font-size="18" class="steal-anim">💰</text>'+
+    '</svg>' );
+  if(ev.type==='axle') return (
+    '<svg viewBox="0 0 320 130" class="scene-svg" preserveAspectRatio="none">'+
+    '<rect width="320" height="130" fill="#e9dfc4"/>'+
+    '<path d="M0,100 L320,100 L320,130 L0,130 Z" fill="#8a9468"/>'+
+    '<g transform="translate(150,75) rotate(-9)">'+
+    '<rect x="-40" y="-16" width="80" height="32" fill="#7c4a24" stroke="#2e2418" stroke-width="1.5"/>'+
+    '<circle cx="20" cy="20" r="14" fill="none" stroke="#2e2418" stroke-width="2.5"/>'+
+    '</g>'+
+    '<g class="roll-away">'+
+    '<circle cx="90" cy="102" r="13" fill="none" stroke="#2e2418" stroke-width="2.5"/>'+
+    '<line x1="90" y1="89" x2="90" y2="115" stroke="#2e2418" stroke-width="1.5"/>'+
+    '<line x1="77" y1="102" x2="103" y2="102" stroke="#2e2418" stroke-width="1.5"/>'+
+    '</g>'+
+    '<g opacity="0.5" fill="#8a7a5e">'+
+    '<circle cx="150" cy="108" r="5" class="dust-puff dust-1"/>'+
+    '<circle cx="168" cy="112" r="4" class="dust-puff dust-2"/>'+
+    '<circle cx="185" cy="107" r="6" class="dust-puff dust-3"/>'+
+    '</g>'+
+    (ev.repaired ? '<text x="230" y="60" font-size="26">🔧</text>' : '')+
+    '</svg>' );
+  if(ev.type==='sick') return (
+    '<svg viewBox="0 0 320 130" class="scene-svg" preserveAspectRatio="none">'+
+    '<rect width="320" height="130" fill="#eee2c2"/>'+
+    '<path d="M0,100 L320,100 L320,130 L0,130 Z" fill="#8a9468"/>'+
+    '<g transform="translate(230,80)">'+
+    '<rect x="-16" y="-10" width="32" height="20" fill="#7c4a24" stroke="#2e2418" stroke-width="1.5"/>'+
+    '<circle cx="-11" cy="12" r="4.5" fill="#2e2418"/><circle cx="11" cy="12" r="4.5" fill="#2e2418"/>'+
+    '</g>'+
+    '<ellipse cx="110" cy="100" rx="45" ry="10" fill="#9a6b3f" opacity="0.6"/>'+
+    '<ellipse cx="110" cy="94" rx="42" ry="9" fill="#c9a875"/>'+
+    '<circle cx="70" cy="88" r="8" fill="#e8c8a0" stroke="#2e2418" stroke-width="1"/>'+
+    '<g class="dizzy-lines" stroke="#4a3b28" stroke-width="1.3" fill="none" opacity="0.7">'+
+    '<path d="M60,72 q4,-6 8,0 q4,-6 8,0"/>'+
+    '</g>'+
+    '</svg>' );
+  if(ev.type==='death') return (
+    '<svg viewBox="0 0 320 130" class="scene-svg" preserveAspectRatio="none">'+
+    '<rect width="320" height="130" fill="#d8c9a8"/>'+
+    '<path d="M0,95 Q160,80 320,95 V130 H0 Z" fill="#9a8560"/>'+
+    '<ellipse cx="160" cy="100" rx="34" ry="8" fill="#7c6a48"/>'+
+    '<g transform="translate(160,58)">'+
+    '<rect x="-3" y="0" width="6" height="42" fill="#5a4632" stroke="#2e2418" stroke-width="1"/>'+
+    '<rect x="-16" y="10" width="32" height="6" fill="#5a4632" stroke="#2e2418" stroke-width="1"/>'+
+    '</g>'+
+    '<circle cx="90" cy="90" r="3" fill="#8a9468"/><circle cx="230" cy="88" r="3" fill="#8a9468"/>'+
+    '<text x="160" y="42" font-size="11" text-anchor="middle" font-family="Bitter, serif" fill="#3a2c1c" transform="rotate(-2,160,42)">'+(ev.name||'')+'</text>'+
+    '</svg>' );
+  if(ev.type==='hail') return (
+    '<svg viewBox="0 0 320 130" class="scene-svg" preserveAspectRatio="none">'+
+    '<rect width="320" height="130" fill="#5a6b6e"/>'+
+    '<ellipse cx="90" cy="24" rx="60" ry="20" fill="#3f4d50" opacity="0.85"/>'+
+    '<ellipse cx="215" cy="18" rx="70" ry="22" fill="#4a5a5d" opacity="0.85"/>'+
+    '<ellipse cx="150" cy="30" rx="50" ry="16" fill="#465356" opacity="0.7"/>'+
+    '<g fill="#eaf2f0">'+
+    '<circle cx="55" cy="40" r="3" class="hail-stone" style="animation-delay:0s;"/>'+
+    '<circle cx="95" cy="55" r="2.6" class="hail-stone" style="animation-delay:0.15s;"/>'+
+    '<circle cx="135" cy="35" r="3.4" class="hail-stone" style="animation-delay:0.3s;"/>'+
+    '<circle cx="175" cy="58" r="3" class="hail-stone" style="animation-delay:0.05s;"/>'+
+    '<circle cx="215" cy="42" r="2.6" class="hail-stone" style="animation-delay:0.25s;"/>'+
+    '<circle cx="250" cy="62" r="3" class="hail-stone" style="animation-delay:0.4s;"/>'+
+    '<circle cx="75" cy="78" r="2.6" class="hail-stone" style="animation-delay:0.2s;"/>'+
+    '<circle cx="160" cy="86" r="3" class="hail-stone" style="animation-delay:0.1s;"/>'+
+    '<circle cx="235" cy="82" r="2.6" class="hail-stone" style="animation-delay:0.35s;"/>'+
+    '</g>'+
+    '<path d="M0,100 L320,100 L320,130 L0,130 Z" fill="#6b7a5e"/>'+
+    '<g transform="translate(160,90)">'+
+    '<rect x="-22" y="-10" width="44" height="20" fill="#7c4a24" stroke="#2e2418" stroke-width="1.5"/>'+
+    '<path d="M-22,-10 Q0,-26 22,-10" fill="none" stroke="#e8dcc4" stroke-width="2.5"/>'+
+    '<circle cx="-13" cy="10" r="4.5" fill="#2e2418"/><circle cx="13" cy="10" r="4.5" fill="#2e2418"/>'+
+    '</g>'+
+    '</svg>' );
+  if(ev.type==='berries') return (
+    '<svg viewBox="0 0 320 130" class="scene-svg" preserveAspectRatio="none">'+
+    '<rect width="320" height="130" fill="#eef2df"/>'+
+    '<circle cx="255" cy="28" r="19" fill="#e8c86a" opacity="0.85"/>'+
+    '<path d="M0,95 Q160,80 320,95 V130 H0 Z" fill="#8a9468"/>'+
+    '<g transform="translate(140,88)"><g class="berry-bush">'+
+    '<ellipse cx="0" cy="0" rx="55" ry="28" fill="#4c5842"/>'+
+    '<ellipse cx="-22" cy="-10" rx="30" ry="21" fill="#6b7a5e"/>'+
+    '<ellipse cx="25" cy="-6" rx="28" ry="19" fill="#5c6b52"/>'+
+    '<g fill="#b5451b">'+
+    '<circle cx="-32" cy="-14" r="3"/><circle cx="-12" cy="-19" r="3"/><circle cx="10" cy="-11" r="3"/>'+
+    '<circle cx="30" cy="-17" r="3"/><circle cx="-22" cy="1" r="3"/><circle cx="14" cy="3" r="3"/>'+
+    '<circle cx="35" cy="-3" r="3"/><circle cx="-4" cy="-6" r="3"/>'+
+    '</g>'+
+    '</g></g>'+
+    '<g transform="translate(235,106)">'+
+    '<path d="M-14,0 L14,0 L10,14 L-10,14 Z" fill="#9a6b3f" stroke="#2e2418" stroke-width="1.2"/>'+
+    '<path d="M-14,0 Q0,-8 14,0" fill="none" stroke="#7c4a24" stroke-width="2"/>'+
+    '<circle cx="-4" cy="5" r="2.6" fill="#b5451b"/><circle cx="4" cy="4" r="2.6" fill="#b5451b"/><circle cx="0" cy="9" r="2.6" fill="#b5451b"/>'+
+    '</g>'+
+    '</svg>' );
+  return '';
+}
+
+function vignetteCaption(ev){
+  if(ev.type==='theft') return `Thieves slip through camp and make off with ${money(ev.amount)}.`;
+  if(ev.type==='axle') return ev.repaired ? `A wheel splits on rough ground — you patch it with a spare part and keep moving.` : `A wheel splits and you have no spare parts. You lose time repairing it with green wood.`;
+  if(ev.type==='sick') return `${ev.name} has come down with ${ev.ailment}.`;
+  if(ev.type==='death') return `You bury ${ev.name} here, and press on in silence.`;
+  if(ev.type==='hail') return `A sudden hailstorm spoils ${ev.lost} lb of your food stores.`;
+  if(ev.type==='berries') return `You pass a berry thicket and gather ${ev.found} lb of food.`;
+  return '';
+}
+function vignetteTitle(ev){
+  if(ev.type==='theft') return 'Thieves in the Night';
+  if(ev.type==='axle') return 'Broken Axle';
+  if(ev.type==='sick') return 'Taken Ill';
+  if(ev.type==='death') return 'A Grave by the Trail';
+  if(ev.type==='hail') return 'Caught in a Hailstorm';
+  if(ev.type==='berries') return 'Berries Along the Trail';
+  return '';
+}
+
+/* =================== OCCUPATIONS =================== */
+const OCCUPATIONS = [
+  {id:'banker', name:"Banker's Son", money:1400, mult:1, desc:"Deep pockets, but the trail doesn't respect a soft palm. Ends with a low score multiplier."},
+  {id:'carpenter', name:"Carpenter", money:800, mult:2, desc:"Handy with tools. Balanced start and a fair multiplier."},
+  {id:'farmer', name:"Farmer", money:400, mult:3, desc:"Thin purse, thick skin. Hardest start, highest reward if you make it."}
+];
+
+/* =================== SCREENS =================== */
+const SCREENS = {};
+
+SCREENS.traveling = () => {
+  const d = S._travelData || {fromMiles:S.miles, toMiles:S.miles};
+  const aheadIdx = Math.min(currentStop()+1, STOPS.length-1);
+  const weatherDays = S._weekWeather || [];
+  const vig = S._vignette;
+  const weather = d.weather;
+  const weatherClass = weather && (weather.type==='rain'||weather.type==='storm') ? 'weather-rain' : (weather && weather.type==='snow' ? 'weather-snow' : '');
+  return `<div class="sheet">
+    <h2>${vig ? vignetteTitle(vig) : 'On the Trail'}</h2>
+    <p class="muted">${vig ? vignetteCaption(vig) : `Rolling toward ${STOPS[aheadIdx].name}...`}</p>
+    ${vig ? `<div class="vignette-frame">${vignetteSVG(vig)}</div>` : `
+    <div class="walker-scene ${weatherClass}">
+      <div class="walker-ground"></div>
+      <div class="walker-track"></div>
+      <div class="walker-rig" id="travelRig" style="left:6%;">
+        ${wagonRigSVG()}
+      </div>
+    </div>
+    <div class="trail-label"><span>${d.fromMiles} mi</span><span id="travelMilesLabel"><span id="travelMiles">${d.fromMiles}</span> mi traveled</span><span>${TOTAL_MILES} mi</span></div>`}
+    ${vig && vig.type==='death' ? `
+      <div class="epitaph-box">
+        <label>Say a few words, for whoever passes this way after you</label>
+        <textarea id="epitaphInput" maxlength="140" rows="2" placeholder="Loved by the whole family. Gone too soon."></textarea>
+        <div class="btn-row">
+          <button class="rust" onclick="submitEpitaph()">Leave These Words</button>
+          <button class="ghost" onclick="submitEpitaph()">Say Nothing, Move On</button>
+        </div>
+      </div>
+    ` : ''}
+    ${weatherDays.length ? `<div class="weather-strip">${weatherDays.map((w,i)=>`<span class="weather-day"><span class="weather-day-label">Day ${i+1}</span><span class="weather-day-emoji">${w.emoji}</span>${WEATHER_LABELS[w.type]}</span>`).join('')}</div>` : ''}
+  </div>`;
+};
+
+SCREENS.title = () => `
+  <div class="sheet masthead">
+    <div class="sub">— Est. 1847 · A Journal of the Overland Road —</div>
+    <h1>The Willamette Trail to Oregon</h1>
+    <div class="rule"></div>
+    <p>Come for opportunity. Come for fertile land, free for the taking. Flourish alongside other families just like yours, and stake your claim to a piece of the American dream — a promise Congress would make law a few years later with the Oregon Donation Land Act of 1850.</p>
+    <p class="muted" style="font-size:0.76rem;">Source: <a href="https://www.history.com/articles/oregon-trail" target="_blank" rel="noopener" style="color:var(--rust);">History.com, "Oregon Trail"</a></p>
+    <div class="rule thin"></div>
+    <p>Two thousand miles of prairie, river, and mountain stand between Independence, Missouri and the green valleys of Oregon. Spring mud is thawing. Your wagon is loaded. Whether you arrive at all is mostly up to the choices you make between here and there.</p>
+    <div class="btn-row" style="justify-content:center;">
+      <button class="rust" onclick="goToOccupation()">Set Out ▸</button>
+      <button class="ghost" onclick="viewHighScores()">High Scores</button>
+    </div>
+  </div>
+  <footer class="credit">a small game about oxen, ambition, and dysentery</footer>
+`;
+
+function viewHighScores(){
+  AudioEngine.click();
+  S.screen = 'highscores';
+  render();
+}
+SCREENS.highscores = () => `
+  <div class="sheet">
+    <h2>High Scores</h2>
+    <p class="muted">The record book of those who reached Oregon.</p>
+    ${highScoreTableHTML()}
+    <div class="btn-row"><button class="ghost" onclick="S.screen='title'; render();">Back</button></div>
+  </div>
+`;
+
+function goToOccupation(){
+  AudioEngine.click();
+  AudioEngine.startAmbient();
+  S.screen = 'occupation';
+  render();
+}
+
+SCREENS.occupation = () => `
+  <div class="sheet">
+    <h2>Choose Your Trade</h2>
+    <p class="muted">Your former life sets your starting purse — and how the journey scores you at the end.</p>
+    <div class="choice-grid">
+      ${OCCUPATIONS.map(o=>`
+        <div class="card-opt" onclick="selectOccupation('${o.id}')">
+          <h3>${o.name}</h3>
+          <div class="price">${money(o.money)}</div>
+          <p class="muted">${o.desc}</p>
+        </div>`).join('')}
+    </div>
+  </div>
+`;
+
+function selectOccupation(id){
+  AudioEngine.click();
+  const o = OCCUPATIONS.find(x=>x.id===id);
+  S.occupation = o;
+  S.money = o.money;
+  S.screen = 'names';
+  render();
+}
+
+SCREENS.names = () => `
+  <div class="sheet">
+    <h2>Name Your Party</h2>
+    <p class="muted">Five souls set out together. Give them names — you'll come to know them well.</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0;">
+      ${[0,1,2,3,4].map(i=>`<div>
+        <label>${i===0? 'You' : 'Companion '+i}</label>
+        <input type="text" id="name${i}" value="${defaultName(i)}" style="width:100%;">
+      </div>`).join('')}
+    </div>
+    <div class="btn-row">
+      <button class="rust" onclick="confirmNames()">Head to the Outfitter ▸</button>
+    </div>
+  </div>
+`;
+function defaultName(i){
+  const names = ["Ezra","Mercy","Silas","Ada","Jeb"];
+  return names[i];
+}
+function confirmNames(){
+  AudioEngine.click();
+  S.party = [0,1,2,3,4].map(i=>{
+    const el = document.getElementById('name'+i);
+    const v = el ? el.value.trim() : '';
+    return {name: v || defaultName(i), alive:true, sick:null};
+  });
+  S.screen = 'store';
+  render();
+}
+
+SCREENS.store = () => `
+  <div class="sheet">
+    <h2>The Outfitter's Store</h2>
+    <p class="muted">${S.occupation.name} — ${money(S.money)} on hand. Spend wisely; you can't come back for more.</p>
+    ${storeRow('oxen','Oxen','team',12,'Pull power. More oxen, faster and safer travel.',1,'')}
+    ${storeRow('food','Food','100 lb sack',40,"Feeds the party. Hunt more on the trail, but don't count on it.",100,' lb')}
+    ${storeRow('ammo','Ammunition','box of 20 rounds',2,'Needed for hunting and defense.',20,' rds')}
+    ${storeRow('clothing','Clothing','set',6,'Keeps the party warm through cold nights and mountain passes.',1,'')}
+    ${storeRow('parts','Spare Parts','set',9,'Wagon wheels, axles, tongues. Breakdowns happen.',1,'')}
+    ${storeRow('medicine','Medicine','vial',5,'Treats illness on the trail. Cheap insurance.',1,'')}
+    <div class="rule thin"></div>
+    <div class="stat-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="stat"><div class="v">${money(S.money)}</div><div class="k">Remaining</div></div>
+      <div class="stat"><div class="v">${money(S.occupation.money - S.money)}</div><div class="k">Spent so far</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="rust" ${S.oxen<1?'disabled':''} onclick="startTrail()">Depart Independence ▸</button>
+    </div>
+    ${S.oxen<1 ? "<p class=\"muted\">You'll need at least one team of oxen to pull the wagon.</p>" : ''}
+  </div>
+`;
+
+function storeRow(key,label,unit,price,desc,step,suffix){
+  step = step || 1;
+  suffix = suffix || '';
+  const qtyDisplay = `${S[key]}${suffix}`;
+  return `<div class="trade-row">
+    <div class="name"><strong>${label}</strong> <span class="muted">(${money(price)}/${unit})</span>
+      <div class="muted" style="font-size:0.8rem;">${desc}</div>
+    </div>
+    <button class="small ghost" onclick="buy('${key}',${price},-1,${step})">−</button>
+    <span class="trade-qty">${qtyDisplay}</span>
+    <button class="small" onclick="buy('${key}',${price},1,${step})">+</button>
+  </div>`;
+}
+function buy(key, price, dir, step){
+  step = step || 1;
+  if(dir>0){
+    if(S.money >= price){ S.money -= price; S[key]+=step; AudioEngine.buy(); }
+  } else {
+    if(S[key]>=step){ S.money += price; S[key]-=step; AudioEngine.click(); }
+  }
+  render();
+}
+
+function startTrail(){
+  AudioEngine.click();
+  S.screen='trail';
+  addLog(`Day 1 — The wagon rolls out of ${STOPS[0].name}. ${aliveMembers().length} souls aboard, ${S.oxen} oxen in the yoke.`);
+  render();
+}
+
+SCREENS.trail = () => {
+  const milesLeft = TOTAL_MILES - S.miles;
+  const w = S.currentWeather || {emoji:'☀️', type:'sunny'};
+  return `
+  <div class="sheet">
+    <div class="masthead" style="text-align:left; padding-bottom:0;">
+      <div class="sub">${monthName(S.month)} ${S.day} · ${w.emoji} ${WEATHER_LABELS[w.type]} · Somewhere past ${STOPS[currentStop()].name}</div>
+      <h1 style="font-size:1.4rem;">The Trail</h1>
+    </div>
+    <div class="trail-track">${trailSVG()}</div>
+    <div class="trail-label"><span>Independence</span><span>${milesLeft} mi to Willamette Valley</span></div>
+    ${memorialHTML()}
+    ${statGrid()}
+    ${partyHTML()}
+    <div class="log">${S.log.map(l=>'<span class="log-entry">'+l+'</span>').join('')}</div>
+    <div class="rule thin"></div>
+    <div class="choice-grid">
+      <div>
+        <label>Pace</label>
+        <select id="paceSel" onchange="S.pace=this.value; render();">
+          <option value="steady" ${S.pace==='steady'?'selected':''}>Steady</option>
+          <option value="strenuous" ${S.pace==='strenuous'?'selected':''}>Strenuous</option>
+          <option value="grueling" ${S.pace==='grueling'?'selected':''}>Grueling</option>
+          <option value="rest" ${S.pace==='rest'?'selected':''}>Rest & Heal</option>
+        </select>
+        ${S.pace==='rest' ? '<div class="muted" style="font-size:0.78rem; margin-top:4px;">Barely moves the wagon, but greatly improves the odds of the sick recovering.</div>' : ''}
+      </div>
+      <div>
+        <label>Rations</label>
+        <select id="rationSel" onchange="S.rations=this.value">
+          <option value="filling" ${S.rations==='filling'?'selected':''}>Filling</option>
+          <option value="meager" ${S.rations==='meager'?'selected':''}>Meager</option>
+          <option value="bare" ${S.rations==='bare'?'selected':''}>Bare Bones</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="rust" onclick="travelWeek()">Travel ▸</button>
+      <button class="ghost" onclick="goHunt()" ${S.ammo<1?'disabled':''}>Hunt</button>
+      <button class="ghost" onclick="goStatus()">Check Wagon</button>
+    </div>
+  </div>
+  `;
+};
+
+function goStatus(){ AudioEngine.click(); S.screen='status'; render(); }
+SCREENS.status = () => `
+  <div class="sheet">
+    <h2>Supplies</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="v">${S.oxen}</div><div class="k">Oxen</div></div>
+      <div class="stat"><div class="v">${S.food} lb</div><div class="k">Food</div></div>
+      <div class="stat"><div class="v">${S.ammo}</div><div class="k">Ammo</div></div>
+      <div class="stat"><div class="v">${S.clothing}</div><div class="k">Clothing</div></div>
+      <div class="stat"><div class="v">${S.parts}</div><div class="k">Spare Parts</div></div>
+      <div class="stat"><div class="v">${S.medicine}</div><div class="k">Medicine</div></div>
+      <div class="stat"><div class="v">${money(S.money)}</div><div class="k">Cash</div></div>
+      <div class="stat"><div class="v">${aliveMembers().length}/5</div><div class="k">Party</div></div>
+    </div>
+    <div class="btn-row"><button class="ghost" onclick="S.screen='trail';render()">Back to the Trail</button></div>
+  </div>
+`;
+
+/* =================== ARRIVAL / TRADING POST =================== */
+SCREENS.arrival = () => {
+  const stop = STOPS[S.arrivalIdx];
+  return `<div class="sheet">
+    ${sceneSVG(stop.theme, S.arrivalIdx)}
+    <h2>${stop.name}</h2>
+    <p>${stop.blurb}</p>
+    <div class="history-note">
+      ${(stop.history||[]).map(p=>`<p>${p}</p>`).join('')}
+    </div>
+    ${stop.fact ? `<div class="fact-callout"><strong>Did you know?</strong> ${stop.fact}</div>` : ''}
+    ${statGrid()}
+    <div class="btn-row">
+      <button class="ghost" onclick="lookAround()">Look Around ▸</button>
+      ${stop.theme==='fort' ? `<button class="ink" onclick="openTrade()">Visit Trading Post</button>` : ''}
+      <button class="rust" onclick="arrivalContinue()">Continue West ▸</button>
+    </div>
+  </div>`;
+};
+function arrivalContinue(){ AudioEngine.click(); processQueue(); }
+
+function lookAround(){
+  AudioEngine.click();
+  S._lookAroundIdx = S.arrivalIdx;
+  S.screen = 'lookaround';
+  render();
+}
+SCREENS.lookaround = () => {
+  const stop = STOPS[S._lookAroundIdx];
+  return `<div class="sheet">
+    <div class="postcard-frame">
+      ${sceneSVG(stop.theme, S._lookAroundIdx)}
+      <div class="postcard-caption">${stop.name}</div>
+    </div>
+    <p class="muted" style="text-align:center; font-style:italic;">${stop.blurb}</p>
+    <div class="btn-row" style="justify-content:center;">
+      <button class="rust" onclick="backFromLookAround()">Back</button>
+    </div>
+  </div>`;
+};
+function backFromLookAround(){
+  AudioEngine.click();
+  S.screen = 'arrival';
+  render();
+}
+
+function openTrade(){
+  AudioEngine.click();
+  const base = {oxen:12, food:40, ammo:2, clothing:6, parts:9, medicine:5};
+  S.tradePrices = {};
+  Object.keys(base).forEach(k=>{ S.tradePrices[k] = +(base[k]*(0.75+Math.random()*0.6)).toFixed(2); });
+  S.screen='trade';
+  render();
+}
+const TRADE_LABELS = {oxen:['Oxen','team'], food:['Food','100 lb sack'], ammo:['Ammunition','box of 20'], clothing:['Clothing','set'], parts:['Spare Parts','set'], medicine:['Medicine','vial']};
+const TRADE_STEP = {ammo:20, food:100};
+const TRADE_SUFFIX = {ammo:' rds', food:' lb'};
+SCREENS.trade = () => `
+  <div class="sheet">
+    <h2>Trading Post</h2>
+    <p class="muted">Prices swing from post to post. Sell at a loss, buy at a premium — that's frontier commerce.</p>
+    ${Object.keys(TRADE_LABELS).map(k=>{
+      const [label,unit] = TRADE_LABELS[k];
+      const step = TRADE_STEP[k] || 1;
+      const suffix = TRADE_SUFFIX[k] || '';
+      const buyP = S.tradePrices[k];
+      const sellP = +(buyP*0.55).toFixed(2);
+      const qtyDisplay = `${S[k]}${suffix}`;
+      return `<div class="trade-row">
+        <div class="name"><strong>${label}</strong> <span class="muted">(buy ${money(buyP)} / sell ${money(sellP)} per ${unit})</span></div>
+        <button class="small ghost" onclick="tradeSell('${k}')" ${S[k]<step?'disabled':''}>Sell</button>
+        <span class="trade-qty">${qtyDisplay}</span>
+        <button class="small" onclick="tradeBuy('${k}')" ${S.money<buyP?'disabled':''}>Buy</button>
+      </div>`;
+    }).join('')}
+    <div class="rule thin"></div>
+    <div class="stat-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="stat"><div class="v">${money(S.money)}</div><div class="k">Cash</div></div>
+      <div class="stat"><div class="v">${S.food} lb</div><div class="k">Food</div></div>
+    </div>
+    <div class="btn-row"><button class="rust" onclick="leaveTrade()">Leave Trading Post ▸</button></div>
+  </div>
+`;
+function tradeBuy(key){
+  const step = TRADE_STEP[key] || 1;
+  const p = S.tradePrices[key];
+  if(S.money>=p){ S.money-=p; S[key]+=step; AudioEngine.buy(); render(); }
+}
+function tradeSell(key){
+  const step = TRADE_STEP[key] || 1;
+  if(S[key]>=step){ const p = +(S.tradePrices[key]*0.55).toFixed(2); S.money+=p; S[key]-=step; AudioEngine.buy(); render(); }
+}
+function leaveTrade(){ AudioEngine.click(); processQueue(); }
+
+/* =================== HUNTING (skill-based canvas game) =================== */
+let huntState = null, huntRAF = null, huntKeys = {};
+
+function goHunt(){
+  cancelHunt();
+  const maxAmmo = Math.min(S.ammo, 20);
+  huntState = {
+    player: {x:320, y:150, facing:'down'},
+    animals: spawnAnimals(),
+    bullets: [],
+    ammo: maxAmmo,
+    ammoUsed: 0,
+    food: 0,
+    timeLeft: 35,
+    lastTime: null
+  };
+  S.screen = 'hunt';
+  render();
+  requestAnimationFrame(setupHuntCanvas);
+}
+function spawnAnimals(){
+  const arr = [];
+  const count = rand(5,7);
+  for(let i=0;i<count;i++){
+    const type = pick(['bison','deer','rabbit']);
+    const speed = type==='rabbit'?70:(type==='deer'?50:30);
+    const ang = Math.random()*Math.PI*2;
+    arr.push({
+      id:i, type,
+      x: rand(40,600), y: rand(40,260),
+      vx: Math.cos(ang)*speed, vy: Math.sin(ang)*speed,
+      alive:true,
+      radius: type==='bison'?24:(type==='deer'?17:11),
+      yieldLb: type==='bison'?30:(type==='deer'?12:4),
+      emoji: type==='bison'?'🦬':(type==='deer'?'🦌':'🐇')
+    });
+  }
+  return arr;
+}
+function cancelHunt(){
+  if(huntRAF) cancelAnimationFrame(huntRAF);
+  window.removeEventListener('keydown', huntKeyDown);
+  window.removeEventListener('keyup', huntKeyUp);
+  huntRAF = null; huntKeys = {};
+}
+
+SCREENS.hunt = () => `
+  <div class="sheet">
+    <h2>Hunt for Food</h2>
+    <div class="hunt-hud">
+      <span>Meat: <span id="huntFood">0</span> lb</span>
+      <span>Ammo: <span id="huntAmmo">${huntState?huntState.ammo:0}</span></span>
+      <span>Time: <span id="huntTime">${huntState?huntState.timeLeft:0}</span>s</span>
+    </div>
+    <canvas id="huntCanvas" width="640" height="300"></canvas>
+    <div class="hunt-tip">Arrow keys or WASD to move · Space or Shoot to fire in the direction you're facing.</div>
+    <div class="hunt-controls">
+      <div class="dpad">
+        <span class="spacer"></span><button id="dpadUp">▲</button><span class="spacer"></span>
+        <button id="dpadLeft">◀</button><span class="spacer"></span><button id="dpadRight">▶</button>
+        <span class="spacer"></span><button id="dpadDown">▼</button><span class="spacer"></span>
+      </div>
+      <button class="rust shoot-btn" id="dpadShoot">FIRE</button>
+    </div>
+    <div class="btn-row"><button class="ghost" onclick="endHuntCanvas()">Pack It In</button></div>
+  </div>
+`;
+
+function setupHuntCanvas(){
+  const canvas = document.getElementById('huntCanvas');
+  if(!canvas || !huntState) return;
+  const ctx = canvas.getContext('2d');
+  huntState.lastTime = performance.now();
+  huntKeys = {};
+  window.addEventListener('keydown', huntKeyDown);
+  window.addEventListener('keyup', huntKeyUp);
+  bindHuntButton('dpadUp','arrowup');
+  bindHuntButton('dpadDown','arrowdown');
+  bindHuntButton('dpadLeft','arrowleft');
+  bindHuntButton('dpadRight','arrowright');
+  const shootBtn = document.getElementById('dpadShoot');
+  if(shootBtn){
+    shootBtn.addEventListener('pointerdown', function(e){ e.preventDefault(); fireHunt(); });
+  }
+  huntRAF = requestAnimationFrame(function(t){ huntLoop(t, ctx, canvas); });
+}
+function bindHuntButton(id, key){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('pointerdown', function(e){ e.preventDefault(); huntKeys[key]=true; });
+  el.addEventListener('pointerup', function(){ huntKeys[key]=false; });
+  el.addEventListener('pointerleave', function(){ huntKeys[key]=false; });
+}
+function huntKeyDown(e){
+  const k = e.key.toLowerCase();
+  huntKeys[k]=true;
+  if(k===' '){ e.preventDefault(); fireHunt(); }
+}
+function huntKeyUp(e){ huntKeys[e.key.toLowerCase()]=false; }
+
+function fireHunt(){
+  if(!huntState || huntState.ammo<=0) return;
+  huntState.ammo--; huntState.ammoUsed++;
+  const speed = 480;
+  let vx=0, vy=0;
+  if(huntState.player.facing==='right') vx=speed;
+  else if(huntState.player.facing==='left') vx=-speed;
+  else if(huntState.player.facing==='up') vy=-speed;
+  else vy=speed;
+  huntState.bullets.push({x:huntState.player.x, y:huntState.player.y, vx:vx, vy:vy, life:1});
+  AudioEngine.shoot();
+}
+
+function huntLoop(t, ctx, canvas){
+  if(!huntState) return;
+  const dt = Math.min(0.05, (t-huntState.lastTime)/1000);
+  huntState.lastTime = t;
+
+  const speed = 160;
+  let dx=0, dy=0;
+  if(huntKeys['arrowup']||huntKeys['w']) dy-=1;
+  if(huntKeys['arrowdown']||huntKeys['s']) dy+=1;
+  if(huntKeys['arrowleft']||huntKeys['a']) dx-=1;
+  if(huntKeys['arrowright']||huntKeys['d']) dx+=1;
+  if(dx!==0||dy!==0){
+    const len = Math.hypot(dx,dy);
+    dx/=len; dy/=len;
+    huntState.player.x = clamp(huntState.player.x+dx*speed*dt, 20, 620);
+    huntState.player.y = clamp(huntState.player.y+dy*speed*dt, 30, 280);
+    if(Math.abs(dx) > Math.abs(dy)) huntState.player.facing = dx>0?'right':'left';
+    else huntState.player.facing = dy>0?'down':'up';
+  }
+
+  huntState.animals.forEach(function(a){
+    if(!a.alive) return;
+    if(Math.random()<0.02){
+      const spd = a.type==='rabbit'?70:(a.type==='deer'?50:30);
+      const ang = Math.random()*Math.PI*2;
+      a.vx = Math.cos(ang)*spd; a.vy = Math.sin(ang)*spd;
+    }
+    a.x += a.vx*dt; a.y += a.vy*dt;
+    if(a.x<25||a.x>615) a.vx*=-1;
+    if(a.y<30||a.y>280) a.vy*=-1;
+    a.x = clamp(a.x,25,615); a.y = clamp(a.y,30,280);
+  });
+
+  huntState.bullets.forEach(function(b){ b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt*1.1; });
+  huntState.bullets.forEach(function(b){
+    huntState.animals.forEach(function(a){
+      if(a.alive && Math.hypot(b.x-a.x, b.y-a.y) < a.radius){
+        a.alive=false; b.life=0;
+        huntState.food += a.yieldLb;
+        AudioEngine.hit();
+      }
+    });
+  });
+  huntState.bullets = huntState.bullets.filter(function(b){ return b.life>0 && b.x>0 && b.x<640 && b.y>0 && b.y<300; });
+
+  huntState.timeLeft -= dt;
+  drawHunt(ctx, canvas);
+  updateHuntHUD();
+
+  if(huntState.timeLeft<=0 || (huntState.ammo<=0 && huntState.bullets.length===0)){
+    endHuntCanvas();
+    return;
+  }
+  huntRAF = requestAnimationFrame(function(t2){ huntLoop(t2, ctx, canvas); });
+}
+
+function drawHunt(ctx, canvas){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const grad = ctx.createLinearGradient(0,0,0,300);
+  grad.addColorStop(0,'#cfe3c9'); grad.addColorStop(1,'#a9c79b');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,640,300);
+  ctx.strokeStyle = 'rgba(46,36,24,0.15)';
+  for(let i=0;i<6;i++){
+    ctx.beginPath(); ctx.moveTo(0, 40+i*45); ctx.lineTo(640, 40+i*45); ctx.stroke();
+  }
+
+  huntState.animals.forEach(function(a){
+    if(!a.alive) return;
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    if(a.vx<0) ctx.scale(-1,1);
+    ctx.font = (a.radius*1.8)+'px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(a.emoji, 0, 0);
+    ctx.restore();
+  });
+
+  huntState.bullets.forEach(function(b){
+    ctx.fillStyle = '#b5451b';
+    ctx.beginPath(); ctx.arc(b.x,b.y,3,0,Math.PI*2); ctx.fill();
+  });
+
+  ctx.save();
+  ctx.translate(huntState.player.x, huntState.player.y);
+  let rot = 0;
+  if(huntState.player.facing==='left') rot=Math.PI;
+  else if(huntState.player.facing==='up') rot=-Math.PI/2;
+  else if(huntState.player.facing==='down') rot=Math.PI/2;
+  ctx.font='30px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🤠',0,0);
+  ctx.save();
+  ctx.rotate(rot);
+  ctx.font='16px sans-serif';
+  ctx.fillText('🔫', 20, 2);
+  ctx.restore();
+  ctx.restore();
+}
+
+function updateHuntHUD(){
+  const f = document.getElementById('huntFood');
+  const a = document.getElementById('huntAmmo');
+  const t = document.getElementById('huntTime');
+  if(f) f.textContent = huntState.food;
+  if(a) a.textContent = huntState.ammo;
+  if(t) t.textContent = Math.max(0,Math.ceil(huntState.timeLeft));
+}
+
+function endHuntCanvas(){
+  cancelHunt();
+  if(huntState){
+    S.food += huntState.food;
+    S.ammo -= huntState.ammoUsed;
+    if(huntState.food>0) addLog(`The hunt brings in ${huntState.food} lb of meat.`);
+    else addLog(`You return from the hunt empty-handed.`);
+  }
+  huntState = null;
+  S.screen = 'trail';
+  render();
+}
+
+/* =================== WEATHER =================== */
+const WEATHER_TABLE = {
+  spring: [['sunny','☀️',0.40],['cloudy','☁️',0.25],['rain','🌧️',0.25],['storm','⛈️',0.10]],
+  summer: [['sunny','☀️',0.55],['cloudy','☁️',0.20],['storm','⛈️',0.20],['rain','🌧️',0.05]],
+  fall:   [['cloudy','☁️',0.30],['rain','🌧️',0.30],['sunny','☀️',0.25],['wind','🌬️',0.15]],
+  winter: [['snow','❄️',0.40],['cloudy','☁️',0.25],['cold','🥶',0.20],['sunny','☀️',0.15]]
+};
+const WEATHER_LABELS = {sunny:'Clear skies', cloudy:'Overcast', rain:'Rain', storm:'Thunderstorms', snow:'Snow', wind:'High winds', cold:'Bitter cold'};
+function seasonForMonth(month){
+  if([3,4,5].indexOf(month)!==-1) return 'spring';
+  if([6,7,8].indexOf(month)!==-1) return 'summer';
+  if([9,10,11].indexOf(month)!==-1) return 'fall';
+  return 'winter';
+}
+function rollWeather(month){
+  const table = WEATHER_TABLE[seasonForMonth(month)];
+  let r = Math.random(), acc = 0;
+  for(let i=0;i<table.length;i++){
+    acc += table[i][2];
+    if(r <= acc) return {type:table[i][0], emoji:table[i][1]};
+  }
+  return {type:table[0][0], emoji:table[0][1]};
+}
+function weatherEffect(type){
+  switch(type){
+    case 'storm': return {milesMult:0.7, riskAdd:1.5};
+    case 'snow': return {milesMult:0.6, riskAdd:2.0};
+    case 'cold': return {milesMult:0.85, riskAdd:1.0};
+    case 'rain': return {milesMult:0.9, riskAdd:0.5};
+    case 'wind': return {milesMult:0.95, riskAdd:0};
+    case 'sunny': return {milesMult:1.05, riskAdd:0};
+    default: return {milesMult:1, riskAdd:0};
+  }
+}
+
+/* =================== TRAVEL / EVENTS =================== */
+const PACE_MILES = {steady:14, strenuous:20, grueling:26, rest:0};
+const PACE_RISK = {steady:1, strenuous:2, grueling:3.5, rest:0.3};
+const RATION_FOOD = {filling:5, meager:3, bare:1.5};
+const RATION_HEALTH_RISK = {filling:0.5, meager:1.2, bare:2.5};
+
+function travelWeek(){
+  if(S.gameOver) return;
+  AudioEngine.wagon();
+  S._weekWeather = [];
+  S._dayResults = [];
+  let days = 0;
+  while(days < 6){
+    if(S.gameOver) break;
+    const result = travelOneDay();
+    if(result) S._dayResults.push(result);
+    days++;
+    if(S.eventQueue.length>0) break;
+    if(S.reachedEnd) break;
+  }
+  if(S.gameOver) return; // end screen already rendered by endGame()
+  if(S._dayResults.length===0){ processQueue(); return; }
+  playDaySequence(0);
+}
+
+function travelOneDay(){
+  advanceDate(1);
+  const alive = aliveMembers();
+  if(alive.length===0){
+    AudioEngine.lose();
+    endGame(false, "Every member of your party has perished on the trail.");
+    return null;
+  }
+
+  const milesBefore = S.miles;
+  const notable = [];
+
+  const weather = rollWeather(S.month);
+  S.currentWeather = weather;
+  if(!S._weekWeather) S._weekWeather = [];
+  S._weekWeather.push(weather);
+  const wfx = weatherEffect(weather.type);
+
+  const consumption = RATION_FOOD[S.rations] * alive.length;
+  S.food = Math.max(0, S.food - consumption);
+  const starving = S.food <= 0;
+
+  let milesToday;
+  if(S.pace === 'rest'){
+    milesToday = rand(0,3);
+  } else {
+    milesToday = PACE_MILES[S.pace] + rand(-2,3);
+    if(S.oxen < 2) milesToday = Math.round(milesToday*0.6);
+    if(starving) milesToday = Math.round(milesToday*0.4);
+    milesToday = Math.round(milesToday*wfx.milesMult);
+    milesToday = Math.max(2, milesToday);
+  }
+  S.miles = Math.min(TOTAL_MILES, S.miles + milesToday);
+
+  if((weather.type==='storm' || weather.type==='snow') && Math.random()<0.4){
+    addLog(`${WEATHER_LABELS[weather.type]} ${weather.emoji} slows the wagon and soaks everyone to the bone.`);
+  }
+
+  let risk = PACE_RISK[S.pace] + RATION_HEALTH_RISK[S.rations] + (starving?4:0) + wfx.riskAdd;
+  const resting = S.pace === 'rest';
+  alive.forEach(function(m){
+    if(m.sick){
+      let recovered = false;
+      if(S.medicine>0 && Math.random() < (resting ? 0.75 : 0.5)){
+        S.medicine -= 1; m.sick = null; recovered = true;
+        addLog(`${m.name} recovers, thanks to a dose of medicine${resting ? ' and a few days of rest' : ''}.`);
+      } else if(resting && Math.random() < 0.35){
+        m.sick = null; recovered = true;
+        addLog(`${m.name} rests by the fire for a few days and pulls through.`);
+      }
+      if(!recovered){
+        const deathChance = resting ? 0.05 : 0.18;
+        if(Math.random() < deathChance){
+          m.alive=false; AudioEngine.death();
+          addLog(`${m.name} has died of ${m.sick}. The party buries them by the trail and presses on in silence.`);
+          const graveEntry = {mile:S.miles, name:m.name, epitaph:''};
+          S.graves.push(graveEntry);
+          notable.push({type:'death', name:m.name, grave:graveEntry});
+        }
+      }
+    } else if(Math.random() < risk/100){
+      m.sick = pick(["dysentery","a fever","exhaustion","a snakebite","measles"]);
+      AudioEngine.sick();
+      addLog(`${m.name} has come down with ${m.sick}.`);
+      notable.push({type:'sick', name:m.name, ailment:m.sick});
+    }
+  });
+
+  if(Math.random() < 0.12){
+    const ev = triggerRandomEvent();
+    if(ev) notable.push(ev);
+  }
+
+  const stopIdx = currentStop();
+  const stopMile = STOPS[stopIdx].mile;
+  if(stopIdx > S.lastStopIdx && S.miles >= stopMile){
+    S.lastStopIdx = stopIdx;
+    addLog(`You reach ${STOPS[stopIdx].name}.`);
+    S.eventQueue.push({type:'arrival', idx:stopIdx});
+    if(RIVER_STOPS.indexOf(stopIdx) !== -1){
+      S.eventQueue.push({type:'river'});
+    }
+  }
+
+  if(S.miles >= TOTAL_MILES){ S.reachedEnd = true; }
+
+  return {milesBefore:milesBefore, milesAfter:S.miles, weather:weather, notable:notable};
+}
+
+function triggerRandomEvent(){
+  const roll = rand(1,10);
+  if(roll<=2){
+    const lost = rand(20,60);
+    S.food = Math.max(0,S.food-lost);
+    addLog(`A sudden hailstorm spoils ${lost} lb of your food stores.`);
+    return {type:'hail', lost:lost};
+  } else if(roll<=4){
+    if(S.parts>0){ S.parts-=1; addLog(`A wagon wheel splits on rough ground — you patch it with a spare part.`); return {type:'axle', repaired:true}; }
+    else { S.miles = Math.max(0,S.miles-15); addLog(`A wagon wheel splits and you have no spare parts. You lose time repairing it with green wood.`); return {type:'axle', repaired:false}; }
+  } else if(roll<=6){
+    const found = rand(3,10);
+    S.food += found;
+    addLog(`You pass a berry thicket and gather ${found} lb of food.`);
+    return {type:'berries', found:found};
+  } else if(roll<=7){
+    const lostMoney = rand(10,40);
+    S.money = Math.max(0,S.money-lostMoney);
+    addLog(`Thieves slip through camp in the night and make off with ${money(lostMoney)}.`);
+    return {type:'theft', amount:lostMoney};
+  } else if(roll<=8){
+    addLog(`A friendly party heading the other way trades you news of the trail ahead — nothing eventful today.`);
+    return null;
+  } else if(roll<=9){
+    if(S.clothing>0){ addLog(`A cold snap passes through, but your clothing keeps the party warm.`); }
+    else {
+      addLog(`A cold snap passes through and, lacking warm clothing, everyone shivers through the night.`);
+      aliveMembers().forEach(function(m){ if(!m.sick && Math.random()<0.3) m.sick="a chill"; });
+    }
+    return null;
+  } else {
+    addLog(`Clear skies and good ground — an easy day on the trail.`);
+    return null;
+  }
+}
+
+function processQueue(){
+  if(S.gameOver){ render(); return; }
+  if(S.eventQueue.length>0){
+    const ev = S.eventQueue.shift();
+    if(ev.type==='arrival'){
+      S.arrivalIdx = ev.idx;
+      S.screen = 'arrival';
+      AudioEngine.arrive();
+    } else if(ev.type==='river'){
+      S.screen = 'river';
+    }
+    render();
+  } else if(S.reachedEnd){
+    endGame(true);
+  } else {
+    S.screen = 'trail';
+    render();
+  }
+}
+
+/* =================== RIVER CROSSING =================== */
+SCREENS.river = () => {
+  const stop = STOPS[currentStop()];
+  return `
+  <div class="sheet">
+    <h2>${stop.name}</h2>
+    ${sceneSVG('river', currentStop())}
+    <p>The wagon reaches the ${stop.name.replace(' Crossing','')}. The far bank looks a good distance off, and the current is not gentle.</p>
+    ${stop.fact ? `<div class="fact-callout"><strong>Did you know?</strong> ${stop.fact}</div>` : ''}
+    <div class="choice-grid">
+      <div class="card-opt" onclick="riverChoice('ford')"><h3>Ford it</h3><p class="muted">Free, but risky with a loaded wagon.</p></div>
+      <div class="card-opt" onclick="riverChoice('caulk')"><h3>Caulk & Float</h3><p class="muted">Seal the wagon bed and float across. Slower, safer.</p></div>
+      <div class="card-opt" onclick="riverChoice('ferry')"><h3>Pay a Ferry</h3><p class="muted">${money(20)} — the safest crossing by far.</p></div>
+    </div>
+  </div>
+`;
+};
+function riverChoice(kind){
+  AudioEngine.river();
+  let riverGrave = null;
+  if(kind==='ferry'){
+    if(S.money>=20){ S.money-=20; addLog(`You pay for a ferry crossing. Dry and uneventful.`); }
+    else { addLog(`You can't afford the ferry, so you ford instead.`); kind='ford'; }
+  }
+  if(kind==='ford'){
+    if(Math.random()<0.35){
+      const lost = rand(15,50);
+      S.food = Math.max(0,S.food-lost);
+      addLog(`The current is stronger than it looked. You lose ${lost} lb of food fording the river, but make it across.`);
+      if(Math.random()<0.2){
+        const m = pick(aliveMembers());
+        if(m){
+          m.alive=false; AudioEngine.death();
+          addLog(`${m.name} is swept from the wagon and lost in the crossing.`);
+          riverGrave = {mile:S.miles, name:m.name, epitaph:''};
+          S.graves.push(riverGrave);
+        }
+      }
+    } else {
+      addLog(`You ford the river without incident.`);
+    }
+  }
+  if(kind==='caulk'){
+    advanceDate(1);
+    if(Math.random()<0.15){
+      addLog(`Water seeps in despite the caulking, spoiling some supplies.`);
+      S.food = Math.max(0, S.food - rand(5,20));
+    } else {
+      addLog(`You caulk the wagon bed and float across safely, though it costs you a day.`);
+    }
+  }
+  if(riverGrave){
+    S.screen = 'traveling';
+    S._travelData = {fromMiles:S.miles, toMiles:S.miles};
+    S._weekWeather = [];
+    S._vignette = {type:'death', name:riverGrave.name, grave:riverGrave};
+    S._vignetteCallback = function(){ processQueue(); };
+    render();
+    AudioEngine.death();
+    return;
+  }
+  processQueue();
+}
+
+/* =================== TRAILSIDE MEMORIAL (shared, persistent) =================== */
+let graveyard = [];
+let graveyardLoaded = false;
+
+async function initGraveyard(){
+  try{
+    const r = await window.storage.get('graveyard', true);
+    graveyard = r ? JSON.parse(r.value) : [];
+  } catch(e){
+    graveyard = [];
+  }
+  graveyardLoaded = true;
+  render();
+}
+
+async function saveGraveToMemorial(grave){
+  const entry = {
+    bucket: Math.floor(grave.mile/100)*100,
+    name: grave.name,
+    epitaph: grave.epitaph || '',
+    date: `${monthName(S.month)} ${S.day}`
+  };
+  graveyard.push(entry);
+  if(graveyard.length > 400) graveyard = graveyard.slice(graveyard.length-400);
+  try{ await window.storage.set('graveyard', JSON.stringify(graveyard), true); } catch(e){}
+  render();
+}
+
+function memorialForBucket(bucket){
+  return graveyard.filter(function(g){ return g.bucket === bucket; });
+}
+
+function memorialHTML(){
+  if(!graveyardLoaded) return '';
+  const bucket = Math.floor(S.miles/100)*100;
+  const entries = memorialForBucket(bucket).filter(function(g){ return g.epitaph; });
+  if(entries.length===0) return '';
+  return `<div class="memorial-box">
+    <div class="memorial-title">✝ Trailside Memorial — near mile ${bucket}</div>
+    ${entries.slice(-5).map(function(g){
+      return `<div class="memorial-entry"><strong>${escapeHtml(g.name)}</strong>: "${escapeHtml(g.epitaph)}"</div>`;
+    }).join('')}
+    <div class="muted" style="font-size:0.72rem; margin-top:4px;">Left by travelers before you. Visible to everyone who passes this way.</div>
+  </div>`;
+}
+
+/* =================== HIGH SCORES (persistent) =================== */
+let highScores = [];
+let highScoresLoaded = false;
+let lastSubmittedEntry = null;
+
+async function initHighScores(){
+  try{
+    const r = await window.storage.get('highscores', false);
+    highScores = r ? JSON.parse(r.value) : [];
+  } catch(e){
+    highScores = [];
+  }
+  highScoresLoaded = true;
+  if(S.screen==='end' || S.screen==='title' || S.screen==='highscores'){ render(); }
+}
+
+function computeFinalScore(){
+  const survivors = aliveMembers().length;
+  return Math.round((S.money*0.5 + S.food*1 + S.medicine*10 + S.parts*5) * S.occupation.mult * (survivors/5 || 0.1));
+}
+
+async function submitHighScore(){
+  const el = document.getElementById('initialsInput');
+  let initials = el ? el.value : '';
+  initials = initials.toUpperCase().replace(/[^A-Z]/g,'').slice(0,3) || 'YOU';
+  const survivors = aliveMembers().length;
+  const entry = {
+    initials: initials,
+    score: computeFinalScore(),
+    occupation: S.occupation.name,
+    survivors: survivors,
+    miles: S.miles,
+    date: `${monthName(S.month)} ${S.day}`
+  };
+  highScores.push(entry);
+  highScores.sort((a,b)=>b.score-a.score);
+  highScores = highScores.slice(0,10);
+  lastSubmittedEntry = entry;
+  S._scoreSubmitted = true;
+  AudioEngine.buy();
+  try{ await window.storage.set('highscores', JSON.stringify(highScores), false); } catch(e){}
+  render();
+}
+
+function highScoreTableHTML(){
+  if(!highScoresLoaded){
+    return `<p class="muted">Loading high scores...</p>`;
+  }
+  if(highScores.length===0){
+    return `<p class="muted">No scores yet — be the first to reach Oregon.</p>`;
+  }
+  return `<div class="highscore-table">` + highScores.map((h,i)=>{
+    const isNew = h===lastSubmittedEntry;
+    return `<div class="hs-row${isNew?' hs-new':''}">
+      <span class="hs-rank">#${i+1}</span>
+      <span class="hs-initials">${escapeHtml(h.initials)}</span>
+      <span class="hs-score">${h.score}</span>
+      <span class="hs-meta">${escapeHtml(h.occupation)} · ${h.survivors}/5 survived · ${escapeHtml(h.date)}</span>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+/* =================== END GAME =================== */
+function endGame(won, deathMsg){
+  S.gameOver = won ? 'won' : 'lost';
+  S.deathMsg = deathMsg;
+  S.screen = 'end';
+  S._scoreSubmitted = false;
+  if(won) AudioEngine.win();
+  render();
+}
+
+SCREENS.end = () => {
+  if(S.gameOver==='lost'){
+    return `<div class="sheet">
+      <h2>The Trail Ends Here</h2>
+      <p>${S.deathMsg}</p>
+      <p class="muted">${S.miles} of ${TOTAL_MILES} miles traveled. ${monthName(S.month)} ${S.day}.</p>
+      <div class="rule thin"></div>
+      <h3 style="font-size:1rem;">High Scores</h3>
+      ${highScoreTableHTML()}
+      <div class="btn-row"><button class="rust" onclick="restart()">Start a New Journey</button></div>
+    </div>`;
+  }
+  const survivors = aliveMembers().length;
+  const score = computeFinalScore();
+  return `<div class="sheet">
+    ${sceneSVG('valley', 12)}
+    <h2>Willamette Valley</h2>
+    <p>After ${S.miles} miles and ${monthsTraveled()} months on the trail, your wagon rolls into the green valley. ${survivors} of 5 who set out from Independence made it with you.</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="v">${survivors}/5</div><div class="k">Survivors</div></div>
+      <div class="stat"><div class="v">${money(S.money)}</div><div class="k">Cash Left</div></div>
+      <div class="stat"><div class="v">${S.food} lb</div><div class="k">Food Left</div></div>
+      <div class="stat"><div class="v">${score}</div><div class="k">Final Score</div></div>
+    </div>
+    <div class="rule thin"></div>
+    ${S._scoreSubmitted ? `
+      <h3 style="font-size:1rem;">High Scores</h3>
+      ${highScoreTableHTML()}
+    ` : `
+      <h3 style="font-size:1rem;">Carve Your Initials</h3>
+      <p class="muted">Three letters, for the record book.</p>
+      <div class="initials-row">
+        <input type="text" id="initialsInput" maxlength="3" placeholder="YOU" style="text-transform:uppercase;">
+        <button class="rust" onclick="submitHighScore()">Save Score</button>
+      </div>
+    `}
+    <div class="btn-row"><button class="rust" onclick="restart()">Start a New Journey</button></div>
+  </div>`;
+};
+function monthsTraveled(){ return Math.max(1, S.month>=3? S.month-2 : S.month+10); }
+
+function restart(){
+  cancelHunt();
+  S = newState();
+  render();
+}
+
+/* =================== INIT =================== */
+S = newState();
+render();
+initHighScores();
+initGraveyard();
+</script>
+</body>
+</html>

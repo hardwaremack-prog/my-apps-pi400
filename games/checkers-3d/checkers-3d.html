@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Checkers, in three dimensions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #171009;
+    --walnut: #3b2418;
+    --walnut-dark: #241409;
+    --maple: #e8d9bd;
+    --cream: #f2e8d5;
+    --onyx: #16130f;
+    --brass: #c9a24b;
+    --panel: rgba(23,16,9,0.72);
+    --panel-border: rgba(201,162,75,0.28);
+    --ink: #efe6d6;
+    --ink-dim: #b8a98d;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    background: radial-gradient(ellipse at 50% 30%, #241708 0%, #150e07 70%, #0e0904 100%);
+    font-family: 'Inter', sans-serif;
+    overflow:hidden;
+    color: var(--ink);
+  }
+  #app{position:relative; width:100vw; height:100vh;}
+  canvas{display:block; width:100%; height:100%; touch-action:none; cursor:grab;}
+  canvas.dragging{cursor:grabbing;}
+
+  #hud{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding: 28px 32px;
+    pointer-events:none;
+  }
+  #hud > *{pointer-events:auto;}
+
+  .title-block h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size: 26px;
+    letter-spacing: 0.01em;
+    margin: 0;
+    color: var(--cream);
+  }
+  .title-block p{
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+
+  #status-panel{
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    min-width: 220px;
+    backdrop-filter: blur(6px);
+  }
+  #turn-row{
+    display:flex; align-items:center; gap:10px;
+    font-size: 14px;
+  }
+  #turn-dot{
+    width:12px; height:12px; border-radius:50%;
+    background: var(--cream);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+    transition: background 0.2s;
+  }
+  #turn-text{font-weight:500;}
+  #sub-status{
+    margin-top: 6px;
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    min-height: 16px;
+  }
+  #score-row{
+    display:flex; gap:18px; margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--panel-border);
+    font-size: 12.5px;
+    color: var(--ink-dim);
+  }
+  .score-item{display:flex; align-items:center; gap:6px;}
+  .score-swatch{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .score-swatch.w{background:var(--cream);}
+  .score-swatch.b{background:#57503f; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.5);}
+
+  #controls{
+    display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+  }
+  button{
+    font-family:'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    background: rgba(201,162,75,0.1);
+    color: var(--cream);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 9px 16px;
+    cursor:pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  button:hover{
+    background: rgba(201,162,75,0.2);
+    border-color: rgba(201,162,75,0.5);
+  }
+  button:active{transform: scale(0.98);}
+
+  #hint{
+    font-size: 11.5px;
+    color: var(--ink-dim);
+    text-align:right;
+    max-width: 180px;
+    line-height:1.4;
+  }
+
+  #overlay{
+    position:absolute; inset:0;
+    display:none;
+    align-items:center; justify-content:center;
+    background: rgba(10,7,3,0.55);
+    backdrop-filter: blur(3px);
+  }
+  #overlay.show{display:flex;}
+  #overlay-card{
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 36px 44px;
+    text-align:center;
+  }
+  #overlay-card h2{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size: 28px;
+    margin: 0 0 8px;
+    color: var(--brass);
+  }
+  #overlay-card p{
+    margin:0 0 20px;
+    color: var(--ink-dim);
+    font-size: 14px;
+  }
+
+  @media (max-width: 640px){
+    #hud{padding: 16px 18px; flex-wrap:wrap; gap:12px;}
+    .title-block h1{font-size:20px;}
+    #hint{display:none;}
+    #status-panel{min-width:180px; padding:12px 16px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="canvas"></canvas>
+
+  <div id="hud">
+    <div class="title-block">
+      <h1>Checkers</h1>
+      <p>You play cream &middot; the walnut pieces play themselves</p>
+    </div>
+
+    <div id="status-panel">
+      <div id="turn-row">
+        <span id="turn-dot"></span>
+        <span id="turn-text">Your move</span>
+      </div>
+      <div id="sub-status">&nbsp;</div>
+      <div id="score-row">
+        <span class="score-item"><span class="score-swatch w"></span><span id="w-count">12</span> remaining</span>
+        <span class="score-item"><span class="score-swatch b"></span><span id="b-count">12</span> remaining</span>
+      </div>
+    </div>
+
+    <div id="controls">
+      <button id="resetBtn">New game</button>
+      <div id="hint">Drag to rotate the table &middot; scroll to zoom &middot; click a piece, then a lit square</div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div id="overlay-card">
+      <h2 id="overlay-title">Game over</h2>
+      <p id="overlay-sub">Details go here</p>
+      <button id="playAgainBtn">Play again</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+
+  // ---------- constants ----------
+  var LIGHT_COLOR = 0xe8d9bd;
+  var DARK_COLOR = 0x3b2418;
+  var CREAM_COLOR = 0xf2e8d5;
+  var ONYX_COLOR = 0x1a1611;
+  var BRASS_COLOR = 0xc9a24b;
+  var HIGHLIGHT_COLOR = 0x6fae6f;
+  var SELECT_COLOR = 0xc9a24b;
+
+  var SIZE = 8;
+
+  // ---------- three.js setup ----------
+  var canvas = document.getElementById('canvas');
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  var scene = new THREE.Scene();
+
+  var camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+
+  function resize(){
+    var w = canvas.clientWidth || window.innerWidth;
+    var h = canvas.clientHeight || window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // lighting
+  var hemi = new THREE.HemisphereLight(0xfff2df, 0x241708, 0.55);
+  scene.add(hemi);
+  var key = new THREE.DirectionalLight(0xfff1d6, 1.15);
+  key.position.set(5, 10, 6);
+  key.castShadow = true;
+  key.shadow.mapSize.width = 1024;
+  key.shadow.mapSize.height = 1024;
+  key.shadow.camera.left = -8;
+  key.shadow.camera.right = 8;
+  key.shadow.camera.top = 8;
+  key.shadow.camera.bottom = -8;
+  key.shadow.camera.near = 1;
+  key.shadow.camera.far = 30;
+  key.shadow.bias = -0.0015;
+  scene.add(key);
+  var fill = new THREE.DirectionalLight(0xffe9c4, 0.25);
+  fill.position.set(-6, 5, -4);
+  scene.add(fill);
+
+  // board group
+  var boardGroup = new THREE.Group();
+  scene.add(boardGroup);
+
+  var frameGeo = new THREE.BoxGeometry(9.4, 0.5, 9.4);
+  var frameMat = new THREE.MeshStandardMaterial({ color: 0x241409, roughness: 0.55, metalness: 0.05 });
+  var frame = new THREE.Mesh(frameGeo, frameMat);
+  frame.position.y = -0.28;
+  frame.receiveShadow = true;
+  frame.castShadow = true;
+  boardGroup.add(frame);
+
+  var squareGeo = new THREE.BoxGeometry(1, 0.16, 1);
+  var lightMat = new THREE.MeshStandardMaterial({ color: LIGHT_COLOR, roughness: 0.7 });
+  var darkMat = new THREE.MeshStandardMaterial({ color: DARK_COLOR, roughness: 0.65 });
+
+  var squareMeshes = [];
+  for (var r = 0; r < SIZE; r++){
+    squareMeshes[r] = [];
+    for (var c = 0; c < SIZE; c++){
+      var isDark = (r + c) % 2 === 1;
+      var mesh = new THREE.Mesh(squareGeo, isDark ? darkMat.clone() : lightMat.clone());
+      mesh.position.set(c - 3.5, 0, r - 3.5);
+      mesh.receiveShadow = true;
+      mesh.userData = { row: r, col: c, isSquare: true, baseColor: isDark ? DARK_COLOR : LIGHT_COLOR };
+      boardGroup.add(mesh);
+      squareMeshes[r][c] = mesh;
+    }
+  }
+
+  // highlight ring pool
+  var ringGeo = new THREE.RingGeometry(0.22, 0.34, 32);
+  var ringMat = new THREE.MeshBasicMaterial({ color: HIGHLIGHT_COLOR, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+  var highlightMeshes = [];
+  function clearHighlights(){
+    highlightMeshes.forEach(function(m){ boardGroup.remove(m); });
+    highlightMeshes = [];
+  }
+  function addHighlight(row, col, color){
+    var m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: color || HIGHLIGHT_COLOR, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(col - 3.5, 0.095, row - 3.5);
+    boardGroup.add(m);
+    highlightMeshes.push(m);
+  }
+
+  // piece geometry
+  var pieceGeo = new THREE.CylinderGeometry(0.36, 0.38, 0.16, 32);
+  var pieceGeoDetail = new THREE.CylinderGeometry(0.36, 0.38, 0.16, 32, 1, false);
+  var crownGeo = new THREE.TorusGeometry(0.17, 0.045, 10, 24);
+  var crownMat = new THREE.MeshStandardMaterial({ color: BRASS_COLOR, roughness: 0.35, metalness: 0.65 });
+
+  var creamMat = new THREE.MeshStandardMaterial({ color: CREAM_COLOR, roughness: 0.45, metalness: 0.05 });
+  var onyxMat = new THREE.MeshStandardMaterial({ color: ONYX_COLOR, roughness: 0.35, metalness: 0.12 });
+
+  function makePieceMesh(color){
+    var group = new THREE.Group();
+    var body = new THREE.Mesh(pieceGeoDetail, color === 'w' ? creamMat : onyxMat);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
+    group.userData = { isPiece: true };
+    return group;
+  }
+
+  function addCrown(pieceGroup){
+    if (pieceGroup.userData.crown) return;
+    var crown = new THREE.Mesh(crownGeo, crownMat);
+    crown.rotation.x = Math.PI / 2;
+    crown.position.y = 0.12;
+    crown.castShadow = true;
+    pieceGroup.add(crown);
+    pieceGroup.userData.crown = crown;
+  }
+
+  // ---------- game state ----------
+  // board[row][col] = null | { color:'w'|'b', king:bool, mesh: THREE.Group }
+  var board = [];
+  var currentTurn = 'w';
+  var selected = null; // {row,col}
+  var legalForSelected = []; // list of move objects
+  var forcedChain = false; // true while mid multi-jump
+  var animating = false;
+  var gameOver = false;
+
+  var piecesGroup = new THREE.Group();
+  scene.add(piecesGroup);
+
+  function boardToWorld(row, col){
+    return new THREE.Vector3(col - 3.5, 0.18, row - 3.5);
+  }
+
+  function initBoard(){
+    piecesGroup.clear();
+    board = [];
+    for (var r = 0; r < SIZE; r++){
+      board[r] = [];
+      for (var c = 0; c < SIZE; c++){
+        board[r][c] = null;
+      }
+    }
+    for (var r = 0; r < 3; r++){
+      for (var c = 0; c < SIZE; c++){
+        if ((r + c) % 2 === 1){
+          placePiece(r, c, 'b');
+        }
+      }
+    }
+    for (var r = 5; r < 8; r++){
+      for (var c = 0; c < SIZE; c++){
+        if ((r + c) % 2 === 1){
+          placePiece(r, c, 'w');
+        }
+      }
+    }
+    currentTurn = 'w';
+    selected = null;
+    legalForSelected = [];
+    forcedChain = false;
+    animating = false;
+    gameOver = false;
+    clearHighlights();
+    updateHUD('Your move', '');
+    hideOverlay();
+  }
+
+  function placePiece(row, col, color){
+    var mesh = makePieceMesh(color);
+    var pos = boardToWorld(row, col);
+    mesh.position.copy(pos);
+    mesh.userData.row = row;
+    mesh.userData.col = col;
+    piecesGroup.add(mesh);
+    board[row][col] = { color: color, king: false, mesh: mesh };
+  }
+
+  function inBounds(r, c){ return r >= 0 && r < SIZE && c >= 0 && c < SIZE; }
+
+  function dirsFor(piece){
+    if (piece.king) return [[-1,-1],[-1,1],[1,-1],[1,1]];
+    if (piece.color === 'w') return [[-1,-1],[-1,1]];
+    return [[1,-1],[1,1]];
+  }
+
+  function getMoves(row, col){
+    var piece = board[row][col];
+    if (!piece) return { simples: [], jumps: [] };
+    var simples = [], jumps = [];
+    var dirs = dirsFor(piece);
+    dirs.forEach(function(d){
+      var r1 = row + d[0], c1 = col + d[1];
+      if (inBounds(r1, c1)){
+        if (!board[r1][c1]){
+          simples.push({ type: 'simple', from: {row:row,col:col}, to: {row:r1,col:c1} });
+        } else if (board[r1][c1].color !== piece.color){
+          var r2 = row + d[0]*2, c2 = col + d[1]*2;
+          if (inBounds(r2, c2) && !board[r2][c2]){
+            jumps.push({ type:'jump', from:{row:row,col:col}, to:{row:r2,col:c2}, captured:{row:r1,col:c1} });
+          }
+        }
+      }
+    });
+    return { simples: simples, jumps: jumps };
+  }
+
+  function getAllJumps(color){
+    var all = [];
+    for (var r = 0; r < SIZE; r++){
+      for (var c = 0; c < SIZE; c++){
+        var p = board[r][c];
+        if (p && p.color === color){
+          var mv = getMoves(r, c);
+          if (mv.jumps.length) all = all.concat(mv.jumps);
+        }
+      }
+    }
+    return all;
+  }
+
+  function getAllSimples(color){
+    var all = [];
+    for (var r = 0; r < SIZE; r++){
+      for (var c = 0; c < SIZE; c++){
+        var p = board[r][c];
+        if (p && p.color === color){
+          var mv = getMoves(r, c);
+          if (mv.simples.length) all = all.concat(mv.simples);
+        }
+      }
+    }
+    return all;
+  }
+
+  function legalMovesForColor(color){
+    var jumps = getAllJumps(color);
+    if (jumps.length) return jumps;
+    return getAllSimples(color);
+  }
+
+  function countPieces(color){
+    var n = 0;
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) if (board[r][c] && board[r][c].color === color) n++;
+    return n;
+  }
+
+  function updateCounts(){
+    document.getElementById('w-count').textContent = countPieces('w');
+    document.getElementById('b-count').textContent = countPieces('b');
+  }
+
+  // ---------- animation helpers ----------
+  function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+
+  function animateMove(mesh, toVec, duration){
+    return new Promise(function(resolve){
+      var fromVec = mesh.position.clone();
+      var start = performance.now();
+      function step(now){
+        var t = Math.min(1, (now - start) / duration);
+        var e = easeInOutCubic(t);
+        mesh.position.lerpVectors(fromVec, toVec, e);
+        if (t < 1){
+          requestAnimationFrame(step);
+        } else {
+          resolve();
+        }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function animateCapture(mesh, duration){
+    return new Promise(function(resolve){
+      var start = performance.now();
+      var startY = mesh.position.y;
+      function step(now){
+        var t = Math.min(1, (now - start) / duration);
+        mesh.scale.setScalar(1 - t);
+        mesh.position.y = startY + t * 0.6;
+        if (t < 1){
+          requestAnimationFrame(step);
+        } else {
+          resolve();
+        }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  // ---------- HUD ----------
+  var turnDot = document.getElementById('turn-dot');
+  var turnText = document.getElementById('turn-text');
+  var subStatus = document.getElementById('sub-status');
+
+  function updateHUD(main, sub){
+    turnText.textContent = main;
+    subStatus.textContent = sub || '';
+    turnDot.style.background = currentTurn === 'w' ? '#f2e8d5' : '#57503f';
+  }
+
+  function showOverlay(title, sub){
+    document.getElementById('overlay-title').textContent = title;
+    document.getElementById('overlay-sub').textContent = sub;
+    document.getElementById('overlay').classList.add('show');
+  }
+  function hideOverlay(){
+    document.getElementById('overlay').classList.remove('show');
+  }
+
+  // ---------- move execution ----------
+  async function executeMove(move){
+    var piece = board[move.from.row][move.from.col];
+    var toVec = boardToWorld(move.to.row, move.to.col);
+
+    board[move.from.row][move.from.col] = null;
+
+    if (move.type === 'jump'){
+      var capturedPiece = board[move.captured.row][move.captured.col];
+      board[move.captured.row][move.captured.col] = null;
+      await Promise.all([
+        animateMove(piece.mesh, toVec, 320),
+        animateCapture(capturedPiece.mesh, 320)
+      ]);
+      piecesGroup.remove(capturedPiece.mesh);
+    } else {
+      await animateMove(piece.mesh, toVec, 260);
+    }
+
+    piece.mesh.userData.row = move.to.row;
+    piece.mesh.userData.col = move.to.col;
+    board[move.to.row][move.to.col] = piece;
+
+    var promoted = false;
+    if (!piece.king){
+      if ((piece.color === 'w' && move.to.row === 0) || (piece.color === 'b' && move.to.row === 7)){
+        piece.king = true;
+        addCrown(piece.mesh);
+        promoted = true;
+      }
+    }
+    updateCounts();
+    return promoted;
+  }
+
+  function checkGameEnd(){
+    var wCount = countPieces('w'), bCount = countPieces('b');
+    if (wCount === 0){
+      gameOver = true;
+      updateHUD('Walnut wins', 'You have no pieces left');
+      showOverlay('Walnut wins', 'You ran out of pieces. Try again?');
+      return true;
+    }
+    if (bCount === 0){
+      gameOver = true;
+      updateHUD('You win', 'The walnut pieces are gone');
+      showOverlay('You win', 'Every walnut piece has been cleared from the board.');
+      return true;
+    }
+    var wMoves = legalMovesForColor('w');
+    var bMoves = legalMovesForColor('b');
+    if (currentTurn === 'w' && wMoves.length === 0){
+      gameOver = true;
+      updateHUD('Walnut wins', 'You have no legal moves');
+      showOverlay('Walnut wins', 'No legal moves remain for cream.');
+      return true;
+    }
+    if (currentTurn === 'b' && bMoves.length === 0){
+      gameOver = true;
+      updateHUD('You win', 'Walnut has no legal moves');
+      showOverlay('You win', 'The walnut side has no legal moves left.');
+      return true;
+    }
+    return false;
+  }
+
+  // ---------- human interaction ----------
+  async function handleSquareClick(row, col){
+    if (gameOver || animating || currentTurn !== 'w') return;
+
+    var globalJumps = getAllJumps('w');
+
+    // Case: a piece is already selected
+    if (selected){
+      var chosen = legalForSelected.find(function(m){ return m.to.row === row && m.to.col === col; });
+      if (chosen){
+        animating = true;
+        clearHighlights();
+        var promoted = await executeMove(chosen);
+
+        if (chosen.type === 'jump' && !promoted){
+          var followUps = getMoves(chosen.to.row, chosen.to.col).jumps;
+          if (followUps.length){
+            selected = { row: chosen.to.row, col: chosen.to.col };
+            legalForSelected = followUps;
+            highlightSelection();
+            updateHUD('Your move', 'Continue the jump with the same piece');
+            animating = false;
+            return;
+          }
+        }
+        // turn ends
+        selected = null;
+        legalForSelected = [];
+        animating = false;
+        endHumanTurn();
+        return;
+      }
+
+      // clicking another own piece re-selects (only if not mid forced chain)
+      var p = board[row][col];
+      if (p && p.color === 'w' && !forcedChain){
+        trySelect(row, col, globalJumps);
+        return;
+      }
+
+      // otherwise, deselect
+      if (!forcedChain){
+        selected = null;
+        legalForSelected = [];
+        clearHighlights();
+        updateHUD('Your move', '');
+      }
+      return;
+    }
+
+    // Case: nothing selected yet
+    var piece = board[row][col];
+    if (piece && piece.color === 'w'){
+      trySelect(row, col, globalJumps);
+    }
+  }
+
+  function trySelect(row, col, globalJumps){
+    var mv = getMoves(row, col);
+    if (globalJumps.length){
+      if (!mv.jumps.length){
+        updateHUD('Your move', 'A capture is available elsewhere \u2014 pick that piece');
+        return;
+      }
+      selected = { row: row, col: col };
+      legalForSelected = mv.jumps;
+    } else {
+      if (!mv.simples.length){
+        updateHUD('Your move', 'That piece has no legal move');
+        return;
+      }
+      selected = { row: row, col: col };
+      legalForSelected = mv.simples;
+    }
+    highlightSelection();
+    updateHUD('Your move', legalForSelected[0].type === 'jump' ? 'Capture available' : '');
+  }
+
+  function highlightSelection(){
+    clearHighlights();
+    if (!selected) return;
+    addHighlight(selected.row, selected.col, SELECT_COLOR);
+    legalForSelected.forEach(function(m){
+      addHighlight(m.to.row, m.to.col, HIGHLIGHT_COLOR);
+    });
+  }
+
+  function endHumanTurn(){
+    if (checkGameEnd()) return;
+    currentTurn = 'b';
+    updateHUD("Walnut is thinking", '');
+    setTimeout(aiTurn, 550);
+  }
+
+  // ---------- AI ----------
+  async function aiTurn(){
+    if (gameOver) return;
+    animating = true;
+    var jumps = getAllJumps('b');
+    var move;
+    if (jumps.length){
+      move = jumps[Math.floor(Math.random() * jumps.length)];
+    } else {
+      var simples = getAllSimples('b');
+      if (!simples.length){ animating = false; checkGameEnd(); return; }
+      move = simples[Math.floor(Math.random() * simples.length)];
+    }
+
+    var promoted = await executeMove(move);
+
+    if (move.type === 'jump' && !promoted){
+      var followUps = getMoves(move.to.row, move.to.col).jumps;
+      while (followUps.length){
+        await new Promise(function(res){ setTimeout(res, 260); });
+        var next = followUps[Math.floor(Math.random() * followUps.length)];
+        var wasPromoted = await executeMove(next);
+        if (wasPromoted) break;
+        followUps = getMoves(next.to.row, next.to.col).jumps;
+      }
+    }
+
+    animating = false;
+    if (checkGameEnd()) return;
+    currentTurn = 'w';
+    updateHUD('Your move', '');
+  }
+
+  // ---------- reset ----------
+  document.getElementById('resetBtn').addEventListener('click', function(){
+    initBoard();
+  });
+  document.getElementById('playAgainBtn').addEventListener('click', function(){
+    initBoard();
+  });
+
+  // ---------- camera orbit controls ----------
+  var camState = { radius: 10.5, theta: Math.PI * 0.02, phi: 0.95 };
+  var target = new THREE.Vector3(0, 0, 0);
+
+  function updateCameraPosition(){
+    camera.position.x = target.x + camState.radius * Math.sin(camState.phi) * Math.sin(camState.theta);
+    camera.position.y = target.y + camState.radius * Math.cos(camState.phi);
+    camera.position.z = target.z + camState.radius * Math.sin(camState.phi) * Math.cos(camState.theta);
+    camera.lookAt(target);
+  }
+  updateCameraPosition();
+
+  var isDragging = false, dragMoved = false, lastX = 0, lastY = 0;
+
+  canvas.addEventListener('pointerdown', function(e){
+    isDragging = true;
+    dragMoved = false;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    canvas.classList.add('dragging');
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', function(e){
+    if (!isDragging) return;
+    var dx = e.clientX - lastX;
+    var dy = e.clientY - lastY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
+    camState.theta -= dx * 0.006;
+    camState.phi -= dy * 0.006;
+    camState.phi = Math.max(0.35, Math.min(1.4, camState.phi));
+    lastX = e.clientX;
+    lastY = e.clientY;
+    updateCameraPosition();
+  });
+
+  function endDrag(e){
+    isDragging = false;
+    canvas.classList.remove('dragging');
+    if (!dragMoved){
+      handleClick(e);
+    }
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', function(){ isDragging = false; canvas.classList.remove('dragging'); });
+
+  canvas.addEventListener('wheel', function(e){
+    e.preventDefault();
+    camState.radius += e.deltaY * 0.01;
+    camState.radius = Math.max(6.5, Math.min(16, camState.radius));
+    updateCameraPosition();
+  }, { passive: false });
+
+  // ---------- raycasting / click ----------
+  var raycaster = new THREE.Raycaster();
+  var mouseNDC = new THREE.Vector2();
+
+  function handleClick(e){
+    var rect = canvas.getBoundingClientRect();
+    mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouseNDC, camera);
+
+    var targets = [];
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) targets.push(squareMeshes[r][c]);
+    piecesGroup.children.forEach(function(g){ targets.push(g); g.children.forEach(function(ch){ targets.push(ch); }); });
+
+    var intersects = raycaster.intersectObjects(targets, false);
+    if (!intersects.length) return;
+
+    var obj = intersects[0].object;
+    var row, col;
+    if (obj.userData && obj.userData.row !== undefined){
+      row = obj.userData.row; col = obj.userData.col;
+    } else if (obj.parent && obj.parent.userData && obj.parent.userData.row !== undefined){
+      row = obj.parent.userData.row; col = obj.parent.userData.col;
+    } else {
+      return;
+    }
+    handleSquareClick(row, col);
+  }
+
+  // ---------- render loop ----------
+  function animate(){
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  initBoard();
+  animate();
+
+  window.addEventListener('orientationchange', resize);
+})();
+</script>
+</body>
+</html>

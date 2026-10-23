@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" font-family="Helvetica, Arial, sans-serif" font-size="15">
+  <rect width="1200" height="760" fill="#ffffff"/>
+  <text x="30" y="40" font-size="22" font-weight="bold" fill="#111">PON Lab — one meter channel (repeat per meter)</text>
+  <text x="30" y="64" fill="#555">Pi relay only switches the 24 VAC contactor coil. The contactor switches the meter's 240 V. Fail-safe: Pi off = meter powered.</text>
+
+  <!-- zones -->
+  <rect x="20" y="90" width="430" height="640" rx="10" fill="#eef6ff" stroke="#9cc3e6"/>
+  <text x="36" y="116" font-weight="bold" fill="#2a6aa3">LOW VOLTAGE (Class 2)</text>
+  <rect x="470" y="90" width="710" height="640" rx="10" fill="#fff1ef" stroke="#e6a59c"/>
+  <text x="486" y="116" font-weight="bold" fill="#b03a2e">LINE VOLTAGE 240 V — qualified meter tech / electrician only</text>
+
+  <!-- Pi + relay HAT -->
+  <rect x="50" y="150" width="200" height="120" rx="8" fill="#1f7a3a"/>
+  <text x="150" y="190" text-anchor="middle" fill="#fff" font-weight="bold">Raspberry Pi</text>
+  <text x="150" y="212" text-anchor="middle" fill="#d8f5df" font-size="13">running PON Lab</text>
+  <text x="150" y="232" text-anchor="middle" fill="#d8f5df" font-size="13">Ethernet / Wi-Fi to PON Fleet</text>
+  <rect x="50" y="290" width="200" height="190" rx="8" fill="#1d3557"/>
+  <text x="150" y="318" text-anchor="middle" fill="#fff" font-weight="bold">8-ch relay HAT</text>
+  <text x="150" y="338" text-anchor="middle" fill="#cfe0f5" font-size="13">opto-isolated, active-low</text>
+  <text x="150" y="356" text-anchor="middle" fill="#cfe0f5" font-size="13">CH1 = GPIO 5</text>
+  <line x1="150" y1="270" x2="150" y2="290" stroke="#333" stroke-width="6"/>
+  <!-- relay terminals -->
+  <g font-size="13" font-weight="bold">
+    <rect x="270" y="370" width="60" height="26" fill="#fff" stroke="#333"/><text x="300" y="388" text-anchor="middle">NO</text>
+    <rect x="270" y="400" width="60" height="26" fill="#fff" stroke="#333"/><text x="300" y="418" text-anchor="middle">COM</text>
+    <rect x="270" y="430" width="60" height="26" fill="#ffe08a" stroke="#333"/><text x="300" y="448" text-anchor="middle">NC</text>
+  </g>
+  <line x1="250" y1="413" x2="270" y2="413" stroke="#333" stroke-width="2"/>
+  <text x="340" y="388" fill="#888" font-size="12">not used</text>
+
+  <!-- transformer -->
+  <rect x="60" y="560" width="190" height="110" rx="8" fill="#fff" stroke="#333" stroke-width="2"/>
+  <text x="155" y="592" text-anchor="middle" font-weight="bold">24 VAC transformer</text>
+  <text x="155" y="612" text-anchor="middle" font-size="13" fill="#555">Class 2, 40–75 VA</text>
+  <text x="155" y="632" text-anchor="middle" font-size="13" fill="#555">(HVAC style)</text>
+  <text x="80" y="660" font-size="13" font-weight="bold">R (hot)</text>
+  <text x="170" y="660" font-size="13" font-weight="bold">C (com)</text>
+
+  <!-- 24V wiring: R -> COM ; NC -> coil A1 ; coil A2 -> C -->
+  <polyline points="100,560 100,520 360,520 360,413 330,413" fill="none" stroke="#e67e22" stroke-width="4"/>
+  <text x="120" y="512" fill="#e67e22" font-size="13" font-weight="bold">24 VAC R → relay COM</text>
+  <polyline points="330,443 410,443 410,335 560,335" fill="none" stroke="#e67e22" stroke-width="4"/>
+  <text x="372" y="327" fill="#e67e22" font-size="13" font-weight="bold">NC → coil A1</text>
+  <polyline points="200,670 200,700 600,700 600,360" fill="none" stroke="#8e44ad" stroke-width="4"/>
+  <text x="250" y="692" fill="#8e44ad" font-size="13" font-weight="bold">24 VAC C → coil A2</text>
+
+  <!-- breaker -->
+  <rect x="500" y="150" width="160" height="80" rx="6" fill="#fff" stroke="#333" stroke-width="2"/>
+  <text x="580" y="182" text-anchor="middle" font-weight="bold">2-pole breaker</text>
+  <text x="580" y="202" text-anchor="middle" font-size="13" fill="#555">240 V supply, 20 A</text>
+  <text x="520" y="142" font-size="13" font-weight="bold" fill="#c0392b">L1</text>
+  <text x="560" y="142" font-size="13" font-weight="bold" fill="#111">L2</text>
+  <text x="615" y="142" font-size="13" font-weight="bold" fill="#777">N</text>
+
+  <!-- contactor -->
+  <rect x="540" y="260" width="250" height="230" rx="8" fill="#fff" stroke="#333" stroke-width="2"/>
+  <text x="556" y="430" font-weight="bold">2-pole contactor</text>
+  <text x="556" y="450" font-size="13" fill="#555">40 A, 24 VAC coil</text>
+  <text x="556" y="468" font-size="13" fill="#555">normally-open poles</text>
+  <rect x="560" y="320" width="80" height="44" rx="6" fill="#f3e5f5" stroke="#8e44ad"/>
+  <text x="600" y="340" text-anchor="middle" font-size="12" font-weight="bold">coil</text>
+  <text x="600" y="356" text-anchor="middle" font-size="11">A1 / A2</text>
+  <!-- poles -->
+  <g stroke="#333" stroke-width="3">
+    <line x1="690" y1="330" x2="690" y2="380"/><line x1="690" y1="380" x2="710" y2="420"/><line x1="690" y1="430" x2="690" y2="470"/>
+    <line x1="750" y1="330" x2="750" y2="380"/><line x1="750" y1="380" x2="770" y2="420"/><line x1="750" y1="430" x2="750" y2="470"/>
+  </g>
+  <polyline points="640,342 660,342 660,400 760,400" fill="none" stroke="#8e44ad" stroke-width="2" stroke-dasharray="6 5"/>
+  <text x="675" y="326" font-size="12" font-weight="bold">L1</text><text x="735" y="326" font-size="12" font-weight="bold">L2</text>
+  <text x="675" y="486" font-size="12" font-weight="bold">T1</text><text x="735" y="486" font-size="12" font-weight="bold">T2</text>
+
+  <!-- line wiring -->
+  <polyline points="525,230 525,250 690,250 690,330" fill="none" stroke="#c0392b" stroke-width="5"/>
+  <polyline points="565,230 565,240 750,240 750,330" fill="none" stroke="#111" stroke-width="5"/>
+  <polyline points="660,170 1165,170 1165,660 1062,660 1040,660" fill="none" stroke="#999" stroke-width="5"/>
+  <text x="1158" y="160" text-anchor="end" font-size="12" fill="#777">N — straight through, never switched</text>
+
+  <!-- meter socket -->
+  <rect x="860" y="520" width="280" height="190" rx="12" fill="#fff" stroke="#333" stroke-width="2"/>
+  <circle cx="1000" cy="615" r="62" fill="#f5f5f5" stroke="#333" stroke-width="2"/>
+  <text x="1000" y="610" text-anchor="middle" font-weight="bold">Riva meter</text>
+  <text x="1000" y="630" text-anchor="middle" font-size="13" fill="#555">under test</text>
+  <text x="1000" y="545" text-anchor="middle" font-weight="bold">Meter socket (test board)</text>
+  <text x="880" y="700" font-size="12" fill="#555">line-side lugs</text>
+  <polyline points="690,470 690,600 935,600" fill="none" stroke="#c0392b" stroke-width="5"/>
+  <polyline points="750,470 750,640 935,640" fill="none" stroke="#111" stroke-width="5"/>
+
+
+  <!-- optional sense -->
+  <rect x="850" y="300" width="300" height="110" rx="8" fill="#fff" stroke="#16a085" stroke-dasharray="6 4" stroke-width="2"/>
+  <text x="1000" y="326" text-anchor="middle" font-weight="bold" fill="#16a085">Optional: AC voltage sense module</text>
+  <text x="1000" y="348" text-anchor="middle" font-size="13" fill="#555">opto-isolated, across T1–T2</text>
+  <text x="1000" y="368" text-anchor="middle" font-size="13" fill="#555">output → Pi sense_gpio (low = power present)</text>
+  <text x="1000" y="388" text-anchor="middle" font-size="13" fill="#555">logs the exact ms the line went dead</text>
+
+  <!-- legend -->
+  <g font-size="13">
+    <rect x="486" y="712" width="14" height="6" fill="#c0392b"/><text x="506" y="719">L1 hot</text>
+    <rect x="566" y="712" width="14" height="6" fill="#111"/><text x="586" y="719">L2 hot</text>
+    <rect x="646" y="712" width="14" height="6" fill="#999"/><text x="666" y="719">Neutral</text>
+    <rect x="736" y="712" width="14" height="6" fill="#e67e22"/><text x="756" y="719">24 VAC</text>
+  </g>
+</svg>

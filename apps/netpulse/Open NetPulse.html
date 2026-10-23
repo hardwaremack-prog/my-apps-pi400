@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NetPulse</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0e13;color:#dce6f0;font:16px/1.5 system-ui,sans-serif;padding:16px;box-sizing:border-box}
+.box{max-width:560px;background:#111821;border:1px solid #2a3746;border-radius:16px;padding:28px}
+h1{margin:0 0 4px;font-size:24px;display:flex;align-items:center;gap:12px} img{width:48px;height:48px}
+p{color:#9fb0c0} code{background:#0e141c;border:1px solid #2a3746;border-radius:6px;padding:2px 6px;color:#2fd47e;font-size:14px}
+ol{padding-left:20px} li{margin:8px 0} #st{color:#f6b73c}
+</style></head><body><div class="box">
+<h1><img src="netpulse-icon.png" alt="">NetPulse</h1>
+<p id="st">Looking for NetPulse...</p>
+<div id="help" hidden>
+<p>NetPulse is a small program that does the pinging, so it has to be started first.</p>
+<ol>
+<li>Double-click the <b>NetPulse</b> icon on the Desktop (it's added by <b>Set Up My Apps.sh</b>). Or find it in the Raspberry Pi menu under <b>Internet</b>.</li>
+<li>Keep the black window that opens. The dashboard opens by itself.</li>
+</ol>
+<p>No icon? Open a Terminal and type:<br><code>python3 ~/Desktop/"My Apps"/apps/netpulse/netpulse.py</code></p>
+<p>This page keeps checking and jumps to NetPulse as soon as it's running.</p>
+</div></div>
+<script>
+// NetPulse answers /np.js with its port; other programs on these ports won't, so we never open the wrong app.
+const PORTS=[8790,8791,8792,8793,8794,8795,8765,8766];
+function probe(){window.__netpulse=[];let left=PORTS.length;
+  PORTS.forEach(p=>{const sc=document.createElement('script');sc.src='http://127.0.0.1:'+p+'/np.js?'+Date.now();
+    sc.onload=sc.onerror=()=>{sc.remove();if(--left===0)done()};document.head.appendChild(sc)})}
+function done(){const p=(window.__netpulse||[])[0];
+  if(p){location.replace('http://127.0.0.1:'+p+'/');return}
+  document.getElementById('st').textContent='NetPulse isn\'t running yet.';document.getElementById('help').hidden=false;setTimeout(probe,2500)}
+probe();
+</script></body></html>

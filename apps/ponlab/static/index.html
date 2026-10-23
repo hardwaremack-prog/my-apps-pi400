@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PON Lab</title>
+<link rel="icon" href="/static/icon-256.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#101315; --panel:#171b1e; --panel2:#1d2226; --line:#2a3035; --ink:#e4e8ea; --dim:#8a949b;
+  --on:#3ddc84; --off:#ff5a4e; --warn:#ffb020; --accent:#4cc2ff;
+  --mono:'IBM Plex Mono',ui-monospace,monospace; --sans:'IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 var(--sans)}
+header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);
+  background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+h1{font:600 17px var(--mono);letter-spacing:.06em;margin:0}
+h1 span{color:var(--accent)}
+.badge{font:600 11px var(--mono);padding:3px 8px;border-radius:3px;letter-spacing:.08em}
+.badge.sim{background:#3a2f12;color:var(--warn)} .badge.live{background:#0f3321;color:var(--on)}
+.clock{font:500 13px var(--mono);color:var(--dim);margin-left:auto}
+button{font:500 13px var(--sans);border:1px solid var(--line);background:var(--panel2);color:var(--ink);
+  padding:7px 12px;border-radius:4px;cursor:pointer}
+button:hover{border-color:#4a535a} button:disabled{opacity:.35;cursor:default}
+.estop{background:#3d1210;border-color:#7a2219;color:#ffd6d2;font-weight:600;letter-spacing:.04em}
+.estop:hover{background:#561812}
+main{padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr);gap:16px;max-width:1500px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(330px,100%),1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.card.out{border-color:#6b2520;box-shadow:0 0 0 1px #6b2520 inset}
+.chead{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.lamp{width:14px;height:14px;border-radius:50%;background:var(--on);box-shadow:0 0 10px var(--on);flex:none}
+.out .lamp{background:var(--off);box-shadow:0 0 12px var(--off);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.45}}
+.cname{font-weight:600} .cmeter{color:var(--dim);font-size:12px}
+.cid{margin-left:auto;font:600 12px var(--mono);color:var(--dim)}
+.readout{padding:12px;display:grid;grid-template-columns:1fr auto;align-items:end;gap:4px 10px}
+.big{font:600 34px var(--mono);letter-spacing:.02em}
+.out .big{color:var(--off)}
+.lbl{font:500 11px var(--mono);color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.sub{font:500 13px var(--mono);color:var(--warn);text-align:right}
+.row{display:flex;gap:8px;padding:0 12px 10px;flex-wrap:wrap;align-items:center}
+.cut{background:#3d1210;border-color:#7a2219;color:#ffd6d2;font-weight:600}
+.restore{background:#0f3321;border-color:#1f6b45;color:#c9ffe0;font-weight:600}
+input,select{font:13px var(--mono);background:var(--bg);color:var(--ink);border:1px solid var(--line);
+  border-radius:4px;padding:6px 8px}
+input[type=number]{width:80px}
+select{flex:1;min-width:0;max-width:100%}
+.marks{padding:10px 12px;border-top:1px solid var(--line);background:var(--panel2);display:grid;
+  grid-template-columns:1fr 1fr;gap:6px}
+.mk{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 8px;
+  text-align:left}
+.mk b{font:600 12px var(--mono);color:var(--accent)}
+.mk.done{border-color:#1d4d66;background:#12262f}
+.seq{margin:0 12px 10px;padding:8px 10px;border:1px dashed #5a4a1a;border-radius:4px;color:var(--warn);
+  font:12px var(--mono);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.result{padding:8px 12px 12px;font:12px var(--mono);color:var(--dim);border-top:1px solid var(--line)}
+.result b{color:var(--ink);font-weight:600}
+section.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.phead{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.phead h2{font:600 13px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin:0;margin-right:auto}
+table{width:100%;border-collapse:collapse;font:12px var(--mono)}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--dim);font-weight:500;position:sticky;top:0;background:var(--panel)}
+td.note{white-space:normal;color:var(--dim)}
+.scroll{max-height:360px;overflow:auto}
+.k-power_off{color:var(--off)} .k-power_on{color:var(--on)} .k-mark{color:var(--accent)}
+.k-seq{color:var(--warn)} .k-sense{color:#d58cff}
+.two{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px}
+@media (max-width:1250px){.two{grid-template-columns:1fr}}
+@media (max-width:600px){header{position:static}.clock{margin-left:0}}
+@media (max-width:420px){main{padding:12px}.grid{grid-template-columns:1fr}.marks{grid-template-columns:1fr}}
+.toast{position:fixed;bottom:16px;right:16px;background:var(--panel2);border:1px solid var(--line);
+  padding:10px 14px;border-radius:4px;font:12px var(--mono);opacity:0;transition:.2s}
+.toast.show{opacity:1}
+.offline{background:#3d1210;color:#ffd6d2;padding:6px 18px;font:12px var(--mono);display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>PON<span>LAB</span></h1>
+  <span id="mode" class="badge sim">…</span>
+  <span class="cmeter"><b id="node" style="color:var(--ink)"></b> · AMI outage &amp; supercap holdup tester</span>
+  <span class="clock" id="clock"></span>
+  <button class="estop" onclick="restoreAll()">⏻ RESTORE ALL</button>
+</header>
+<div class="offline" id="offline">Lost contact with the Pi — retrying… (relays keep their last state; watchdog on the Pi still enforces max outage)</div>
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="two">
+    <section class="panel">
+      <div class="phead"><h2>Outage results</h2><span class="cmeter">seconds from power cut</span></div>
+      <div class="scroll"><table id="results"></table></div>
+    </section>
+    <section class="panel">
+      <div class="phead">
+        <h2>Event log</h2>
+        <select id="filter" style="flex:0 0 auto"><option value="">All channels</option></select>
+        <a href="/api/export.csv"><button>Export CSV</button></a>
+        <button onclick="clearLog()">Clear</button>
+      </div>
+      <div class="row" style="padding-top:10px">
+        <select id="noteCh" style="flex:0 0 auto"></select>
+        <input id="note" placeholder="Add a note (head-end ref, neighbour meter seen, etc.)" style="flex:1"
+               onkeydown="if(event.key==='Enter')addNote()">
+        <button onclick="addNote()">Add</button>
+      </div>
+      <div class="scroll"><table id="log"></table></div>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+let S=null, built=false, lastResKey='';
+const $=s=>document.querySelector(s);
+const fmt=s=>{if(s==null)return'—';s=Math.max(0,s);const m=Math.floor(s/60),h=Math.floor(m/60);
+  const sec=(s%60).toFixed(1).padStart(4,'0');return h?`${h}:${String(m%60).padStart(2,'0')}:${sec}`:`${String(m).padStart(2,'0')}:${sec}`};
+const tstr=t=>new Date(t*1000).toLocaleTimeString([], {hour12:false})+'.'+String(Math.floor((t%1)*10));
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1800)}
+let TOKEN='';try{TOKEN=localStorage.getItem('ponlab-token')||''}catch(e){}
+async function post(url,body,retry){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-PonLab-Token':TOKEN},body:JSON.stringify(body||{})});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401&&!retry){const t=prompt('This PON Lab needs its access token:');if(t){TOKEN=t.trim();try{localStorage.setItem('ponlab-token',TOKEN)}catch(e){}return post(url,body,true)}}
+  if(!r.ok)toast(j.error||'Error');poll();return j}
+
+function build(){
+  const g=$('#grid'); g.innerHTML='';
+  S.channels.forEach(c=>{
+    const el=document.createElement('div'); el.className='card'; el.id='c-'+c.id;
+    el.innerHTML=`
+      <div class="chead"><div class="lamp"></div>
+        <div><div class="cname">${c.name}</div><div class="cmeter">${c.meter||''}</div></div>
+        <div class="cid">CH ${c.id} · GPIO ${c.gpio}</div></div>
+      <div class="readout"><div><div class="lbl" data-r="lbl">Powered</div><div class="big" data-r="big">ON</div></div>
+        <div class="sub" data-r="sub"></div></div>
+      <div class="seq" data-r="seq" style="display:none"></div>
+      <div class="row">
+        <button class="cut" data-r="cut">Cut power</button>
+        <button class="restore" data-r="restore">Restore</button>
+        <input type="number" min="0.2" step="0.1" value="30" data-r="secs" title="seconds">
+        <button data-r="timed">Cut for N s</button>
+      </div>
+      <div class="row">
+        <select data-r="preset">${S.presets.map((p,i)=>`<option value="${i}">${p.name}</option>`).join('')}</select>
+        <button data-r="run">Run sequence</button>
+      </div>
+      <div class="marks">${S.mark_types.map(m=>`<button class="mk" data-mk="${m.key}" title="${m.hint}">${m.label}<b></b></button>`).join('')}</div>
+      <div class="result" data-r="result">No outage recorded yet.</div>`;
+    const q=r=>el.querySelector(`[data-r="${r}"]`);
+    q('cut').onclick=()=>post(`/api/${c.id}/off`);
+    q('restore').onclick=()=>post(`/api/${c.id}/on`);
+    q('timed').onclick=()=>post(`/api/${c.id}/off`,{seconds:+q('secs').value,reason:`timed ${q('secs').value}s`});
+    q('run').onclick=()=>{const p=S.presets[q('preset').value];
+      const tot=p.steps.reduce((a,s)=>a+s.off+s.on,0);
+      if(confirm(`Run "${p.name}" on ${c.name}?\n${p.steps.length} outage(s), about ${fmt(tot)} total.`))
+        post(`/api/${c.id}/sequence`,{steps:p.steps,name:p.name})};
+    el.querySelectorAll('[data-mk]').forEach(b=>b.onclick=()=>{post(`/api/${c.id}/mark`,{kind:b.dataset.mk});toast(`${c.id}: ${b.firstChild.textContent} marked`)});
+    g.appendChild(el);
+  });
+  const opts=S.channels.map(c=>`<option value="${c.id}">${c.id} · ${c.name}</option>`).join('');
+  $('#filter').innerHTML='<option value="">All channels</option>'+opts;
+  $('#noteCh').innerHTML=opts+'<option value="-">General</option>';
+  $('#filter').onchange=renderLog; built=true;
+}
+
+function render(){
+  const m=$('#mode'); m.textContent=S.sim?'SIMULATION':'LIVE GPIO'; $('#node').textContent=S.node||''; m.className='badge '+(S.sim?'sim':'live');
+  S.channels.forEach(c=>{
+    const el=$('#c-'+c.id), q=r=>el.querySelector(`[data-r="${r}"]`), out=!c.powered;
+    el.classList.toggle('out',out);
+    q('lbl').textContent=out?'Outage elapsed':'Powered';
+    q('big').textContent=out?fmt(c.outage_elapsed):'ON';
+    let sub=''; if(out&&c.restore_in!=null)sub=`auto-restore in ${fmt(c.restore_in)}`;
+    if(c.sense!=null)sub+=(sub?'<br>':'')+`<span style="color:${c.sense?'var(--on)':'#d58cff'}">sense: ${c.sense?'alive':'dark'}</span>`;
+    q('sub').innerHTML=sub;
+    q('cut').disabled=out||!!c.sequence; q('timed').disabled=out||!!c.sequence;
+    q('restore').disabled=!out&&!c.sequence; q('restore').textContent=c.sequence?'Abort + restore':'Restore';
+    q('run').disabled=!!c.sequence;
+    const sq=q('seq'); if(c.sequence){sq.style.display='flex';
+      sq.innerHTML=`<span>▶ ${c.sequence.name}</span><span>step ${c.sequence.step}/${c.sequence.total} · ${c.sequence.phase.toUpperCase()} ${fmt(c.sequence.phase_left)}</span>`}
+    else sq.style.display='none';
+    el.querySelectorAll('[data-mk]').forEach(b=>{const v=c.marks[b.dataset.mk];
+      b.querySelector('b').textContent=v!=null?`+${v.toFixed(1)}s`:''; b.classList.toggle('done',v!=null);
+      const isAfter=['restore_rx','rejoined'].includes(b.dataset.mk); b.disabled=!out&&!isAfter});
+    const r=c.last_result;
+    if(r){q('result').innerHTML='Last outage: <b>'+fmt(r.outage_seconds)+'</b>'+
+      S.mark_types.filter(m=>r[m.key+'_s']!=null).map(m=>` · ${m.label} <b>+${r[m.key+'_s']}s</b>`).join('')+
+      (r.sense_holdup_s!=null?` · sense holdup <b>${r.sense_holdup_s}s</b>`:'')}
+  });
+  renderResults(); renderLog();
+}
+
+function renderResults(){
+  // Pair each outage with marks that happened during it and after-restore marks within 30 min
+  const ev=[...S.events].reverse(); const rows=[]; const open={};
+  ev.forEach(e=>{
+    if(e.kind==='power_off'){open[e.channel]={ch:e.channel,start:e.t,reason:e.note,marks:{}};rows.push(open[e.channel])}
+    else if(e.kind==='power_on'&&open[e.channel]){open[e.channel].dur=e.outage_seconds;open[e.channel].end=e.t}
+    else if(e.kind.startsWith('mark:')&&open[e.channel]){const o=open[e.channel],k=e.kind.slice(5);
+      if(o.marks[k]==null)o.marks[k]=+(e.t-o.start).toFixed(1)}
+    else if(e.kind==='sense_dark'&&open[e.channel])open[e.channel].marks.sense=e.seconds_into_outage;
+  });
+  const key=JSON.stringify(rows.slice(-60)); if(key===lastResKey)return; lastResKey=key;
+  const mt=S.mark_types;
+  $('#results').innerHTML=`<tr><th>Start</th><th>CH</th><th>Outage</th>${mt.map(m=>`<th>${m.label}</th>`).join('')}<th>Sense dark</th><th>Reason</th></tr>`+
+    rows.slice(-60).reverse().map(r=>`<tr><td>${tstr(r.start)}</td><td>${r.ch}</td><td>${r.dur!=null?r.dur+'s':'<span class="k-power_off">running</span>'}</td>
+      ${mt.map(m=>`<td>${r.marks[m.key]!=null?'+'+r.marks[m.key]+'s':'—'}</td>`).join('')}<td>${r.marks.sense!=null?'+'+r.marks.sense+'s':'—'}</td>
+      <td class="note">${r.reason||''}</td></tr>`).join('') || '<tr><td>No outages yet</td></tr>';
+}
+
+function renderLog(){
+  const f=$('#filter').value, labels=Object.fromEntries(S.mark_types.map(m=>['mark:'+m.key,m.label]));
+  const cls=k=>k.startsWith('mark')?'k-mark':k.startsWith('sequence')?'k-seq':k==='sense_dark'?'k-sense':'k-'+k;
+  const rows=S.events.filter(e=>!f||e.channel===f).slice(0,150);
+  $('#log').innerHTML='<tr><th>Time</th><th>CH</th><th>Event</th><th>Detail</th></tr>'+rows.map(e=>{
+    let d=e.note||''; if(e.seconds_into_outage!=null)d=`+${e.seconds_into_outage}s into outage `+d;
+    if(e.kind==='power_on'&&e.outage_seconds!=null)d=`outage ${e.outage_seconds}s · `+d;
+    return `<tr><td>${tstr(e.t)}</td><td>${e.channel}</td><td class="${cls(e.kind)}">${labels[e.kind]||e.kind.replace('_',' ')}</td><td class="note">${d}</td></tr>`}).join('');
+}
+
+async function poll(){
+  try{const r=await fetch('/api/state');S=await r.json();$('#offline').style.display='none';
+    if(!built)build(); render()}catch(e){$('#offline').style.display='block'}
+}
+function restoreAll(){post('/api/all/restore');toast('All channels restored')}
+function addNote(){const n=$('#note');if(!n.value.trim())return;post('/api/note',{channel:$('#noteCh').value,note:n.value});n.value=''}
+function clearLog(){if(confirm('Clear the whole event log? Export CSV first if you need it.'))post('/api/log/clear')}
+setInterval(poll,500); poll();
+setInterval(()=>$('#clock').textContent=new Date().toLocaleString([], {hour12:false}),500);
+</script>
+</body>
+</html>

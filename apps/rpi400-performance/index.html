@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPi400 Performance</title>
+<link rel="icon" href="/icon.png">
+<style>
+:root{
+  --bg:#14111f; --panel:#1f1a30; --panel2:#2a2341; --line:#352c52; --ink:#f4efe6; --dim:#a79fbd;
+  --go:#ff5d73; --ok:#3fd27f; --warn:#ffb224; --cool:#4fd1c5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"DejaVu Sans","Noto Sans",system-ui,sans-serif}
+body{min-height:100vh;background:radial-gradient(1100px 480px at 0% -10%,#4a1f3a 0%,transparent 60%),
+  radial-gradient(900px 460px at 110% 0%,#123c4a 0%,transparent 60%),var(--bg)}
+header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:26px 36px 6px}
+h1{margin:0;font-size:44px;font-weight:900;letter-spacing:-1px;line-height:1}
+h1 span{display:inline-block;transform:rotate(-3deg);background:var(--go);color:var(--bg);padding:2px 12px;border-radius:10px;margin-left:4px}
+.who{color:var(--dim);font-size:15px}
+.who b{color:var(--ink)}
+main{padding:12px 36px 36px;display:grid;gap:18px;max-width:1240px}
+.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.g{background:var(--panel);border-radius:16px;padding:14px 16px;border:2px solid transparent}
+.g .k{font-size:12.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.g .v{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;margin-top:4px;white-space:nowrap}
+.g .v small{font-size:15px;font-weight:700;color:var(--dim)}
+.g .s{font-size:13px;color:var(--dim);margin-top:2px;min-height:1.2em}
+.g.warn{border-color:var(--warn)} .g.bad{border-color:var(--go)}
+.bar{height:7px;border-radius:9px;background:var(--panel2);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--cool);border-radius:9px;transition:width .4s}
+.hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap;background:linear-gradient(110deg,#3b1830,#1f1a30 60%);
+  border-radius:18px;padding:20px 22px;border:2px solid #5a2a48}
+.hero h2{margin:0 0 4px;font-size:24px}
+.hero p{margin:0;color:var(--dim);font-size:15px;line-height:1.45;max-width:640px}
+.hero .sp{flex:1}
+button{font:inherit;cursor:pointer}
+.big{appearance:none;border:0;background:var(--go);color:#fff;font-size:20px;font-weight:900;padding:15px 28px;border-radius:999px;
+  box-shadow:0 8px 24px rgba(255,93,115,.35)}
+.big:hover{filter:brightness(1.08)} .big:disabled{opacity:.55;cursor:default}
+.btn{appearance:none;border:2px solid var(--panel2);background:var(--panel2);color:var(--ink);font-size:14px;font-weight:800;
+  padding:7px 14px;border-radius:999px;white-space:nowrap}
+.btn:hover{border-color:var(--cool)} .btn.ghost{background:transparent}
+.btn.go{background:var(--go);border-color:var(--go);color:#fff}
+.btn.sel{background:var(--cool);border-color:var(--cool);color:var(--bg)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible,.big:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.cols{display:grid;grid-template-columns:1.25fr 1fr;gap:18px;align-items:start}
+section.card{background:var(--panel);border-radius:18px;padding:18px 18px 10px}
+section.card h3{margin:0 0 4px;font-size:19px;display:flex;align-items:center;gap:10px}
+section.card h3 .sp{flex:1}
+section.card .lead{margin:0 0 10px;color:var(--dim);font-size:14px;line-height:1.4}
+.row{display:grid;grid-template-columns:22px 1fr auto;gap:4px 12px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.row .ic{width:14px;height:14px;border-radius:50%;background:var(--panel2);border:2px solid var(--dim)}
+.row.on .ic{background:var(--ok);border-color:var(--ok);box-shadow:0 0 10px rgba(63,210,127,.55)}
+.row.pend .ic{background:var(--warn);border-color:var(--warn)}
+.row .t{font-weight:800;font-size:15.5px}
+.row .d{grid-column:2/3;color:var(--dim);font-size:13.5px;line-height:1.38}
+.row .b{grid-row:1/3;grid-column:3}
+.oc{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0 10px}
+.ocb{appearance:none;text-align:left;background:var(--panel2);border:3px solid transparent;border-radius:14px;padding:12px 14px;color:var(--ink)}
+.ocb b{display:block;font-size:22px}
+.ocb span{font-size:12.5px;color:var(--dim);line-height:1.35;display:block;margin-top:2px}
+.ocb.sel{border-color:var(--cool)}
+.ocb:hover{border-color:#fff3}
+.note{font-size:13px;color:var(--dim);line-height:1.45;margin:4px 0 10px}
+.note b{color:var(--ink)}
+.warnbox{background:#3a2a14;border:1px solid #6b4a17;color:#ffd79a;border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.4;margin:6px 0 10px}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);text-align:right;font-weight:800;padding:6px 6px}
+td{padding:7px 6px;border-top:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+.up{color:var(--ok);font-size:12px;font-weight:800;margin-left:4px}
+.down{color:var(--go);font-size:12px;font-weight:800;margin-left:4px}
+.hog{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:14.5px}
+.hog .n{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hog .n small{color:var(--dim);font-weight:400}
+.hog .m{font-variant-numeric:tabular-nums;color:var(--dim)}
+.restart{display:none;position:sticky;bottom:14px;margin:0 auto;background:var(--warn);color:#1b1206;border-radius:999px;padding:10px 12px 10px 20px;
+  font-weight:800;align-items:center;gap:14px;box-shadow:0 10px 30px rgba(0,0,0,.45);width:max-content;max-width:94vw}
+.restart.on{display:flex}
+.restart .btn{background:#1b1206;color:#fff;border-color:#1b1206}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);
+  font-weight:700;padding:12px 20px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.4);transition:.2s;max-width:min(680px,92vw);text-align:center;line-height:1.4;z-index:5}
+#toast.on{opacity:1;transform:translateX(-50%)}
+.spin{display:inline-block;width:14px;height:14px;border:2.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+footer{color:var(--dim);font-size:13px;padding:0 36px 30px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+@media (max-width:640px){header,main,footer{padding-left:16px;padding-right:16px}h1{font-size:34px}.oc{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <img src="/icon.png" alt="" width="54" height="54" style="border-radius:14px">
+  <h1>RPi400 <span>Performance</span></h1>
+  <div class="who" id="who">Checking this Pi…</div>
+</header>
+
+<main>
+  <div class="gauges">
+    <div class="g" id="gCpu"><div class="k">Processor</div><div class="v" id="vMhz">–</div><div class="s" id="sMhz"></div><div class="bar"><i id="bCpu" style="width:0"></i></div></div>
+    <div class="g" id="gTemp"><div class="k">Temperature</div><div class="v" id="vTemp">–</div><div class="s" id="sTemp"></div><div class="bar"><i id="bTemp" style="width:0"></i></div></div>
+    <div class="g" id="gRam"><div class="k">Memory</div><div class="v" id="vRam">–</div><div class="s" id="sRam"></div><div class="bar"><i id="bRam" style="width:0"></i></div></div>
+    <div class="g" id="gSd"><div class="k">SD card</div><div class="v" id="vSd">–</div><div class="s" id="sSd"></div><div class="bar"><i id="bSd" style="width:0"></i></div></div>
+    <div class="g" id="gPwr"><div class="k">Power</div><div class="v" id="vPwr">–</div><div class="s" id="sPwr"></div></div>
+  </div>
+
+  <div class="hero">
+    <div>
+      <h2>One click: make it fast</h2>
+      <p id="heroText">Turns on every safe tune-up below: full-speed CPU, compressed RAM, gentler SD card writing and fewer
+        background services. Your files and apps aren't touched, and <b>Put everything back</b> undoes it all.</p>
+    </div>
+    <span class="sp"></span>
+    <button class="big" id="fastBtn">⚡ Make it fast</button>
+  </div>
+
+  <div class="cols">
+    <div style="display:grid;gap:18px">
+      <section class="card">
+        <h3>Tune-ups <span class="sp"></span><span class="who" id="tuneCount"></span></h3>
+        <p class="lead">Each one can be switched on or off by itself. Green means it's on.</p>
+        <div id="tunes"></div>
+      </section>
+
+      <section class="card">
+        <h3>Background services</h3>
+        <p class="lead">Programs that start with the Pi and sit in memory. Turn off the ones you don't use.</p>
+        <div id="svcs"></div>
+      </section>
+    </div>
+
+    <div style="display:grid;gap:18px">
+      <section class="card">
+        <h3>Overclock</h3>
+        <p class="lead">Runs the processor faster than the factory 1.8 GHz. The Pi 400's big built-in heatsink handles it well.</p>
+        <div class="oc" id="oc">
+          <button class="ocb" data-oc="stock"><b>1.8 GHz</b><span>Factory speed</span></button>
+          <button class="ocb" data-oc="2000"><b>2.0 GHz</b><span>About 11% faster. Safe on nearly every Pi 400.</span></button>
+          <button class="ocb" data-oc="2147"><b>2.15 GHz</b><span>About 19% faster. Most Pi 400s; needs a good power supply.</span></button>
+        </div>
+        <div id="ocWarn"></div>
+        <p class="note">Takes effect after a restart. If the Pi ever won't start after an overclock: put the SD card in another
+          computer, open <b>config.txt</b> and delete the lines between <b># &gt;&gt;&gt; RPi400 Performance</b> and <b># &lt;&lt;&lt;</b>.</p>
+      </section>
+
+      <section class="card">
+        <h3>Speed test <span class="sp"></span><button class="btn go" id="benchBtn">Run speed test</button></h3>
+        <p class="lead">Takes about a minute. Run it before and after tuning to see the difference.</p>
+        <div id="bench"></div>
+      </section>
+
+      <section class="card">
+        <h3>Memory hogs <span class="sp"></span><button class="btn ghost" id="hogBtn">Refresh</button></h3>
+        <p class="lead">What's using the RAM right now. Closing one frees its memory straight away.</p>
+        <div id="hogs"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="restart" id="restartBar">🔁 Restart the Pi to finish the changes. <button class="btn" id="rebootBtn">Restart now</button></div>
+</main>
+
+<footer>
+  <button class="btn ghost" id="undoBtn">↩ Put everything back</button>
+  <span id="ver"></span>
+</footer>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  "use strict";
+  const KEY = "{{KEY}}";
+  const $ = (id) => document.getElementById(id);
+  const h = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const gb = (b) => (b / 1073741824).toFixed(1);
+  let S = null, busy = false, needReboot = false, toastT;
+
+  function toast(m, ms) { const t = $("toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), ms || 5200); }
+  async function post(path, body) {
+    try {
+      const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Perf-Key": KEY }, body: JSON.stringify(body || {}) });
+      return await r.json();
+    } catch (e) { return { ok: false, msg: "RPi400 Performance isn't running. Start it from its icon." }; }
+  }
+  function lockAll(on, btn, label) {
+    busy = on;
+    document.querySelectorAll("button").forEach((b) => { if (b.id !== "rebootBtn") b.disabled = on; });
+    if (btn) { if (on) { btn.dataset.l = btn.innerHTML; btn.innerHTML = `<span class="spin"></span> ${label || "Working…"}`; } else if (btn.dataset.l) btn.innerHTML = btn.dataset.l; }
+  }
+  async function act(action, value, btn) {
+    if (busy) return;
+    lockAll(true, btn);
+    const r = await post("/api/do", { action, value });
+    lockAll(false, btn);
+    toast(r.msg || (r.ok ? "Done." : "That didn't work."));
+    if (r.reboot) setReboot();
+    refresh();
+    return r;
+  }
+  function setReboot() { needReboot = true; $("restartBar").classList.add("on"); }
+
+  const TUNES = [
+    ["governor", "Full-speed CPU", "Keeps the processor at top speed instead of waiting to speed up. Apps open and react quicker.", "performance", "ondemand"],
+    ["zram", "Compressed RAM (zram)", "Squeezes memory so the Pi can hold about 1.5x more before it has to use the slow SD card. Big help with 4 GB.", "on", "off"],
+    ["sysctl", "Memory & SD card tuning", "Uses compressed RAM before the SD card, keeps folder info in memory, and writes to the card in small steady batches (no freezes).", "on", "off"],
+    ["tmpram", "Temporary files in RAM", "Scratch files go to memory (up to 512 MB) instead of the SD card. Faster and less card wear. After a restart.", "on", "off"],
+    ["journal", "Smaller system logs", "Caps logs at 64 MB so they stop growing on the SD card.", "on", "off"],
+    ["noatime", "No 'last opened' writes", "Stops the SD card writing a timestamp every time a file is read.", "on", "off"],
+    ["trim", "Weekly SD card clean-up", "Tells the card which space is free (TRIM), which keeps writing fast over time.", "on", "off"],
+  ];
+
+  function paintTunes() {
+    const t = S.tune; let on = 0;
+    $("tunes").innerHTML = TUNES.map(([id, name, desc, onVal, offVal]) => {
+      const st = t[id] || {}; const isOn = !!st.on; if (isOn) on++;
+      let extra = "";
+      if (id === "governor" && st.value) extra = ` <span style="color:var(--dim);font-weight:400">(now: ${h(st.value)})</span>`;
+      if (id === "zram" && isOn && !st.ours) extra = ` <span style="color:var(--dim);font-weight:400">(set up by the system)</span>`;
+      if (id === "tmpram" && st.pending) extra = ` <span style="color:var(--warn);font-weight:700">after restart</span>`;
+      return `<div class="row ${isOn ? (st.pending ? "pend" : "on") : ""}"><span class="ic"></span><span class="t">${h(name)}${extra}</span>
+        <span class="b"><button class="btn ${isOn ? "ghost" : "go"}" data-a="${id}" data-v="${isOn ? offVal : onVal}">${isOn ? "Turn off" : "Turn on"}</button></span>
+        <span class="d">${h(desc)}</span></div>`;
+    }).join("");
+    $("tuneCount").textContent = `${on} of ${TUNES.length} on`;
+  }
+  function paintSvcs() {
+    const list = S.services.filter((s) => s.installed);
+    $("svcs").innerHTML = list.length ? list.map((s) => `<div class="row ${s.enabled ? "" : "on"}"><span class="ic"></span>
+      <span class="t">${h(s.label)} <span style="color:var(--dim);font-weight:400">· ${h(s.name)}</span>${s.enabled ? (s.active ? ' <span style="color:var(--warn);font-size:12px">running</span>' : "") : ' <span style="color:var(--ok);font-size:12px">off</span>'}</span>
+      <span class="b"><button class="btn ${s.enabled ? "go" : "ghost"}" data-a="service" data-v="${h(s.name)}:${s.enabled ? "off" : "on"}">${s.enabled ? "Turn off" : "Turn on"}</button></span>
+      <span class="d">${h(s.why)}</span></div>`).join("") : `<p class="note">None of the usual extras are installed. Nice and lean already.</p>`;
+  }
+  function paintOc() {
+    const cur = S.overclock;
+    document.querySelectorAll(".ocb").forEach((b) => b.classList.toggle("sel", b.dataset.oc === cur));
+    const isPi4 = /Raspberry Pi (4|400)/.test(S.model);
+    let w = "";
+    if (!isPi4) w += `<div class="warnbox">This is a ${h(S.model)}. The overclock presets are made for the Pi 400 and Pi 4 only.</div>`;
+    if (S.throttled != null && (S.throttled & 0x10001)) w += `<div class="warnbox">⚡ The power supply has been too weak since the Pi started. Overclocking is blocked until you use the official 5.1 V 3 A supply.</div>`;
+    if (String(cur).startsWith("other:")) w += `<div class="warnbox">config.txt already has arm_freq=${h(cur.slice(6))} from another tool. Picking a preset here overrides it.</div>`;
+    if (S.maxMhz && cur !== "stock" && !String(cur).startsWith("other:") && S.maxMhz < +cur) w += `<div class="warnbox">Set to ${(+cur / 1000).toFixed(2)} GHz. Restart to use it (now ${(S.maxMhz / 1000).toFixed(2)} GHz).</div>`;
+    $("ocWarn").innerHTML = w;
+  }
+  function delta(now, before) {
+    if (now == null || before == null || !before) return "";
+    const p = Math.round((now / before - 1) * 100);
+    return p >= 3 ? `<span class="up">+${p}%</span>` : p <= -3 ? `<span class="down">${p}%</span>` : "";
+  }
+  function paintBench() {
+    const b = S.bench || [];
+    if (S.benchRunning) { $("benchBtn").disabled = true; $("benchBtn").innerHTML = `<span class="spin"></span> ${h(S.benchStep || "Testing")}…`; }
+    else if (!busy) { $("benchBtn").disabled = false; $("benchBtn").textContent = b.length ? "Run again" : "Run speed test"; }
+    if (!b.length) { $("bench").innerHTML = `<p class="note">No tests yet. Run one now, then again after <b>Make it fast</b> and a restart.</p>`; return; }
+    const last = b[b.length - 1], first = b[0];
+    const rows = [["CPU, one core", "cpu1", "M/s"], ["CPU, all cores", "cpuAll", "M/s"], ["Memory", "ram", "MB/s"], ["SD card read", "sdRead", "MB/s"], ["SD card write", "sdWrite", "MB/s"]];
+    $("bench").innerHTML = `<table><tr><th>Test</th><th>First test<br><span style="font-weight:400;text-transform:none">${h(first.at)}</span></th><th>Latest<br><span style="font-weight:400;text-transform:none">${h(last.at)}</span></th></tr>` +
+      rows.map(([n, k, u]) => `<tr><td>${n}</td><td>${first[k] ?? "–"} <span style="color:var(--dim);font-size:12px">${u}</span></td><td><b>${last[k] ?? "–"}</b> <span style="color:var(--dim);font-size:12px">${u}</span>${b.length > 1 ? delta(last[k], first[k]) : ""}</td></tr>`).join("") +
+      `</table><p class="note">${b.length} test${b.length > 1 ? "s" : ""} so far. Latest ran at ${last.oc === "stock" ? "1.8 GHz" : String(last.oc).startsWith("other:") ? last.oc.slice(6) + " MHz" : (+last.oc / 1000).toFixed(2) + " GHz"}, CPU mode "${h(last.gov)}", ${last.temp ?? "?"}°C.</p>`;
+  }
+  function paintGauges() {
+    const m = S.mem, sd = S.sd;
+    $("who").innerHTML = `<b>${h(S.model)}</b> · ${h(S.host)} · ${S.cores} cores`;
+    $("vMhz").innerHTML = S.mhz ? `${(S.mhz / 1000).toFixed(2)} <small>GHz</small>` : "–";
+    $("sMhz").textContent = (S.cpu != null ? S.cpu + "% busy" : "") + (S.maxMhz ? ` · top ${(S.maxMhz / 1000).toFixed(2)} GHz` : "");
+    $("bCpu").style.width = (S.cpu || 0) + "%";
+    $("vTemp").innerHTML = S.temp != null ? `${Math.round(S.temp)} <small>°C</small>` : "–";
+    $("sTemp").textContent = S.temp == null ? "" : S.temp >= 80 ? "Hot: slowing down" : S.temp >= 70 ? "Warm" : "Cool";
+    $("gTemp").className = "g" + (S.temp >= 80 ? " bad" : S.temp >= 70 ? " warn" : "");
+    $("bTemp").style.width = Math.min(100, (S.temp || 0) / 85 * 100) + "%";
+    const used = m.total - m.avail;
+    $("vRam").innerHTML = `${gb(used)} <small>/ ${gb(m.total)} GB</small>`;
+    const zr = S.swaps.some((s) => s.includes("zram")), sw = m.swapTotal ? `${gb(m.swapTotal - m.swapFree)} of ${gb(m.swapTotal)} GB swap` : "no swap";
+    $("sRam").textContent = sw + (zr ? " · zram on" : "");
+    $("bRam").style.width = (used / m.total * 100) + "%";
+    $("gRam").className = "g" + (m.avail / m.total < .1 ? " warn" : "");
+    $("vSd").innerHTML = `${gb(sd.used)} <small>/ ${gb(sd.total)} GB</small>`;
+    $("sSd").textContent = [sd.maker, sd.name].filter(Boolean).join(" ") || (sd.onSd ? "SD card" : (sd.root || "").replace("/dev/", ""));
+    $("bSd").style.width = (sd.used / sd.total * 100) + "%";
+    $("gSd").className = "g" + (sd.used / sd.total > .9 ? " warn" : "");
+    const t = S.throttled;
+    if (t == null) { $("vPwr").textContent = "?"; $("sPwr").textContent = "vcgencmd not found"; $("gPwr").className = "g"; }
+    else if (t & 0x1) { $("vPwr").textContent = "Too low!"; $("sPwr").textContent = "Use the official 5.1 V 3 A supply"; $("gPwr").className = "g bad"; }
+    else if (t & 0x10000) { $("vPwr").textContent = "Dipped"; $("sPwr").textContent = "Power dropped since start-up"; $("gPwr").className = "g warn"; }
+    else { $("vPwr").textContent = "Good"; $("sPwr").textContent = (t & 0x40000) ? "Slowed by heat earlier" : "No power problems"; $("gPwr").className = "g"; }
+    $("ver").textContent = `${S.app} ${S.version}`;
+  }
+  async function refresh() {
+    try { S = await (await fetch("/api/status", { cache: "no-store" })).json(); } catch (e) { return; }
+    paintGauges(); if (!busy) { paintTunes(); paintSvcs(); paintOc(); } paintBench();
+    const allOn = TUNES.every(([id]) => S.tune[id] && S.tune[id].on);
+    if (!busy) { $("fastBtn").textContent = allOn ? "✓ All tuned" : "⚡ Make it fast"; }
+  }
+  async function loadHogs() {
+    let list = [];
+    try { list = await (await fetch("/api/hogs", { cache: "no-store" })).json(); } catch (e) { return; }
+    $("hogs").innerHTML = list.map((g) => `<div class="hog"><span class="n" title="${h(g.cmd)}">${h(g.name)}${g.count > 1 ? ` <small>×${g.count}</small>` : ""}</span>
+      <span class="m">${(g.rss / 1048576).toFixed(0)} MB</span>
+      ${g.canClose ? `<button class="btn" data-close="${h(g.name)}">Close</button>` : `<span style="color:var(--dim);font-size:12px;width:62px;text-align:center">system</span>`}</div>`).join("");
+  }
+
+  document.addEventListener("click", async (e) => {
+    const a = e.target.closest("[data-a]");
+    if (a) return act(a.dataset.a, a.dataset.v, a);
+    const oc = e.target.closest("[data-oc]");
+    if (oc) {
+      if (oc.dataset.oc === S.overclock) return toast("That's already the setting.");
+      if (oc.dataset.oc !== "stock" && !confirm(`Set the processor to ${(+oc.dataset.oc / 1000).toFixed(2)} GHz?\n\nIt takes effect after a restart. Use a good power supply (the official 5.1 V 3 A one).`)) return;
+      return act("overclock", oc.dataset.oc, oc);
+    }
+    const c = e.target.closest("[data-close]");
+    if (c) {
+      if (!confirm(`Close ${c.dataset.close}? Anything unsaved in it is lost.`)) return;
+      const r = await post("/api/close", { name: c.dataset.close }); toast(r.msg); setTimeout(() => { loadHogs(); refresh(); }, 1200);
+    }
+  });
+  $("fastBtn").onclick = async () => {
+    if (busy) return;
+    const bt = S.services.find((s) => s.name === "bluetooth" && s.installed && s.enabled);
+    let withBt = false;
+    if (bt) withBt = confirm("Also turn off Bluetooth?\n\nOK = yes, turn it off (frees memory)\nCancel = keep Bluetooth (choose this if you use a Bluetooth keyboard, mouse or headset)");
+    lockAll(true, $("fastBtn"), "Tuning…");
+    const r = await post("/api/fast", { bluetooth: withBt });
+    lockAll(false, $("fastBtn"));
+    const bad = (r.steps || []).filter((s) => !s.ok);
+    toast((r.msg || "") + (bad.length ? " Skipped: " + bad.map((s) => s.msg).join(" ") : ""), 9000);
+    if (r.reboot) setReboot();
+    refresh();
+  };
+  $("benchBtn").onclick = async () => { const r = await post("/api/bench"); if (!r.ok) toast(r.msg); setTimeout(refresh, 300); };
+  $("hogBtn").onclick = loadHogs;
+  $("rebootBtn").onclick = async () => { if (confirm("Restart the Pi now? Save your work in other apps first.")) { await post("/api/do", { action: "reboot", value: "" }); toast("Restarting…", 20000); } };
+  $("undoBtn").onclick = async () => {
+    if (!confirm("Put everything back the way it was before RPi400 Performance?\n(The overclock, tune-ups and services all go back.)")) return;
+    const r = await act("undo_all", "", $("undoBtn")); if (r && r.reboot) setReboot();
+  };
+
+  refresh(); loadHogs();
+  setInterval(() => { if (!document.hidden) refresh(); }, 2500);
+  setInterval(() => { if (!document.hidden && !busy) loadHogs(); }, 15000);
+})();
+</script>
+</body>
+</html>

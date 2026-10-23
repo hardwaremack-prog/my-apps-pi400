@@ -1,0 +1,2310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BLUEPRINT — a city planning sim</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" onerror="this.remove()">
+<style>
+  :root{
+    --bg:            #0B1A2B;
+    --panel:         #10202F;
+    --panel-line:    #1F3A52;
+    --grid-line:     #17293C;
+    --ink:           #DCEFEA;
+    --ink-dim:       #7FA0AE;
+    --res:           #5B8C5A;
+    --res-dim:       #2E4A32;
+    --com:           #3E8FB0;
+    --com-dim:       #234A5C;
+    --ind:           #D98E3B;
+    --ind-dim:       #5C3F1E;
+    --road:          #5A6B7A;
+    --power:         #E8B94A;
+    --alert:         #C24444;
+    --ok:            #6FBF73;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg); color:var(--ink);
+    font-family:'JetBrains Mono', monospace;
+    overflow:hidden;
+  }
+  .app{ display:flex; flex-direction:column; height:100vh; }
+
+  /* ---------- HUD ---------- */
+  .hud{
+    display:flex; align-items:center; gap:28px;
+    padding:10px 20px;
+    background:var(--panel);
+    border-bottom:1px solid var(--panel-line);
+    flex-shrink:0;
+  }
+  .brand{
+    font-family:'Space Grotesk', sans-serif; font-weight:700;
+    font-size:15px; letter-spacing:3px; color:var(--ink);
+    padding-right:10px; border-right:1px solid var(--panel-line);
+  }
+  .brand span{ color:var(--power); }
+  .stat{ display:flex; flex-direction:column; line-height:1.1; min-width:70px; }
+  .stat .label{ font-size:9px; letter-spacing:1.5px; color:var(--ink-dim); text-transform:uppercase; }
+  .stat .value{ font-size:16px; font-weight:700; font-family:'Space Grotesk',sans-serif; }
+  .stat .value.neg{ color:var(--alert); }
+  .stat .value.funds{ color:var(--ok); }
+  .stat .value.funds.neg{ color:var(--alert); }
+  .stat .value.loan{ color:var(--ink-dim); }
+  .stat .value.loan.owed{ color:var(--alert); }
+  .stat .value.crime{ color:var(--ink-dim); }
+  .stat .value.crime.high{ color:var(--alert); }
+  .loanctl{ display:flex; gap:4px; align-items:center; }
+  .loanctl button{
+    background:transparent; border:1px solid var(--panel-line); color:var(--ink-dim);
+    font-family:inherit; font-size:10px; padding:5px 8px; cursor:pointer; border-radius:3px;
+  }
+  .loanctl button:hover{ border-color:var(--alert); color:var(--alert); }
+  .demandbars{ display:flex; gap:10px; align-items:flex-end; margin-left:auto; }
+  .dgroup{ display:flex; flex-direction:column; align-items:center; gap:4px; width:44px; }
+  .dgroup .label{ font-size:9px; letter-spacing:1.5px; color:var(--ink-dim); }
+  .gauge{ width:14px; height:38px; background:#081420; border:1px solid var(--panel-line); position:relative; border-radius:2px; overflow:hidden;}
+  .gauge .mid{ position:absolute; left:0; right:0; top:50%; height:1px; background:var(--panel-line); }
+  .gauge .fill{ position:absolute; left:0; right:0; background:var(--ink-dim); transition:height .3s, top .3s; }
+  .speedctl{ display:flex; gap:4px; align-items:center; }
+  .speedctl button{
+    background:transparent; border:1px solid var(--panel-line); color:var(--ink-dim);
+    font-family:inherit; font-size:11px; padding:5px 9px; cursor:pointer; border-radius:3px;
+  }
+  .speedctl button.active{ color:var(--bg); background:var(--power); border-color:var(--power); }
+
+  /* ---------- BODY ---------- */
+  .body{ flex:1; display:flex; min-height:0; }
+
+  .toolbar{
+    width:168px; flex-shrink:0; background:var(--panel);
+    border-right:1px solid var(--panel-line);
+    padding:14px 10px; overflow-y:auto;
+  }
+  .tsection{ margin-bottom:16px; }
+  .tsection .thead{ font-size:9px; letter-spacing:2px; color:var(--ink-dim); margin-bottom:6px; padding-left:2px;}
+  .tool{
+    display:flex; align-items:center; gap:9px;
+    width:100%; background:#0D1C2A; border:1px solid var(--panel-line); color:var(--ink);
+    font-family:inherit; font-size:11px; padding:8px 9px; margin-bottom:5px;
+    cursor:pointer; border-radius:4px; text-align:left;
+  }
+  .tool .swatch{ width:11px; height:11px; border-radius:2px; flex-shrink:0; }
+  .tool .cost{ margin-left:auto; color:var(--ink-dim); font-size:9px; }
+  .tool:hover{ border-color:var(--ink-dim); }
+  .tool.active{ border-color:var(--power); background:#1A2A1444; box-shadow:0 0 0 1px var(--power) inset; }
+  .tool.confirm-armed{ border-color:var(--alert); background:#2A141444; color:var(--alert); box-shadow:0 0 0 1px var(--alert) inset; }
+
+  .taxrow{ display:flex; flex-direction:column; gap:4px; padding:0 2px; }
+  .taxrow input[type=range]{ width:100%; accent-color:var(--power); }
+  .taxrow .val{ font-size:12px; font-weight:700; color:var(--power); }
+
+  .fundrow{ display:flex; flex-direction:column; gap:2px; padding:0 2px; margin-bottom:8px; }
+  .fundrow .fundlabel{ font-size:10px; color:var(--ink-dim); }
+  .fundrow input[type=range]{ width:100%; accent-color:var(--power); }
+  .fundrow .val{ font-size:11px; font-weight:700; color:var(--power); }
+
+  .canvaswrap{ flex:1; overflow:auto; display:flex; align-items:center; justify-content:center; background:#081420; position:relative;}
+  canvas{ image-rendering:pixelated; cursor:crosshair; }
+
+  .toast{
+    position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--alert); color:var(--alert);
+    padding:7px 14px; font-size:11px; border-radius:4px; opacity:0; pointer-events:none;
+    transition:opacity .25s;
+  }
+  .toast.show{ opacity:1; }
+
+  .crossing{
+    position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--power); border-radius:6px;
+    padding:12px 16px; display:none; flex-direction:column; align-items:center; gap:8px;
+    box-shadow:0 4px 16px rgba(0,0,0,0.4);
+  }
+  .crossing.show{ display:flex; }
+  .crossing-text{ font-size:11px; letter-spacing:0.5px; color:var(--ink); }
+  .crossing-btns{ display:flex; gap:8px; }
+  .crossing-btns button{
+    background:#0D1C2A; border:1px solid var(--panel-line); color:var(--ink);
+    font-family:inherit; font-size:11px; padding:7px 12px; cursor:pointer; border-radius:4px;
+  }
+  .crossing-btns button span{ color:var(--power); margin-left:4px; }
+  .crossing-btns button:hover{ border-color:var(--power); }
+  .crossing-btns button#btnCancelCrossing{ color:var(--ink-dim); }
+  .crossing-btns button#btnCancelCrossing:hover{ border-color:var(--alert); color:var(--alert); }
+
+  .hoverInfo{
+    position:absolute; pointer-events:none; z-index:20;
+    background:rgba(16,32,47,0.96); border:1px solid var(--panel-line); border-radius:4px;
+    padding:6px 10px; font-size:11px; color:var(--ink); line-height:1.5;
+    display:none; max-width:220px;
+  }
+  .hoverInfo.show{ display:block; }
+  .hoverInfo .hi-title{ font-weight:700; color:var(--power); }
+  .hoverInfo .hi-line{ color:var(--ink-dim); font-size:10px; }
+
+  .foot{
+    padding:6px 20px; background:var(--panel); border-top:1px solid var(--panel-line);
+    font-size:10px; color:var(--ink-dim); display:flex; justify-content:space-between; flex-shrink:0;
+  }
+  .foot b{ color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hud">
+    <div class="brand">BLUEPRINT<span>_</span></div>
+    <div class="stat"><span class="label">Funds</span><span class="value funds" id="statFunds">§10,000</span></div>
+    <div class="stat"><span class="label">Population</span><span class="value" id="statPop">0</span></div>
+    <div class="stat"><span class="label">Date</span><span class="value" id="statDate">Mar 1900</span></div>
+    <div class="stat"><span class="label">Tax</span><span class="value" id="statTax">7%</span></div>
+    <div class="stat"><span class="label" id="loanLabel">Loan</span><span class="value loan" id="statLoan">§0</span></div>
+    <div class="loanctl">
+      <button id="btnBorrow" title="Borrow §2,000, up to a §20,000 limit">+ Borrow</button>
+      <button id="btnRepay" title="Repay from available funds">Repay</button>
+    </div>
+    <div class="stat"><span class="label" id="crimeLabel">Crime</span><span class="value crime" id="statCrime">0</span></div>
+
+    <div class="demandbars">
+      <div class="dgroup"><div class="gauge" id="gaugeR"><div class="mid"></div><div class="fill" style="background:var(--res)"></div></div><div class="label">RES</div></div>
+      <div class="dgroup"><div class="gauge" id="gaugeC"><div class="mid"></div><div class="fill" style="background:var(--com)"></div></div><div class="label">COM</div></div>
+      <div class="dgroup"><div class="gauge" id="gaugeI"><div class="mid"></div><div class="fill" style="background:var(--ind)"></div></div><div class="label">IND</div></div>
+    </div>
+
+    <div class="speedctl">
+      <button id="btnPause">II</button>
+      <button id="btnSpeed1" class="active">1x</button>
+      <button id="btnSpeed2">3x</button>
+      <button id="btnMusic" title="Toggle background music">♪ Off</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="toolbar">
+      <div class="tsection">
+        <div class="thead">ZONES</div>
+        <button class="tool" data-tool="zoneR"><span class="swatch" style="background:var(--res)"></span>Residential<span class="cost">§100</span></button>
+        <button class="tool" data-tool="zoneC"><span class="swatch" style="background:var(--com)"></span>Commercial<span class="cost">§100</span></button>
+        <button class="tool" data-tool="zoneI"><span class="swatch" style="background:var(--ind)"></span>Industrial<span class="cost">§100</span></button>
+      </div>
+      <div class="tsection">
+        <div class="thead">INFRASTRUCTURE</div>
+        <button class="tool" data-tool="road"><span class="swatch" style="background:var(--road)"></span>Road<span class="cost">§10</span></button>
+        <button class="tool" data-tool="power"><span class="swatch" style="background:var(--power)"></span>Power Line<span class="cost">§5</span></button>
+      </div>
+      <div class="tsection">
+        <div class="thead">POWER PLANTS</div>
+        <button class="tool" data-tool="plant"><span class="swatch" style="background:#F2C572"></span>Coal Plant<span class="cost">§3000</span></button>
+        <button class="tool" data-tool="plantSolar"><span class="swatch" style="background:#3E8FB0"></span>Solar Farm<span class="cost">§1800</span></button>
+        <button class="tool" data-tool="plantNuclear"><span class="swatch" style="background:#C7D3DE"></span>Nuclear Plant<span class="cost">§9000</span></button>
+      </div>
+      <div class="tsection">
+        <div class="thead">SERVICES</div>
+        <button class="tool" data-tool="park"><span class="swatch" style="background:#4FA85C"></span>Park<span class="cost">§200</span></button>
+        <button class="tool" data-tool="police"><span class="swatch" style="background:#4A6FA5"></span>Police<span class="cost">§700</span></button>
+        <button class="tool" data-tool="fire"><span class="swatch" style="background:#B5473F"></span>Fire Dept<span class="cost">§700</span></button>
+      </div>
+      <div class="tsection">
+        <div class="thead">SPECIAL</div>
+        <button class="tool" data-tool="airport"><span class="swatch" style="background:#9BAFC4"></span>Airport<span class="cost">§8000</span></button>
+        <button class="tool" data-tool="navy"><span class="swatch" style="background:#3A5A78"></span>Naval Base<span class="cost">§6000</span></button>
+        <button class="tool" data-tool="stadium"><span class="swatch" style="background:#8FD9A0"></span>Stadium<span class="cost">§5000</span></button>
+      </div>
+      <div class="tsection">
+        <div class="thead">COMMUNITY &amp; LEISURE</div>
+        <button class="tool" data-tool="church"><span class="swatch" style="background:#C7BFA8"></span>Church<span class="cost">§300</span></button>
+        <button class="tool" data-tool="marina"><span class="swatch" style="background:#5FA0C8"></span>Marina<span class="cost">§1500</span></button>
+        <button class="tool" data-tool="disco"><span class="swatch" style="background:#C15FD9"></span>Disco<span class="cost">§800</span></button>
+        <button class="tool" data-tool="drivein"><span class="swatch" style="background:#4A5866"></span>Drive-in<span class="cost">§1200</span></button>
+        <button class="tool" data-tool="beach"><span class="swatch" style="background:#E8D4A0"></span>Beach<span class="cost">§400</span></button>
+      </div>
+      <div class="tsection">
+        <div class="thead">EDIT</div>
+        <button class="tool" data-tool="bulldoze"><span class="swatch" style="background:var(--alert)"></span>Bulldoze<span class="cost">§0</span></button>
+      </div>
+      <div class="tsection">
+        <div class="thead">TAX RATE</div>
+        <div class="taxrow">
+          <input type="range" id="taxSlider" min="0" max="20" value="7">
+          <span class="val" id="taxVal">7%</span>
+        </div>
+      </div>
+      <div class="tsection">
+        <div class="thead">DEPARTMENT FUNDING</div>
+        <div class="fundrow">
+          <span class="fundlabel">Roads</span>
+          <input type="range" id="roadFundingSlider" min="0" max="100" value="100">
+          <span class="val" id="roadFundingVal">100%</span>
+        </div>
+        <div class="fundrow">
+          <span class="fundlabel">Police</span>
+          <input type="range" id="policeFundingSlider" min="0" max="100" value="100">
+          <span class="val" id="policeFundingVal">100%</span>
+        </div>
+        <div class="fundrow">
+          <span class="fundlabel">Fire Dept</span>
+          <input type="range" id="fireFundingSlider" min="0" max="100" value="100">
+          <span class="val" id="fireFundingVal">100%</span>
+        </div>
+      </div>
+      <div class="tsection">
+        <div class="thead">SAVE</div>
+        <button class="tool" id="btnSave"><span class="swatch" style="background:var(--ink-dim)"></span>Save City</button>
+        <button class="tool" id="btnLoad"><span class="swatch" style="background:var(--ink-dim)"></span>Load City</button>
+        <button class="tool" id="btnNew"><span class="swatch" style="background:var(--ink-dim)"></span>New City</button>
+      </div>
+    </div>
+
+    <div class="canvaswrap">
+      <canvas id="grid" width="768" height="576"></canvas>
+      <div class="hoverInfo" id="hoverInfo"></div>
+      <div class="toast" id="toast"></div>
+      <div class="crossing" id="crossingPrompt">
+        <div class="crossing-text" id="crossingText">Cross the water here?</div>
+        <div class="crossing-btns" id="crossingBtns">
+          <button id="btnBridge">Bridge <span>§1,000</span></button>
+          <button id="btnFerry">Ferry <span>§3,000</span></button>
+          <button id="btnCancelCrossing">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>Click and drag to place. Right-click / hold to bulldoze quickly.</span>
+    <span><b id="footHint">Select a tool from the left panel to begin.</b></span>
+  </div>
+</div>
+
+<script>
+(function(){
+  const COLS=48, ROWS=36, TILE=16;
+  const canvas=document.getElementById('grid');
+  const ctx=canvas.getContext('2d');
+  const toastEl=document.getElementById('toast');
+
+  // ---- state ----
+  let grid, funds, month, year, taxRate, currentTool, paused, speed;
+  let loanBalance, loanRate;
+  let roadFunding=100, policeFunding=100, fireFunding=100, crimeLevel=0;
+  let fires=[], mobs=[];
+  let roadDecayWarned=false;
+  const LOAN_MAX=20000, LOAN_STEP=2000;
+  let popHistory=[];
+  let cars=[], planeProgress={}, ships=[], crashes=[], stadiumClocks={}, radarAngles={}, beachClocks={};
+  let roadTileList=[], airportList=[], navyList=[], stadiumList=[], beachList=[], waterTileList=[], activeWaterTileList=[];
+
+  function freshGrid(){
+    const g=[];
+    for(let r=0;r<ROWS;r++){
+      const row=[];
+      for(let c=0;c<COLS;c++) row.push({type:'empty', level:0, powered:false, hasPower:false});
+      g.push(row);
+    }
+
+    const setWater=(r,c)=>{ if(r>=0&&c>=0&&r<ROWS&&c<COLS) g[r][c]={type:'water', level:0, powered:false, hasPower:false}; };
+    const stampCircle=(cr,cc,rad)=>{
+      const ri=Math.round(rad);
+      for(let ddr=-ri;ddr<=ri;ddr++){
+        for(let ddc=-ri;ddc<=ri;ddc++){
+          if(ddr*ddr+ddc*ddc<=rad*rad+0.5) setWater(Math.round(cr)+ddr, Math.round(cc)+ddc);
+        }
+      }
+    };
+
+    // one river traversing the map top-to-bottom or left-to-right, gently meandering
+    // via a bounded sine wave so it always crosses cleanly and never runs away
+    function carveRiver(){
+      const vertical = Math.random()<0.5;
+      const amp=1.5+Math.random()*2, freq=0.12+Math.random()*0.08, phase=Math.random()*10;
+      if(vertical){
+        const cBase=8+Math.random()*(COLS-16);
+        const dir = Math.random()<0.5 ? 1 : -1;
+        for(let i=0;i<ROWS;i++){
+          const rr = dir===1 ? i : ROWS-1-i;
+          const cc = cBase + Math.sin(i*freq+phase)*amp;
+          const rad = 1.1 + (Math.sin(i*0.25+phase)+1)*0.45; // width wobbles ~1.1-2
+          stampCircle(rr, cc, rad);
+        }
+      } else {
+        const rBase=6+Math.random()*(ROWS-12);
+        const dir = Math.random()<0.5 ? 1 : -1;
+        for(let i=0;i<COLS;i++){
+          const cc = dir===1 ? i : COLS-1-i;
+          const rr = rBase + Math.sin(i*freq+phase)*amp;
+          const rad = 1.1 + (Math.sin(i*0.25+phase)+1)*0.45;
+          stampCircle(rr, cc, rad);
+        }
+      }
+    }
+
+    // a round-ish pond/lake with a jittered edge for an organic shape
+    function carvePond(cr,cc,rad){
+      for(let ddr=-rad-1; ddr<=rad+1; ddr++){
+        for(let ddc=-rad-1; ddc<=rad+1; ddc++){
+          const rr=cr+ddr, cc2=cc+ddc;
+          if(rr<0||cc2<0||rr>=ROWS||cc2>=COLS) continue;
+          const dist=Math.hypot(ddr,ddc)+(Math.random()-0.5)*1.6;
+          if(dist<=rad) setWater(rr,cc2);
+        }
+      }
+    }
+
+    carveRiver();
+
+    const pondCount=1+Math.floor(Math.random()*2);
+    for(let i=0;i<pondCount;i++){
+      carvePond(2+Math.floor(Math.random()*(ROWS-4)), 2+Math.floor(Math.random()*(COLS-4)), 1+Math.floor(Math.random()*2));
+    }
+
+    return g;
+  }
+
+  function newCity(){
+    grid=freshGrid();
+    funds=10000;
+    month=3; year=1900;
+    taxRate=7;
+    loanBalance=0; loanRate=6+Math.random()*4; // starts somewhere around 6-10%
+    roadFunding=100; policeFunding=100; fireFunding=100; crimeLevel=0;
+    fires=[]; mobs=[]; roadDecayWarned=false;
+    currentTool=null;
+    paused=false; speed=1;
+    cars=[]; planeProgress={}; ships=[]; crashes=[]; stadiumClocks={}; radarAngles={}; beachClocks={};
+    ferryRoutes=[]; ferryBoats=[]; pendingCrossing=null; pendingEndpoint=null;
+    document.getElementById('crossingPrompt').classList.remove('show');
+    document.getElementById('taxSlider').value=taxRate;
+    document.getElementById('roadFundingSlider').value=100;
+    document.getElementById('policeFundingSlider').value=100;
+    document.getElementById('fireFundingSlider').value=100;
+    updateHUD();
+    recomputePower();
+    draw();
+    showToast('New city founded. Zone some land to get started.');
+  }
+
+  const COST={ road:10, power:5, zoneR:100, zoneC:100, zoneI:100, park:200, police:700, fire:700,
+               plant:3000, plantSolar:1800, plantNuclear:9000,
+               airport:8000, navy:6000, stadium:5000, bridge:1000, ferry:3000, bulldoze:0,
+               church:300, marina:1500, disco:800, drivein:1200, beach:400 };
+  const FOOTPRINTS={ airport:{w:4,h:3}, navy:{w:2,h:2}, stadium:{w:3,h:3}, police:{w:2,h:2}, fire:{w:2,h:2},
+               church:{w:2,h:2}, marina:{w:3,h:2}, disco:{w:2,h:2}, drivein:{w:4,h:3}, beach:{w:3,h:2} };
+  const WATER_REQUIRED = new Set(['navy','plantNuclear','marina','beach']);
+  const TYPE_NAMES = {
+    empty:'Empty Land', water:'Water',
+    road:'Road', power:'Power Line',
+    zoneR:'Residential Zone', zoneC:'Commercial Zone', zoneI:'Industrial Zone',
+    park:'Park', police:'Police Station', fire:'Fire Department',
+    plant:'Coal Plant', plantSolar:'Solar Farm', plantNuclear:'Nuclear Plant',
+    airport:'Airport', navy:'Naval Base', stadium:'Stadium',
+    church:'Church', marina:'Marina', disco:'Disco', drivein:'Drive-in Theater', beach:'Beach',
+  };
+  function describeTile(r,c){
+    const raw=grid[r][c];
+    let owner=raw, ty=raw.type;
+    if(ty==='reserved'){ owner=grid[raw.ownerR][raw.ownerC]; ty=owner.type; }
+    let title = TYPE_NAMES[ty] || ty;
+    const lines=[];
+    if(ty==='road'){
+      if(raw.isBridge) title='Bridge';
+      else if(raw.isFerry) title='Ferry Dock';
+      if(raw.hasPower) lines.push(raw.powered ? 'Power line: active' : 'Power line: no power reaching it');
+    } else if(ty.startsWith('zone')){
+      lines.push('Level '+raw.level+' of '+(raw.waterfront?4:3));
+      if(raw.waterfront) lines.push('Waterfront property');
+      lines.push(raw.powered ? (raw.roadAdj?'Powered, road-connected':'Powered, no road access') : 'No power reaching it');
+    } else if(ty==='church'){
+      lines.push("Community building — doesn't need power");
+    } else if(['police','fire','airport','navy','stadium','marina','disco','drivein'].includes(ty)){
+      lines.push(owner.powered ? 'Powered & operating' : 'Needs power to operate');
+    } else if(isPlantType(ty)){
+      lines.push(owner.powered ? 'Online' : 'Offline');
+      lines.push('Capacity: '+(PLANT_CAPACITY[ty]||0)+' buildings');
+    } else if(ty==='beach'){
+      lines.push('Natural amenity — always active');
+    }
+    return {title,lines};
+  }
+
+  const PLANT_CAPACITY = { plant:60, plantSolar:28, plantNuclear:220 };
+  const PLANT_UPKEEP   = { plant:40, plantSolar:15, plantNuclear:90 };
+  const isPlantType = ty => ty==='plant' || ty==='plantSolar' || ty==='plantNuclear';
+
+  const COLORS={
+    zoneR:['#2E4A32','#3E6B44','#4E8455','#5B8C5A','#8FD9A0'],
+    zoneC:['#234A5C','#2F6580','#357B9C','#3E8FB0','#7ED4E8'],
+    zoneI:['#5C3F1E','#7A5327','#996A2E','#D98E3B','#F2C572'],
+  };
+
+  // a tile reads visually as a power-line segment if it's a pure power tile,
+  // any plant, or a road that has a power line running under it
+  function isPowerLineVisual(t){
+    return t.type==='power' || isPlantType(t.type) || (t.type==='road' && t.hasPower);
+  }
+
+  // ---------- rendering ----------
+  function draw(){
+    ctx.fillStyle='#081420';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // grid lines
+    ctx.strokeStyle='#17293C';
+    ctx.lineWidth=1;
+    for(let c=0;c<=COLS;c++){ ctx.beginPath(); ctx.moveTo(c*TILE+.5,0); ctx.lineTo(c*TILE+.5,ROWS*TILE); ctx.stroke(); }
+    for(let r=0;r<=ROWS;r++){ ctx.beginPath(); ctx.moveTo(0,r*TILE+.5); ctx.lineTo(COLS*TILE,r*TILE+.5); ctx.stroke(); }
+
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const t=grid[r][c];
+        const x=c*TILE, y=r*TILE;
+        drawTile(t,x,y,r,c);
+      }
+    }
+    drawCars();
+    drawShips();
+    drawFerryBoats();
+    drawPlanes();
+    drawStadiums();
+    drawFires();
+    drawMobs();
+    drawCrashes();
+  }
+
+  function drawTile(t,x,y,r,c){
+    if(t.type==='empty') return;
+    if(t.type==='water'){
+      const shade = (Math.sin((r*3+c*5))>0.2) ? '#123049' : '#0E2439';
+      ctx.fillStyle=shade;
+      ctx.fillRect(x,y,TILE,TILE);
+      ctx.strokeStyle='#1E4A68'; ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(x+2, y+TILE/2+2);
+      ctx.quadraticCurveTo(x+TILE/2, y+TILE/2-3, x+TILE-2, y+TILE/2+2);
+      ctx.stroke();
+      return;
+    }
+    if(t.type==='road'){
+      const has={
+        n:r>0 && grid[r-1][c].type==='road',
+        s:r<ROWS-1 && grid[r+1][c].type==='road',
+        e:c<COLS-1 && grid[r][c+1].type==='road',
+        w:c>0 && grid[r][c-1].type==='road',
+      };
+      if(t.isBridge || t.isFerry){
+        // water still shows beneath the crossing
+        const shade = (Math.sin((r*3+c*5))>0.2) ? '#123049' : '#0E2439';
+        ctx.fillStyle=shade;
+        ctx.fillRect(x,y,TILE,TILE);
+        if(t.isBridge){
+          const dw=TILE*0.66, dm=(TILE-dw)/2;
+          ctx.fillStyle='#8A7355';
+          ctx.fillRect(x+dm,y+dm,dw,dw);
+          if(has.n) ctx.fillRect(x+dm,y,dw,dm);
+          if(has.s) ctx.fillRect(x+dm,y+TILE-dm,dw,dm);
+          if(has.e) ctx.fillRect(x+TILE-dm,y+dm,dm,dw);
+          if(has.w) ctx.fillRect(x,y+dm,dm,dw);
+          ctx.strokeStyle='#C2B092'; ctx.lineWidth=1;
+          if(has.n||has.s){ ctx.beginPath(); ctx.moveTo(x+dm,y); ctx.lineTo(x+dm,y+TILE); ctx.moveTo(x+TILE-dm,y); ctx.lineTo(x+TILE-dm,y+TILE); ctx.stroke(); }
+          if(has.e||has.w){ ctx.beginPath(); ctx.moveTo(x,y+dm); ctx.lineTo(x+TILE,y+dm); ctx.moveTo(x,y+TILE-dm); ctx.lineTo(x+TILE,y+TILE-dm); ctx.stroke(); }
+        } else {
+          ctx.strokeStyle='rgba(220,239,234,0.35)'; ctx.setLineDash([2,2]); ctx.lineWidth=1;
+          if(has.n||has.s){ ctx.beginPath(); ctx.moveTo(x+TILE/2,y); ctx.lineTo(x+TILE/2,y+TILE); ctx.stroke(); }
+          if(has.e||has.w){ ctx.beginPath(); ctx.moveTo(x,y+TILE/2); ctx.lineTo(x+TILE,y+TILE/2); ctx.stroke(); }
+          ctx.setLineDash([]);
+          ctx.fillStyle='#C7D3DE';
+          ctx.beginPath();
+          ctx.moveTo(x+4,y+TILE/2-2); ctx.lineTo(x+TILE-4,y+TILE/2-2); ctx.lineTo(x+TILE-7,y+TILE/2+4); ctx.lineTo(x+7,y+TILE/2+4);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle='#E8B94A';
+          ctx.fillRect(x+TILE/2-1,y+TILE/2-8,2,6);
+        }
+      } else {
+      const w=TILE*0.6, m=(TILE-w)/2;
+      ctx.fillStyle='#4A5568';
+      ctx.fillRect(x+m,y+m,w,w);
+      if(has.n) ctx.fillRect(x+m,y,w,m);
+      if(has.s) ctx.fillRect(x+m,y+TILE-m,w,m);
+      if(has.e) ctx.fillRect(x+TILE-m,y+m,m,w);
+      if(has.w) ctx.fillRect(x,y+m,m,w);
+      ctx.strokeStyle='#8A97A5'; ctx.lineWidth=1;
+      ctx.setLineDash([2,2]);
+      if(has.n||has.s){ ctx.beginPath(); ctx.moveTo(x+TILE/2,y+ (has.n?0:m)); ctx.lineTo(x+TILE/2,y+TILE- (has.s?0:m)); ctx.stroke(); }
+      if(has.e||has.w){ ctx.beginPath(); ctx.moveTo(x+ (has.w?0:m),y+TILE/2); ctx.lineTo(x+TILE- (has.e?0:m),y+TILE/2); ctx.stroke(); }
+      ctx.setLineDash([]);
+      }
+      if(t.hasPower){
+        // power line runs along the road, offset toward the top edge so it reads
+        // as a distinct conduit rather than colliding with the road markings
+        const ph={
+          n:r>0 && isPowerLineVisual(grid[r-1][c]),
+          s:r<ROWS-1 && isPowerLineVisual(grid[r+1][c]),
+          e:c<COLS-1 && isPowerLineVisual(grid[r][c+1]),
+          w:c>0 && isPowerLineVisual(grid[r][c-1]),
+        };
+        const pw=TILE*0.2;
+        const hubX=x+TILE/2-pw/2, hubY=y+TILE*0.16;
+        const pcol = t.powered ? '#E8B94A' : '#6B5A2E';
+        ctx.fillStyle=pcol;
+        ctx.fillRect(hubX,hubY,pw,pw);
+        if(ph.n) ctx.fillRect(hubX,y,pw,hubY-y);
+        if(ph.s) ctx.fillRect(hubX,hubY+pw,pw,(y+TILE)-(hubY+pw));
+        if(ph.e) ctx.fillRect(hubX+pw,hubY,(x+TILE)-(hubX+pw),pw);
+        if(ph.w) ctx.fillRect(x,hubY,hubX-x,pw);
+      }
+      return;
+    }
+    if(t.type==='power'){
+      const has={
+        n:r>0 && isPowerLineVisual(grid[r-1][c]),
+        s:r<ROWS-1 && isPowerLineVisual(grid[r+1][c]),
+        e:c<COLS-1 && isPowerLineVisual(grid[r][c+1]),
+        w:c>0 && isPowerLineVisual(grid[r][c-1]),
+      };
+      const w=TILE*0.26, m=(TILE-w)/2;
+      const col = t.powered ? '#E8B94A' : '#6B5A2E';
+      ctx.fillStyle=col;
+      ctx.fillRect(x+m,y+m,w,w);
+      if(has.n) ctx.fillRect(x+m,y,w,m);
+      if(has.s) ctx.fillRect(x+m,y+TILE-m,w,m);
+      if(has.e) ctx.fillRect(x+TILE-m,y+m,m,w);
+      if(has.w) ctx.fillRect(x,y+m,m,w);
+      ctx.fillStyle='#2B2110';
+      ctx.beginPath(); ctx.arc(x+TILE/2,y+TILE/2,1.3,0,7); ctx.fill();
+      return;
+    }
+    if(isPlantType(t.type)){
+      const powered = t.powered!==false;
+      const stubCol = powered ? '#E8B94A' : '#6B5A2E';
+      const w=TILE*0.26, m=(TILE-w)/2;
+      const drawStubs=()=>{
+        ctx.fillStyle=stubCol;
+        if(r>0 && isPowerLineVisual(grid[r-1][c])) ctx.fillRect(x+m,y,w,m);
+        if(r<ROWS-1 && isPowerLineVisual(grid[r+1][c])) ctx.fillRect(x+m,y+TILE-m,w,m);
+        if(c<COLS-1 && isPowerLineVisual(grid[r][c+1])) ctx.fillRect(x+TILE-m,y+m,m,w);
+        if(c>0 && isPowerLineVisual(grid[r][c-1])) ctx.fillRect(x,y+m,m,w);
+      };
+      if(t.type==='plant'){
+        ctx.fillStyle='#2B2116'; ctx.fillRect(x+1,y+1,TILE-2,TILE-2);
+        ctx.fillStyle=powered?'#F2C572':'#7A5F30';
+        ctx.fillRect(x+3,y+5,TILE-6,TILE-8);
+        ctx.fillStyle='#0B1A2B';
+        ctx.fillRect(x+5,y+2,2,5); ctx.fillRect(x+9,y+2,2,5);
+      } else if(t.type==='plantSolar'){
+        ctx.fillStyle='#132018'; ctx.fillRect(x+1,y+1,TILE-2,TILE-2);
+        ctx.fillStyle=powered?'#3E8FB0':'#2A4A56';
+        ctx.fillRect(x+2,y+3,TILE-4,TILE-6);
+        ctx.strokeStyle=powered?'#7ED4E8':'#3A5A64'; ctx.lineWidth=0.6;
+        for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(x+2+i*(TILE-4)/4,y+3); ctx.lineTo(x+2+i*(TILE-4)/4,y+TILE-3); ctx.stroke(); }
+        ctx.beginPath(); ctx.moveTo(x+2,y+TILE/2); ctx.lineTo(x+TILE-2,y+TILE/2); ctx.stroke();
+      } else if(t.type==='plantNuclear'){
+        ctx.fillStyle='#1C1420'; ctx.fillRect(x+1,y+1,TILE-2,TILE-2);
+        ctx.fillStyle=powered?'#C7D3DE':'#5A5A62';
+        ctx.beginPath();
+        ctx.moveTo(x+4,y+TILE-2); ctx.lineTo(x+5,y+4); ctx.lineTo(x+TILE-5,y+4); ctx.lineTo(x+TILE-4,y+TILE-2);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle=powered?'#F2C572':'#6B5A2E';
+        ctx.beginPath(); ctx.arc(x+TILE/2,y+TILE-3,1.6,0,7); ctx.fill();
+      }
+      drawStubs();
+      return;
+    }
+    if(t.type==='park'){
+      ctx.fillStyle='#123018';
+      ctx.fillRect(x+1,y+1,TILE-2,TILE-2);
+      ctx.fillStyle='#4FA85C';
+      ctx.beginPath(); ctx.arc(x+TILE/2,y+TILE/2,5,0,7); ctx.fill();
+      return;
+    }
+    if(t.type==='police' || t.type==='fire'){
+      const w=t.footprint.w*TILE, h=t.footprint.h*TILE;
+      const dim=!t.powered;
+      const isPolice=t.type==='police';
+      ctx.fillStyle = dim ? '#1A2530' : (isPolice ? '#1B2A42' : '#2E1A1A');
+      ctx.fillRect(x+1,y+1,w-2,h-2);
+      ctx.strokeStyle = dim ? '#3A4756' : (isPolice ? '#5C7FA8' : '#B5473F');
+      ctx.lineWidth=1;
+      ctx.strokeRect(x+3,y+3,w-6,h-6);
+      // garage / entrance
+      ctx.fillStyle = dim ? '#333F4C' : (isPolice ? '#3A567A' : '#7A3A3A');
+      ctx.fillRect(x+w/2-10, y+h-14, 20, 10);
+      if(isPolice){
+        const flashRed = Math.sin(performance.now()/300)>0;
+        ctx.fillStyle = dim ? '#4A5866' : (flashRed?'#C24444':'#4A6FA5');
+        ctx.fillRect(x+w/2-6, y+7, 5, 4);
+        ctx.fillStyle = dim ? '#4A5866' : (flashRed?'#4A6FA5':'#C24444');
+        ctx.fillRect(x+w/2+1, y+7, 5, 4);
+      } else {
+        ctx.fillStyle = dim ? '#4A5866' : '#E8B94A';
+        ctx.beginPath();
+        ctx.moveTo(x+w/2, y+7);
+        ctx.quadraticCurveTo(x+w/2+6, y+16, x+w/2, y+23);
+        ctx.quadraticCurveTo(x+w/2-6, y+16, x+w/2, y+7);
+        ctx.fill();
+      }
+      if(!t.powered){ ctx.fillStyle='rgba(194,68,68,0.25)'; ctx.fillRect(x+1,y+1,w-2,h-2); }
+      return;
+    }
+    if(t.type==='reserved') return; // footprint filler cell — anchor tile paints the whole building
+    if(t.type==='airport'){
+      const w=t.footprint.w*TILE, h=t.footprint.h*TILE;
+      const dim = !t.powered;
+      ctx.fillStyle = dim ? '#1C2530' : '#232F3D';
+      ctx.fillRect(x+1,y+1,w-2,h-2);
+      ctx.strokeStyle = dim ? '#3A4756' : '#9BAFC4'; ctx.lineWidth=1;
+      ctx.strokeRect(x+4,y+4,w-8,h-8);
+      // runway
+      ctx.fillStyle = dim ? '#333F4C' : '#C7D3DE';
+      ctx.fillRect(x+8, y+h/2-3, w-16, 6);
+      ctx.setLineDash([3,2]);
+      ctx.strokeStyle = dim ? '#2A3440' : '#7A8FA3';
+      ctx.beginPath(); ctx.moveTo(x+8,y+h/2); ctx.lineTo(x+w-8,y+h/2); ctx.stroke();
+      ctx.setLineDash([]);
+      // control tower, bottom-right
+      ctx.fillStyle = dim ? '#4A5866' : '#E8B94A';
+      ctx.fillRect(x+w-16, y+h-18, 5, 13);
+      ctx.beginPath(); ctx.arc(x+w-13.5, y+h-18, 3.5, 0, 7); ctx.fill();
+      // radar dish, top-left — spins while powered
+      const radarX=x+13, radarY=y+11;
+      ctx.strokeStyle = dim ? '#3A4756' : '#8FA0AE'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(radarX,radarY+1); ctx.lineTo(radarX,radarY+7); ctx.stroke();
+      ctx.fillStyle = dim ? '#3A4756' : '#5FC8E8';
+      ctx.beginPath(); ctx.arc(radarX,radarY,2.4,0,7); ctx.fill();
+      if(t.powered){
+        const angle = radarAngles[r+'_'+c] || 0;
+        ctx.strokeStyle='rgba(95,200,232,0.25)'; ctx.lineWidth=5;
+        ctx.beginPath(); ctx.arc(radarX,radarY,6.5, angle-0.8, angle); ctx.stroke();
+        ctx.strokeStyle='#5FC8E8'; ctx.lineWidth=1.2;
+        ctx.beginPath(); ctx.moveTo(radarX,radarY);
+        ctx.lineTo(radarX+Math.cos(angle)*7, radarY+Math.sin(angle)*7);
+        ctx.stroke();
+      }
+      if(!t.powered){ ctx.fillStyle='rgba(194,68,68,0.25)'; ctx.fillRect(x+1,y+1,w-2,h-2); }
+      return;
+    }
+    if(t.type==='navy'){
+      const w=t.footprint.w*TILE, h=t.footprint.h*TILE;
+      const dim = !t.powered;
+      ctx.fillStyle = dim ? '#152230' : '#1B3448';
+      ctx.fillRect(x+1,y+1,w-2,h-2);
+      ctx.strokeStyle = dim ? '#2E4A5E' : '#5FA0C8'; ctx.lineWidth=1;
+      ctx.strokeRect(x+3,y+3,w-6,h-6);
+      // dock
+      ctx.fillStyle = dim ? '#3A4A56' : '#8AA5B5';
+      ctx.fillRect(x+4, y+h-8, w-8, 3);
+      // ship hull
+      ctx.fillStyle = dim ? '#4A5866' : '#C7D3DE';
+      ctx.beginPath();
+      ctx.moveTo(x+6, y+h/2);
+      ctx.lineTo(x+w-6, y+h/2);
+      ctx.lineTo(x+w-10, y+h/2+6);
+      ctx.lineTo(x+10, y+h/2+6);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = dim ? '#5C6A78' : '#E8B94A';
+      ctx.fillRect(x+w/2-1, y+h/2-8, 2, 8);
+      if(!t.powered){ ctx.fillStyle='rgba(194,68,68,0.25)'; ctx.fillRect(x+1,y+1,w-2,h-2); }
+      return;
+    }
+    if(t.type==='stadium'){
+      const w=t.footprint.w*TILE, h=t.footprint.h*TILE;
+      const dim = !t.powered;
+      const cx=x+w/2, cy=y+h/2;
+      ctx.fillStyle = dim ? '#1C2A1E' : '#20301F';
+      ctx.fillRect(x+1,y+1,w-2,h-2);
+      // stands (outer ring)
+      ctx.strokeStyle = dim ? '#3A4640' : '#8FA093'; ctx.lineWidth=5;
+      ctx.beginPath(); ctx.ellipse(cx,cy,w/2-4,h/2-4,0,0,7); ctx.stroke();
+      // field
+      ctx.fillStyle = dim ? '#233A28' : '#3E6B44';
+      ctx.beginPath(); ctx.ellipse(cx,cy,w/2-9,h/2-9,0,0,7); ctx.fill();
+      // halfway line
+      ctx.strokeStyle = dim ? '#2E4A34' : '#8FD9A0'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(cx,y+9); ctx.lineTo(cx,y+h-9); ctx.stroke();
+      if(!t.powered){ ctx.fillStyle='rgba(194,68,68,0.25)'; ctx.fillRect(x+1,y+1,w-2,h-2); }
+      return;
+    }
+    if(t.type==='church'){
+      const w=t.footprint.w*TILE, h=t.footprint.h*TILE;
+      const cx=x+w/2;
+      ctx.fillStyle='#2A2620';
+      ctx.fillRect(x+1,y+1,w-2,h-2);
+      ctx.fillStyle='#C7BFA8';
+      ctx.fillRect(x+4,y+h*0.4,w-8,h*0.55);
+      ctx.beginPath();
+      ctx.moveTo(x+4,y+h*0.4); ctx.lineTo(cx,y+6); ctx.lineTo(x+w-4,y+h*0.4);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#8A6A20'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(cx,y+2); ctx.lineTo(cx,y+11); ctx.moveTo(cx-3,y+5); ctx.lineTo(cx+3,y+5); ctx.stroke();
+      return;
+    }
+    if(t.type==='marina'){
+      const w=t.footprint.w*TILE, h=t.footprint.h*TILE;
+      const dim=!t.powered;
+      ctx.fillStyle = dim ? '#122436' : '#173A4E';
+      ctx.fillRect(x+1,y+1,w-2,h-2);
+      ctx.fillStyle = dim ? '#2E4A5E' : '#5FA0C8';
+      for(let i=0;i<3;i++) ctx.fillRect(x+6+i*(w-12)/3, y+h-10, (w-12)/3-4, 8);
+      const bob=Math.sin(performance.now()/500)*1.2;
+      ctx.fillStyle = dim ? '#4A5866' : '#C7D3DE';
+      for(let i=0;i<2;i++){
+        const bx=x+w*0.3+i*w*0.4, by=y+h*0.4+bob;
+        ctx.beginPath(); ctx.moveTo(bx-6,by); ctx.lineTo(bx+6,by); ctx.lineTo(bx+4,by+5); ctx.lineTo(bx-4,by+5); ctx.closePath(); ctx.fill();
+      }
+      return;
+    }
+    if(t.type==='disco'){
+      const w=t.footprint.w*TILE, h=t.footprint.h*TILE;
+      const dim=!t.powered;
+      ctx.fillStyle='#1A1420';
+      ctx.fillRect(x+1,y+1,w-2,h-2);
+      ctx.strokeStyle = dim ? '#3A2E42' : '#7A5C8A';
+      ctx.lineWidth=1; ctx.strokeRect(x+3,y+3,w-6,h-6);
+      if(!dim){
+        const colors=['#C15FD9','#5FC8E8','#E8B94A','#E85F7A'];
+        const t2=performance.now()/220;
+        for(let i=0;i<4;i++){
+          const ang=t2+i*(Math.PI/2);
+          const px=x+w/2+Math.cos(ang)*(w/2-8), py=y+h/2+Math.sin(ang)*(h/2-8);
+          ctx.fillStyle=colors[i];
+          ctx.beginPath(); ctx.arc(px,py,2.2,0,7); ctx.fill();
+        }
+      } else {
+        ctx.fillStyle='#4A5866';
+        ctx.beginPath(); ctx.arc(x+w/2,y+h/2,3,0,7); ctx.fill();
+      }
+      return;
+    }
+    if(t.type==='drivein'){
+      const w=t.footprint.w*TILE, h=t.footprint.h*TILE;
+      const dim=!t.powered;
+      ctx.fillStyle = dim ? '#1C2530' : '#233042';
+      ctx.fillRect(x+1,y+1,w-2,h-2);
+      // big screen
+      const screenH=h*0.4;
+      if(!dim){
+        const hue=(performance.now()/80)%360;
+        ctx.fillStyle=`hsl(${hue},55%,55%)`;
+      } else {
+        ctx.fillStyle='#3A4756';
+      }
+      ctx.fillRect(x+4,y+3,w-8,screenH);
+      ctx.strokeStyle=dim?'#3A4756':'#9BAFC4'; ctx.lineWidth=1;
+      ctx.strokeRect(x+4,y+3,w-8,screenH);
+      // rows of parked cars
+      ctx.fillStyle = dim ? '#333F4C' : '#7A8FA3';
+      const rows=2, cols=Math.floor((t.footprint.w*3));
+      for(let rIdx=0; rIdx<rows; rIdx++){
+        for(let cIdx=0; cIdx<cols; cIdx++){
+          const px=x+6+cIdx*((w-12)/cols), py=y+screenH+10+rIdx*10;
+          ctx.fillRect(px,py,(w-12)/cols-2,5);
+        }
+      }
+      return;
+    }
+    if(t.type==='beach'){
+      const w=t.footprint.w*TILE, h=t.footprint.h*TILE;
+      // sand
+      ctx.fillStyle='#D9C08A';
+      ctx.fillRect(x+1,y+1,w-2,h-2);
+      // water portion along one edge
+      const waterH=h*0.42;
+      ctx.fillStyle='#1E4A68';
+      ctx.fillRect(x+1,y+h-waterH,w-2,waterH-1);
+      ctx.strokeStyle='rgba(220,239,234,0.3)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x+1,y+h-waterH); ctx.lineTo(x+w-1,y+h-waterH); ctx.stroke();
+      // umbrellas
+      ctx.fillStyle='#C24444';
+      ctx.beginPath(); ctx.arc(x+w*0.22,y+h*0.28,4,Math.PI,0); ctx.fill();
+      ctx.fillStyle='#5FC8E8';
+      ctx.beginPath(); ctx.arc(x+w*0.75,y+h*0.22,4,Math.PI,0); ctx.fill();
+      // kids running between sand and water
+      const key=r+'_'+c;
+      const clock = beachClocks[key]||0;
+      for(let k=0;k<3;k++){
+        const phase = clock*1.4 + k*2.1;
+        const s=(Math.sin(phase)+1)/2; // 0..1, oscillates sand<->water
+        const kx=x + w*(0.3+k*0.2);
+        const ky=y + h*0.35 + s*(h*0.45);
+        ctx.fillStyle='#3A2A1E';
+        ctx.beginPath(); ctx.arc(kx,ky,1.6,0,7); ctx.fill();
+        if(s>0.55){
+          ctx.strokeStyle='rgba(220,239,234,0.5)'; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.arc(kx,ky+2,3,0,Math.PI); ctx.stroke();
+        }
+      }
+      return;
+    }
+    if(t.type.startsWith('zone')){
+      const base = t.type==='zoneR' ? '#1E2E20' : t.type==='zoneI' ? '#3A2A15' : '#182E38';
+      ctx.fillStyle = base;
+      ctx.fillRect(x+1,y+1,TILE-2,TILE-2);
+      if(t.level>0){
+        const palette=COLORS[t.type];
+        ctx.fillStyle=palette[Math.min(t.level,4)];
+        const inset = t.level>=4 ? 1 : 5 - t.level; // bigger / premium building for higher level
+        ctx.fillRect(x+inset, y+inset, TILE-inset*2, TILE-inset*2);
+      } else {
+        ctx.strokeStyle = t.type==='zoneR' ? '#3E6B44' : t.type==='zoneI' ? '#996A2E' : '#2F6580';
+        ctx.lineWidth=1;
+        ctx.strokeRect(x+3,y+3,TILE-6,TILE-6);
+      }
+      if(!t.powered){
+        ctx.fillStyle='rgba(194,68,68,0.35)';
+        ctx.fillRect(x+1,y+1,TILE-2,TILE-2);
+      }
+      if(t.waterfront){
+        ctx.fillStyle='#5FC8E8';
+        ctx.beginPath();
+        ctx.moveTo(x+TILE-1,y+1); ctx.lineTo(x+TILE-1,y+6); ctx.lineTo(x+TILE-6,y+1);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  }
+
+  // ---------- power network ----------
+  function recomputePower(){
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) grid[r][c].powered=false;
+    // conductors: power lines, any plant, and buildings (which relay power once they
+    // themselves are powered, so touching buildings share electricity) all conduct
+    const conducts = t => t.type==='power'||isPlantType(t.type)||(t.type==='road'&&t.hasPower)||t.type.startsWith('zone')||t.type==='park'||t.type==='police'||t.type==='fire'||t.type==='airport'||t.type==='navy'||t.type==='stadium'||t.type==='church'||t.type==='marina'||t.type==='disco'||t.type==='drivein'||t.type==='beach'||t.type==='reserved';
+    // only actual buildings draw against a plant's capacity — bare power lines and
+    // powered roads are free infrastructure and don't consume capacity themselves
+    const consumesCapacity = t => t.type.startsWith('zone')||t.type==='park'||t.type==='police'||t.type==='fire'||t.type==='airport'||t.type==='navy'||t.type==='stadium'||t.type==='church'||t.type==='marina'||t.type==='disco'||t.type==='drivein'||t.type==='beach'||t.type==='reserved';
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    const visited=[]; for(let r=0;r<ROWS;r++) visited.push(new Array(COLS).fill(false));
+
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        if(visited[r][c] || !conducts(grid[r][c])) continue;
+        // flood-fill this electrically-connected network
+        const comp=[]; const stack=[[r,c]]; visited[r][c]=true;
+        while(stack.length){
+          const [cr,cc]=stack.pop();
+          comp.push([cr,cc]);
+          for(const [dr,dc] of dirs){
+            const nr=cr+dr, nc=cc+dc;
+            if(nr<0||nc<0||nr>=ROWS||nc>=COLS) continue;
+            if(!visited[nr][nc] && conducts(grid[nr][nc])){ visited[nr][nc]=true; stack.push([nr,nc]); }
+          }
+        }
+        // total generating capacity available to this network
+        const sources=[]; let budget=0;
+        for(const [cr,cc] of comp){
+          const ty=grid[cr][cc].type;
+          if(isPlantType(ty)){ sources.push([cr,cc]); budget += (PLANT_CAPACITY[ty]||0); }
+        }
+        if(sources.length===0) continue; // no generator on this network — stays dark
+        for(const [pr,pc] of sources) grid[pr][pc].powered=true;
+        // distribute power outward from every plant at once, closest buildings first,
+        // until the network's combined capacity is used up (further buildings brown out)
+        const compSet=new Set(comp.map(([cr,cc])=>cr+'_'+cc));
+        const seen=new Set(sources.map(([pr,pc])=>pr+'_'+pc));
+        let frontier=sources.slice();
+        while(frontier.length){
+          const next=[];
+          for(const [cr,cc] of frontier){
+            for(const [dr,dc] of dirs){
+              const nr=cr+dr, nc=cc+dc;
+              const key=nr+'_'+nc;
+              if(!compSet.has(key) || seen.has(key)) continue;
+              seen.add(key);
+              next.push([nr,nc]);
+            }
+          }
+          for(const [nr,nc] of next){
+            const nt=grid[nr][nc];
+            if(consumesCapacity(nt)){
+              if(budget>0){ nt.powered=true; budget--; }
+            } else {
+              nt.powered=true; // power lines / powered roads relay for free
+            }
+          }
+          frontier=next;
+        }
+      }
+    }
+    refreshNetworkCaches();
+  }
+
+  function refreshNetworkCaches(){
+    roadTileList=[];
+    airportList=[];
+    navyList=[];
+    stadiumList=[];
+    beachList=[];
+    waterTileList=[];
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const t=grid[r][c];
+        if(t.type==='road') roadTileList.push([r,c]);
+        if(t.type==='airport') airportList.push({r,c,w:t.footprint.w,h:t.footprint.h,powered:t.powered});
+        if(t.type==='navy') navyList.push({r,c,w:t.footprint.w,h:t.footprint.h,powered:t.powered});
+        if(t.type==='stadium') stadiumList.push({r,c,w:t.footprint.w,h:t.footprint.h,powered:t.powered});
+        if(t.type==='beach') beachList.push(r+'_'+c);
+        if(t.type==='water') waterTileList.push([r,c]);
+      }
+    }
+    for(const k in beachClocks) if(!beachList.includes(k)) delete beachClocks[k];
+    // group water into connected bodies, then find which bodies a powered naval
+    // base actually touches — ships are only allowed to sail in those bodies
+    const compId=[]; for(let r=0;r<ROWS;r++) compId.push(new Array(COLS).fill(-1));
+    const components=[];
+    const wdirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [r,c] of waterTileList){
+      if(compId[r][c]!==-1) continue;
+      const id=components.length; const list=[]; const stack=[[r,c]]; compId[r][c]=id;
+      while(stack.length){
+        const [cr,cc]=stack.pop();
+        list.push([cr,cc]);
+        for(const [dr,dc] of wdirs){
+          const nr=cr+dr, nc=cc+dc;
+          if(nr<0||nc<0||nr>=ROWS||nc>=COLS) continue;
+          if(grid[nr][nc].type==='water' && compId[nr][nc]===-1){ compId[nr][nc]=id; stack.push([nr,nc]); }
+        }
+      }
+      components.push(list);
+    }
+    const activeIds=new Set();
+    for(const n of navyList){
+      if(!n.powered) continue;
+      for(let dr=0; dr<n.h; dr++){
+        for(let dc=0; dc<n.w; dc++){
+          const rr=n.r+dr, cc=n.c+dc;
+          for(let ddr=-1; ddr<=1; ddr++){
+            for(let ddc=-1; ddc<=1; ddc++){
+              if(ddr===0 && ddc===0) continue;
+              const nr=rr+ddr, nc=cc+ddc;
+              if(nr<0||nc<0||nr>=ROWS||nc>=COLS) continue;
+              if(grid[nr][nc].type==='water') activeIds.add(compId[nr][nc]);
+            }
+          }
+        }
+      }
+    }
+    activeWaterTileList=[];
+    components.forEach((list,idx)=>{ if(activeIds.has(idx)) activeWaterTileList.push(...list); });
+    const activeWaterSet=new Set(activeWaterTileList.map(([r,c])=>r+'_'+c));
+
+    // drop cars/ships and plane/game trackers that no longer have anywhere to be
+    cars = cars.filter(car => isRoad(car.r,car.c));
+    ships = ships.filter(ship => activeWaterSet.has(ship.r+'_'+ship.c));
+    const validAirportKeys = new Set(airportList.map(a=>a.r+'_'+a.c));
+    for(const k in planeProgress) if(!validAirportKeys.has(k)) delete planeProgress[k];
+    for(const k in radarAngles) if(!validAirportKeys.has(k)) delete radarAngles[k];
+    const validStadiumKeys = new Set(stadiumList.map(s=>s.r+'_'+s.c));
+    for(const k in stadiumClocks) if(!validStadiumKeys.has(k)) delete stadiumClocks[k];
+  }
+
+  function isRoad(r,c){
+    return r>=0 && c>=0 && r<ROWS && c<COLS && grid[r][c].type==='road';
+  }
+  function isWater(r,c){
+    return r>=0 && c>=0 && r<ROWS && c<COLS && grid[r][c].type==='water';
+  }
+  function waterNeighbors(r,c){
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    const out=[];
+    for(const [dr,dc] of dirs){ const nr=r+dr, nc=c+dc; if(isWater(nr,nc)) out.push([nr,nc]); }
+    return out;
+  }
+  function roadNeighbors(r,c){
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    const out=[];
+    for(const [dr,dc] of dirs){ const nr=r+dr, nc=c+dc; if(isRoad(nr,nc)) out.push([nr,nc]); }
+    return out;
+  }
+
+  // ---------- traffic ----------
+  const CAR_COLORS=['#F4E9D8','#8FD0E8','#E8B94A','#D89A9A'];
+  function spawnCar(){
+    if(roadTileList.length===0) return null;
+    const [r,c]=roadTileList[Math.floor(Math.random()*roadTileList.length)];
+    const nbrs=roadNeighbors(r,c);
+    if(nbrs.length===0) return null;
+    const [nr,nc]=nbrs[Math.floor(Math.random()*nbrs.length)];
+    return { r,c,nr,nc, prevR:r, prevC:c, t:Math.random(), speed:0.7+Math.random()*0.5,
+             color:CAR_COLORS[Math.floor(Math.random()*CAR_COLORS.length)] };
+  }
+
+  function updateCars(dtSec){
+    const desired=Math.min(10, Math.floor(roadTileList.length/4));
+    while(cars.length<desired){
+      const car=spawnCar();
+      if(!car) break;
+      cars.push(car);
+    }
+    if(cars.length>desired) cars.length=desired;
+    for(const car of cars){
+      if(!isRoad(car.r,car.c) || !isRoad(car.nr,car.nc)){
+        const fresh=spawnCar();
+        if(fresh) Object.assign(car,fresh);
+        continue;
+      }
+      car.t += dtSec*car.speed;
+      if(car.t>=1){
+        car.r=car.nr; car.c=car.nc;
+        const all=roadNeighbors(car.r,car.c);
+        const noBacktrack=all.filter(n=>!(n[0]===car.prevR && n[1]===car.prevC));
+        const options=noBacktrack.length?noBacktrack:all;
+        if(options.length===0){ const fresh=spawnCar(); if(fresh) Object.assign(car,fresh); continue; }
+        const [nr,nc]=options[Math.floor(Math.random()*options.length)];
+        car.prevR=car.r; car.prevC=car.c;
+        car.nr=nr; car.nc=nc;
+        car.t=0;
+      }
+    }
+  }
+
+  function drawCars(){
+    for(const car of cars){
+      const cx=(car.c + (car.nc-car.c)*car.t + 0.5)*TILE;
+      const cy=(car.r + (car.nr-car.r)*car.t + 0.5)*TILE;
+      const horizontal = car.nc!==car.c;
+      ctx.fillStyle=car.color;
+      if(horizontal) ctx.fillRect(cx-3.5, cy-1.5, 7, 3);
+      else ctx.fillRect(cx-1.5, cy-3.5, 3, 7);
+    }
+  }
+
+  // ---------- air traffic ----------
+  function updatePlanes(dtSec){
+    for(const a of airportList){
+      const key=a.r+'_'+a.c;
+      if(!a.powered){ continue; } // grounded — no flights without power
+      if(!(key in planeProgress)) planeProgress[key]=Math.random()*400;
+      planeProgress[key] += dtSec*34; // pixels of flight path covered per second
+      radarAngles[key] = ((radarAngles[key]||0) + dtSec*3.2) % (Math.PI*2);
+    }
+  }
+
+  function getPlanePosition(a){
+    const key=a.r+'_'+a.c;
+    if(!(key in planeProgress)) return null;
+    const cx=(a.c+a.w/2)*TILE, cy=(a.r+a.h/2)*TILE;
+    const floorHalfW=a.w*TILE*0.7+16, floorRadius=a.h*TILE*0.7+12;
+    // racetrack pattern: two straight cruise legs joined by a turn at each end,
+    // sized to tour a big stretch of the map but clamped within the canvas
+    const halfW=Math.max(floorHalfW, Math.min(cx-16, (COLS*TILE-cx)-16, COLS*TILE*0.36));
+    const radius=Math.max(floorRadius, Math.min(cy-16, (ROWS*TILE-cy)-16, ROWS*TILE*0.24));
+
+    const legLen=halfW*2;
+    const turnLen=Math.PI*radius;
+    const total=2*legLen+2*turnLen;
+    let d=planeProgress[key] % total;
+    if(d<0) d+=total;
+
+    let px,py,heading;
+    if(d<legLen){
+      // top leg, cruising left to right
+      px=cx-halfW+d; py=cy-radius; heading=Math.PI/2;
+    } else if(d<legLen+turnLen){
+      // right-hand turn, banking around from the top leg onto the bottom leg
+      const t=(d-legLen)/turnLen;
+      const ang=-Math.PI/2+t*Math.PI;
+      px=cx+halfW+Math.cos(ang)*radius; py=cy+Math.sin(ang)*radius; heading=ang+Math.PI;
+    } else if(d<legLen+turnLen+legLen){
+      // bottom leg, cruising right to left
+      const t=d-legLen-turnLen;
+      px=cx+halfW-t; py=cy+radius; heading=3*Math.PI/2;
+    } else {
+      // left-hand turn, banking back onto the top leg
+      const t=(d-legLen-turnLen-legLen)/turnLen;
+      const ang=Math.PI/2+t*Math.PI;
+      px=cx-halfW+Math.cos(ang)*radius; py=cy+Math.sin(ang)*radius; heading=ang+Math.PI;
+    }
+    return { px, py, heading };
+  }
+
+  function drawPlanes(){
+    for(const a of airportList){
+      const pos=getPlanePosition(a);
+      if(!pos) continue;
+      ctx.save();
+      ctx.translate(pos.px,pos.py);
+      ctx.rotate(pos.heading);
+      ctx.fillStyle='#DCEFEA';
+      ctx.beginPath();
+      ctx.moveTo(0,-5); ctx.lineTo(3,4); ctx.lineTo(0,2); ctx.lineTo(-3,4);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // ---------- stadium games ----------
+  function updateStadiums(dtSec){
+    for(const s of stadiumList){
+      const key=s.r+'_'+s.c;
+      if(!s.powered){ continue; } // no game without power
+      if(!(key in stadiumClocks)) stadiumClocks[key]=Math.random()*10;
+      stadiumClocks[key] += dtSec;
+    }
+  }
+
+  function updateBeaches(dtSec){
+    for(const key of beachList){
+      if(!(key in beachClocks)) beachClocks[key]=Math.random()*10;
+      beachClocks[key] += dtSec;
+    }
+  }
+
+  const PLAYER_OFFSETS=[
+    [-0.7,-0.5,1.3],[0.6,-0.3,1.7],[-0.3,0.6,2.1],[0.7,0.4,0.6],[0,-0.7,2.9],[-0.6,0.1,0.2]
+  ];
+  function drawStadiums(){
+    for(const s of stadiumList){
+      const key=s.r+'_'+s.c;
+      if(!(key in stadiumClocks)) continue;
+      const t=stadiumClocks[key];
+      const cx=(s.c+s.w/2)*TILE, cy=(s.r+s.h/2)*TILE;
+      const fieldRx=s.w*TILE/2-11, fieldRy=s.h*TILE/2-11;
+      // players jogging around small personal loops on the pitch
+      for(const [ox,oy,phase] of PLAYER_OFFSETS){
+        const px=cx+ox*fieldRx+Math.cos(t*1.3+phase)*3;
+        const py=cy+oy*fieldRy+Math.sin(t*1.3+phase)*3;
+        ctx.fillStyle='#DCEFEA';
+        ctx.fillRect(px-1,py-1,2,2);
+      }
+      // the ball, swept back and forth across the pitch
+      const bx=cx+Math.sin(t*0.9)*fieldRx*0.8;
+      const by=cy+Math.sin(t*1.7)*fieldRy*0.5;
+      ctx.fillStyle='#E8B94A';
+      ctx.beginPath(); ctx.arc(bx,by,1.6,0,7); ctx.fill();
+    }
+  }
+
+  // ---------- sea traffic ----------
+  const SHIP_COLORS=['#DCEFEA','#7A8FA3','#8AA5B5'];
+  function spawnShip(){
+    if(activeWaterTileList.length===0) return null;
+    const occupied=new Set(ships.map(s=>s.r+'_'+s.c));
+    let r,c,tries=0;
+    do {
+      [r,c]=activeWaterTileList[Math.floor(Math.random()*activeWaterTileList.length)];
+      tries++;
+    } while(occupied.has(r+'_'+c) && tries<10);
+    const nbrs=waterNeighbors(r,c);
+    if(nbrs.length===0) return null;
+    const [nr,nc]=nbrs[Math.floor(Math.random()*nbrs.length)];
+    return { r,c,nr,nc, prevR:r, prevC:c, t:Math.random(), speed:0.35+Math.random()*0.25,
+             lane:(Math.random()-0.5)*5, color:SHIP_COLORS[Math.floor(Math.random()*SHIP_COLORS.length)] };
+  }
+
+  function updateShips(dtSec){
+    if(activeWaterTileList.length===0){
+      ships.length=0;
+      return;
+    }
+    const desired=Math.min(4, Math.floor(activeWaterTileList.length/20));
+    while(ships.length<desired){
+      const ship=spawnShip();
+      if(!ship) break;
+      ships.push(ship);
+    }
+    if(ships.length>desired) ships.length=desired;
+    for(const ship of ships){
+      if(!isWater(ship.r,ship.c) || !isWater(ship.nr,ship.nc)){
+        const fresh=spawnShip();
+        if(fresh) Object.assign(ship,fresh);
+        continue;
+      }
+      ship.t += dtSec*ship.speed;
+      if(ship.t>=1){
+        ship.r=ship.nr; ship.c=ship.nc;
+        const all=waterNeighbors(ship.r,ship.c);
+        const noBacktrack=all.filter(n=>!(n[0]===ship.prevR && n[1]===ship.prevC));
+        const options=noBacktrack.length?noBacktrack:all;
+        if(options.length===0){ const fresh=spawnShip(); if(fresh) Object.assign(ship,fresh); continue; }
+        const [nr,nc]=options[Math.floor(Math.random()*options.length)];
+        ship.prevR=ship.r; ship.prevC=ship.c;
+        ship.nr=nr; ship.nc=nc;
+        ship.t=0;
+      }
+    }
+  }
+
+  function drawShips(){
+    for(const ship of ships){
+      const horizontal = ship.nc!==ship.c;
+      let cx=(ship.c + (ship.nc-ship.c)*ship.t + 0.5)*TILE;
+      let cy=(ship.r + (ship.nr-ship.r)*ship.t + 0.5)*TILE;
+      // offset perpendicular to travel direction so ships sharing a lane don't overlap
+      if(horizontal) cy += ship.lane; else cx += ship.lane;
+      ctx.fillStyle=ship.color;
+      if(horizontal){
+        ctx.fillRect(cx-4, cy-1.5, 8, 3);
+        ctx.fillStyle='rgba(220,239,234,0.35)';
+        ctx.fillRect(cx-6, cy-0.5, 3, 1);
+      } else {
+        ctx.fillRect(cx-1.5, cy-4, 3, 8);
+        ctx.fillStyle='rgba(220,239,234,0.35)';
+        ctx.fillRect(cx-0.5, cy-6, 1, 3);
+      }
+    }
+  }
+
+  // ---------- disasters: plane crashes ----------
+  function maybeCrashPlanes(dtSecEffective){
+    for(const a of airportList){
+      if(!a.powered) continue;
+      const pos=getPlanePosition(a);
+      if(!pos) continue;
+      // small chance per second of simulated time that this plane goes down
+      const chancePerSec=0.0009;
+      if(Math.random() < chancePerSec*dtSecEffective){
+        triggerCrash(pos.px, pos.py);
+      }
+    }
+  }
+
+  function triggerCrash(px,py){
+    let tr=Math.floor(py/TILE)+Math.floor(Math.random()*5)-2;
+    let tc=Math.floor(px/TILE)+Math.floor(Math.random()*5)-2;
+    tr=Math.max(0,Math.min(ROWS-1,tr));
+    tc=Math.max(0,Math.min(COLS-1,tc));
+    const tile=grid[tr][tc];
+    const ownerType = tile.type==='reserved' ? grid[tile.ownerR][tile.ownerC].type : tile.type;
+    const isProtected = ownerType==='airport' || ownerType==='navy' || ownerType==='stadium' ||
+      ownerType==='church' || ownerType==='marina' || ownerType==='disco' || ownerType==='drivein' || ownerType==='beach';
+    let damageNote='open ground';
+    if(isProtected){
+      damageNote='open ground nearby — the facility held firm';
+    } else if(tile.type==='reserved'){
+      damageNote='a building';
+      clearFootprint(tile.ownerR, tile.ownerC);
+      funds -= 400;
+    } else if(tile.footprint){
+      damageNote='a building';
+      clearFootprint(tr,tc);
+      funds -= 400;
+    } else if(tile.type!=='empty' && tile.type!=='water'){
+      damageNote = tile.type.startsWith('zone') ? 'a building' : tile.type;
+      if(tile.isFerry) removeFerryRoutesAt(tr,tc);
+      grid[tr][tc] = (tile.isBridge || tile.isFerry)
+        ? {type:(tile.revertType||'water'), level:0, powered:false, hasPower:false}
+        : {type:'empty', level:0, powered:false, hasPower:false};
+      funds -= 250;
+    }
+    recomputePower();
+    updateHUD();
+    crashes.push({r:tr,c:tc,ttl:3.0,total:3.0});
+    showToast('A plane went down and hit '+damageNote+'!');
+  }
+
+  function updateCrashes(dtSec){
+    for(const cr of crashes) cr.ttl -= dtSec;
+    crashes = crashes.filter(cr => cr.ttl>0);
+  }
+
+  function drawCrashes(){
+    for(const cr of crashes){
+      const x=cr.c*TILE, y=cr.r*TILE;
+      const cx=x+TILE/2, cy=y+TILE/2;
+      const life = cr.ttl/cr.total; // 1 -> 0
+      // smoke
+      ctx.fillStyle=`rgba(90,90,90,${0.25*life})`;
+      ctx.beginPath(); ctx.arc(cx, cy-6*(1-life), 7+6*(1-life), 0, 7); ctx.fill();
+      // flame flicker
+      const flicker = 0.7+Math.sin(performance.now()/60+cr.r*3+cr.c*5)*0.3;
+      ctx.fillStyle=`rgba(232,133,74,${0.8*life*flicker})`;
+      ctx.beginPath(); ctx.arc(cx, cy, 4*life, 0, 7); ctx.fill();
+      ctx.fillStyle=`rgba(232,68,68,${0.6*life*flicker})`;
+      ctx.beginPath(); ctx.arc(cx, cy, 2*life, 0, 7); ctx.fill();
+    }
+  }
+
+  // ---------- crime & riots ----------
+  function triggerRiot(){
+    const candidates=[];
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const t=grid[r][c];
+      if(t.type.startsWith('zone') || t.type==='park') candidates.push([r,c]);
+    }
+    if(candidates.length===0) return;
+    const [r,c]=candidates[Math.floor(Math.random()*candidates.length)];
+    if(mobs.some(m=>m.r===r&&m.c===c)) return;
+    mobs.push({r,c,ttl:4.0,total:4.0,resolved:false});
+  }
+  function updateMobs(dtSec){
+    for(const m of mobs){
+      m.ttl -= dtSec;
+      if(!m.resolved && m.ttl <= m.total-1.6){
+        m.resolved=true;
+        const t=grid[m.r][m.c];
+        if(t.type.startsWith('zone') || t.type==='park'){
+          grid[m.r][m.c] = {type:'empty', level:0, powered:false, hasPower:false};
+          funds -= 150;
+          recomputePower();
+          updateHUD();
+          showToast('Crime is out of control — a mob tore through a building! More police needed.');
+        }
+      }
+    }
+    mobs = mobs.filter(m=>m.ttl>0);
+  }
+  const MOB_OFFSETS=[[-0.5,-0.4],[0.4,-0.3],[-0.3,0.3],[0.3,0.4],[0,-0.5],[-0.5,0.3],[0.5,-0.2],[0.1,0.5]];
+  function drawMobs(){
+    for(const m of mobs){
+      const cx=(m.c+0.5)*TILE, cy=(m.r+0.5)*TILE;
+      const alpha=Math.max(0, m.ttl/m.total);
+      const t=performance.now()/150;
+      for(const [ox,oy] of MOB_OFFSETS){
+        const jx=Math.sin(t*3+ox*10)*2.2, jy=Math.cos(t*3+oy*10)*2.2;
+        const px=cx+ox*TILE+jx, py=cy+oy*TILE+jy;
+        ctx.fillStyle = m.resolved ? `rgba(194,68,68,${0.4*alpha})` : `rgba(232,68,68,${0.9*alpha})`;
+        ctx.beginPath(); ctx.arc(px,py,1.7,0,7); ctx.fill();
+      }
+      ctx.strokeStyle=`rgba(194,68,68,${0.5*alpha})`;
+      ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(cx,cy,TILE*0.75,0,7); ctx.stroke();
+    }
+  }
+
+  // ---------- fire spread ----------
+  function igniteRandomBuilding(){
+    const candidates=[];
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const t=grid[r][c];
+      if((t.type.startsWith('zone')||t.type==='park') && !fires.some(f=>f.r===r&&f.c===c)) candidates.push([r,c]);
+    }
+    if(candidates.length===0) return;
+    const [r,c]=candidates[Math.floor(Math.random()*candidates.length)];
+    fires.push({r,c,age:0,maxAge:16});
+    showToast('A fire has broken out! More fire coverage needed.');
+  }
+  function processFires(coverage,funding){
+    const wellFunded = funding>=50 && coverage>=1;
+    const okFunded = coverage>=0.5;
+    const next=[];
+    const seen=new Set(fires.map(f=>f.r+'_'+f.c));
+    for(const f of fires){
+      f.age += 1;
+      let extinguished=false;
+      if(wellFunded && Math.random()<0.35) extinguished=true;
+      else if(okFunded && Math.random()<0.12) extinguished=true;
+      if(extinguished) continue; // firefighters saved it — tile survives, drop from fires
+      if(f.age>=f.maxAge){
+        const t=grid[f.r][f.c];
+        if(t.type.startsWith('zone')||t.type==='park'){
+          grid[f.r][f.c]={type:'empty', level:0, powered:false, hasPower:false};
+          funds -= 200;
+        }
+        continue; // burned down — drop from fires
+      }
+      next.push(f);
+      if(!wellFunded){
+        const spreadChance = funding<50 ? 0.10 : 0.04;
+        if(Math.random() < spreadChance){
+          const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+          const [dr,dc]=dirs[Math.floor(Math.random()*4)];
+          const nr=f.r+dr, nc=f.c+dc;
+          if(nr>=0&&nc>=0&&nr<ROWS&&nc<COLS){
+            const nt=grid[nr][nc];
+            const key=nr+'_'+nc;
+            if((nt.type.startsWith('zone')||nt.type==='park') && !seen.has(key)){
+              next.push({r:nr,c:nc,age:0,maxAge:16});
+              seen.add(key);
+            }
+          }
+        }
+      }
+    }
+    fires=next;
+    recomputePower();
+  }
+  function drawFires(){
+    for(const f of fires){
+      const x=f.c*TILE, y=f.r*TILE;
+      const cx=x+TILE/2, cy=y+TILE/2;
+      const flicker=0.7+Math.sin(performance.now()/80+f.r*3+f.c*5)*0.3;
+      ctx.fillStyle='rgba(90,90,90,0.3)';
+      ctx.beginPath(); ctx.arc(cx,cy-6,8,0,7); ctx.fill();
+      ctx.fillStyle=`rgba(232,133,74,${0.85*flicker})`;
+      ctx.beginPath(); ctx.arc(cx,cy,5,0,7); ctx.fill();
+      ctx.fillStyle=`rgba(232,68,68,${0.7*flicker})`;
+      ctx.beginPath(); ctx.arc(cx,cy,2.5,0,7); ctx.fill();
+    }
+  }
+
+  // ---------- road decay ----------
+  function decayRoads(chance){
+    let changed=false;
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const t=grid[r][c];
+        if(t.type==='road' && Math.random()<chance){
+          if(t.isFerry) removeFerryRoutesAt(r,c);
+          grid[r][c] = (t.isBridge||t.isFerry)
+            ? {type:(t.revertType||'water'), level:0, powered:false, hasPower:false}
+            : {type:'empty', level:0, powered:false, hasPower:false};
+          changed=true;
+        }
+      }
+    }
+    if(changed) recomputePower();
+  }
+
+  function hasRoadAdjacent(r,c){
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dr,dc] of dirs){
+      const nr=r+dr, nc=c+dc;
+      if(nr<0||nc<0||nr>=ROWS||nc>=COLS) continue;
+      if(grid[nr][nc].type==='road') return true;
+    }
+    return false;
+  }
+
+  function hasWaterAdjacent(r,c){
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr<0||nc<0||nr>=ROWS||nc>=COLS) continue;
+        if(grid[nr][nc].type==='water') return true;
+      }
+    }
+    return false;
+  }
+
+  function footprintRoadAdjacent(r,c,w,h){
+    for(let dr=0; dr<h; dr++) if(hasRoadAdjacent(r+dr,c) || hasRoadAdjacent(r+dr,c+w-1)) return true;
+    for(let dc=0; dc<w; dc++) if(hasRoadAdjacent(r,c+dc) || hasRoadAdjacent(r+h-1,c+dc)) return true;
+    return false;
+  }
+
+  // ---------- simulation ----------
+  function computeStats(){
+    let pop=0, jobsC=0, jobsI=0, zonedR=0, zonedC=0, zonedI=0, waterfrontBonus=0, policeStations=0, fireStations=0;
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const t=grid[r][c];
+        if(t.type==='zoneR'){ zonedR++; pop += t.level*8; if(t.waterfront && t.level>0) waterfrontBonus += t.level*4; }
+        if(t.type==='zoneC'){ zonedC++; jobsC += t.level*6; if(t.waterfront && t.level>0) waterfrontBonus += t.level*3; }
+        if(t.type==='zoneI'){ zonedI++; jobsI += t.level*8; }
+        if(t.type==='airport' && t.powered && footprintRoadAdjacent(r,c,t.footprint.w,t.footprint.h)) jobsC += 45;
+        if(t.type==='navy' && t.powered && footprintRoadAdjacent(r,c,t.footprint.w,t.footprint.h)) jobsI += 35;
+        if(t.type==='stadium' && t.powered && footprintRoadAdjacent(r,c,t.footprint.w,t.footprint.h)) jobsC += 30;
+        if(t.type==='stadium' && t.powered) waterfrontBonus += 20; // ticket & concession revenue
+        if(t.type==='police' && t.powered) policeStations++;
+        if(t.type==='fire' && t.powered) fireStations++;
+      }
+    }
+    const jobs=jobsC+jobsI;
+    const taxPenalty = taxRate-7; // baseline tax is 7% — no penalty/bonus there
+    const demandR = clamp((jobs - pop)/120 + 0.22 - taxPenalty*0.044, -1, 1);
+    const demandC = clamp((pop*0.4 - jobsC)/90 - taxPenalty*0.030, -1, 1);
+    const demandI = clamp((pop*0.35 - jobsI)/100 + 0.10 - taxPenalty*0.025, -1, 1);
+    return {pop,jobsC,jobsI,zonedR,zonedC,zonedI,demandR,demandC,demandI,waterfrontBonus,policeStations,fireStations};
+  }
+  function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+
+  let lastStats={pop:0,jobsC:0,jobsI:0,zonedR:0,zonedC:0,zonedI:0,demandR:0,demandC:0,demandI:0};
+
+  function happinessSources(){
+    const sources=[];
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const t=grid[r][c];
+        const fp=t.footprint;
+        if(!fp) continue;
+        const midR=r+fp.h/2, midC=c+fp.w/2;
+        if(t.type==='church' && footprintRoadAdjacent(r,c,fp.w,fp.h)){
+          sources.push({r:midR,c:midC,radius:5,bonus:0.05});
+        } else if(t.type==='marina' && t.powered && footprintRoadAdjacent(r,c,fp.w,fp.h)){
+          sources.push({r:midR,c:midC,radius:4,bonus:0.05});
+        } else if(t.type==='disco' && t.powered && footprintRoadAdjacent(r,c,fp.w,fp.h)){
+          sources.push({r:midR,c:midC,radius:3,bonus:0.08});
+        } else if(t.type==='drivein' && t.powered && footprintRoadAdjacent(r,c,fp.w,fp.h)){
+          sources.push({r:midR,c:midC,radius:5,bonus:0.06});
+        } else if(t.type==='beach'){
+          sources.push({r:midR,c:midC,radius:5,bonus:0.07});
+        }
+      }
+    }
+    return sources;
+  }
+  function happinessBonusAt(r,c,sources){
+    let best=0;
+    for(const s of sources){
+      if(Math.hypot(r-s.r,c-s.c)<=s.radius) best=Math.max(best,s.bonus);
+    }
+    return best;
+  }
+
+  function simTick(){
+    // growth pass
+    const stats=computeStats();
+    lastStats=stats;
+    const happySources=happinessSources();
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const t=grid[r][c];
+        if(!t.type.startsWith('zone')) continue;
+        t.roadAdj = hasRoadAdjacent(r,c);
+        t.waterfront = t.type!=='zoneI' && hasWaterAdjacent(r,c); // industrial doesn't get a waterfront premium
+        if(!t.powered || !t.roadAdj) continue;
+        const demand = t.type==='zoneR'?stats.demandR : t.type==='zoneC'?stats.demandC : stats.demandI;
+        const maxLevel = t.waterfront ? 4 : 3;
+        const growthBonus = t.waterfront ? 0.06 : 0;
+        // community amenities (church, marina, disco, drive-in, beach) make nearby
+        // residents happier, boosting how fast homes nearby fill up and grow
+        const happyBonus = t.type==='zoneR' ? happinessBonusAt(r,c,happySources) : 0;
+        if(demand<-0.3 && t.level>0 && Math.random()<0.05){
+          t.level--;
+        } else if(t.level<maxLevel){
+          // growth chance always has a small positive floor so a balanced city keeps
+          // slowly inching forward instead of hard-stalling once demand nears zero
+          const growthChance = Math.max(0.015, 0.10 + demand*0.3 + growthBonus + happyBonus);
+          if(Math.random() < growthChance) t.level++;
+        }
+      }
+    }
+
+    // budget
+    let roadCount=0, powerCount=0, parkCount=0, policeCount=0, fireCount=0, plantUpkeep=0, airportCount=0, navyCount=0, stadiumCount=0;
+    let churchCount=0, marinaCount=0, discoCount=0, drivein_Count=0, beachCount=0;
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const ty=grid[r][c].type;
+      if(ty==='road') roadCount++;
+      if(ty==='power') powerCount++;
+      if(ty==='park') parkCount++;
+      if(ty==='police') policeCount++;
+      if(ty==='fire') fireCount++;
+      if(isPlantType(ty)) plantUpkeep += (PLANT_UPKEEP[ty]||0);
+      if(ty==='airport') airportCount++;
+      if(ty==='navy') navyCount++;
+      if(ty==='stadium') stadiumCount++;
+      if(ty==='church') churchCount++;
+      if(ty==='marina') marinaCount++;
+      if(ty==='disco') discoCount++;
+      if(ty==='drivein') drivein_Count++;
+      if(ty==='beach') beachCount++;
+    }
+    const income = Math.round(stats.pop*taxRate*0.18 + stats.jobsC*taxRate*0.14 + stats.jobsI*taxRate*0.10 + stats.waterfrontBonus*taxRate*0.20);
+    const expenses = Math.round(
+      roadCount*0.6*(roadFunding/100) + powerCount*0.3 + parkCount*12 +
+      policeCount*16*(policeFunding/100) + fireCount*16*(fireFunding/100) +
+      plantUpkeep + airportCount*80 + navyCount*60 + stadiumCount*50 +
+      churchCount*8 + marinaCount*25 + discoCount*20 + drivein_Count*30 + beachCount*10
+    );
+    funds += income - expenses;
+
+    // ---- crime & policing ----
+    const totalZoned = stats.zonedR + stats.zonedC + stats.zonedI;
+    const policeCapacity = stats.policeStations * 45 * (policeFunding/100);
+    const policeCoverage = totalZoned>0 ? policeCapacity/totalZoned : 1;
+    const targetCrime = clamp(100 - policeCoverage*100, 0, 100);
+    crimeLevel += (targetCrime - crimeLevel) * 0.15;
+    crimeLevel = clamp(crimeLevel, 0, 100);
+    if(crimeLevel > 55 && Math.random() < (crimeLevel-55)/45*0.06){
+      triggerRiot();
+    }
+
+    // ---- fire & fire dept ----
+    const fireCapacity = stats.fireStations * 45 * (fireFunding/100);
+    const fireCoverage = totalZoned>0 ? fireCapacity/totalZoned : 1;
+    const ignitionChance = clamp(1-fireCoverage,0,1) * (fireFunding<50 ? 0.018 : 0.004);
+    if(Math.random() < ignitionChance) igniteRandomBuilding();
+    processFires(fireCoverage, fireFunding);
+
+    // ---- road decay ----
+    if(roadFunding < 50){
+      decayRoads((50-roadFunding)/50 * 0.006);
+      if(!roadDecayWarned){
+        roadDecayWarned=true;
+        showToast('Roads are crumbling from lack of funding!');
+      }
+    }
+
+    // loan: interest compounds monthly onto the balance, and the rate drifts a little
+    // each month so it genuinely varies over the life of the loan
+    if(loanBalance>0){
+      loanBalance = Math.round(loanBalance + loanBalance * (loanRate/100/12));
+    }
+    loanRate = Math.max(3, Math.min(15, loanRate + (Math.random()-0.5)*0.6));
+
+    month++;
+    if(month>12){ month=1; year++; }
+
+    updateHUD();
+    draw();
+  }
+
+  // ---------- HUD ----------
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function updateHUD(){
+    document.getElementById('statFunds').textContent='§'+funds.toLocaleString();
+    document.getElementById('statFunds').className='value funds'+(funds<0?' neg':'');
+    document.getElementById('statPop').textContent=lastStats.pop.toLocaleString();
+    document.getElementById('statDate').textContent=MONTHS[month-1]+' '+year;
+    document.getElementById('statTax').textContent=taxRate+'%';
+    document.getElementById('statLoan').textContent='§'+Math.round(loanBalance).toLocaleString();
+    document.getElementById('statLoan').className='value loan'+(loanBalance>0?' owed':'');
+    document.getElementById('loanLabel').textContent = loanBalance>0 ? 'Loan @ '+loanRate.toFixed(1)+'%' : 'Loan';
+    const crimeRounded=Math.round(crimeLevel);
+    document.getElementById('statCrime').textContent=crimeRounded;
+    document.getElementById('statCrime').className='value crime'+(crimeRounded>0?' high':'');
+    document.getElementById('crimeLabel').textContent = crimeRounded>50 ? 'Crime — need police!' : 'Crime';
+    setGauge('gaugeR', lastStats.demandR);
+    setGauge('gaugeC', lastStats.demandC);
+    setGauge('gaugeI', lastStats.demandI);
+  }
+  function setGauge(id, val){
+    const fill=document.querySelector('#'+id+' .fill');
+    const pct=Math.abs(val)*50;
+    if(val>=0){ fill.style.bottom='50%'; fill.style.top=(50-pct)+'%'; fill.style.height=pct+'%'; }
+    else { fill.style.top='50%'; fill.style.height=pct+'%'; }
+  }
+
+  let toastTimer=null;
+  function showToast(msg){
+    toastEl.textContent=msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>toastEl.classList.remove('show'), 1800);
+  }
+
+  // ---------- interaction ----------
+  document.querySelectorAll('.tool').forEach(btn=>{
+    if(!btn.dataset.tool) return;
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      currentTool=btn.dataset.tool;
+      document.getElementById('footHint').textContent='Tool: '+btn.textContent.trim();
+    });
+  });
+
+  function placeAt(px,py,isRightClick){
+    const c=Math.floor(px/TILE), r=Math.floor(py/TILE);
+    if(r<0||c<0||r>=ROWS||c>=COLS) return;
+    if(pendingEndpoint){ resolveEndpoint(r,c); return; }
+    const tool = isRightClick ? 'bulldoze' : currentTool;
+    if(!tool) return;
+    const tile=grid[r][c];
+
+    if(tool==='bulldoze'){
+      if(tile.type==='reserved'){
+        clearFootprint(tile.ownerR, tile.ownerC);
+        recomputePower(); draw();
+        return;
+      }
+      if(tile.footprint){
+        clearFootprint(r,c);
+        recomputePower(); draw();
+        return;
+      }
+      if(tile.type!=='empty' && tile.type!=='water'){
+        if(tile.isFerry) removeFerryRoutesAt(r,c);
+        grid[r][c] = (tile.isBridge || tile.isFerry)
+          ? {type:(tile.revertType||'water'), level:0, powered:false, hasPower:false}
+          : {type:'empty', level:0, powered:false, hasPower:false};
+        recomputePower(); draw();
+      }
+      else if(tile.type==='water'){ showToast("Water can't be bulldozed."); }
+      return;
+    }
+
+    if(tool==='power'){
+      if(tile.type==='empty' || (tile.type==='road' && !tile.hasPower)){
+        if(funds<COST.power){ showToast('Insufficient funds — need §'+COST.power); return; }
+        funds -= COST.power;
+        tile.hasPower = true;
+        if(tile.type==='empty') tile.type='power';
+        recomputePower(); updateHUD(); draw();
+      } else if(tile.hasPower){
+        showToast('Power line already runs here.');
+      } else {
+        showToast("Can't place power there.");
+      }
+      return;
+    }
+
+    if(tool==='road'){
+      if(tile.type==='empty'){
+        if(funds<COST.road){ showToast('Insufficient funds — need §'+COST.road); return; }
+        funds -= COST.road;
+        tile.type='road';
+        recomputePower(); updateHUD(); draw();
+      } else if(tile.type==='power'){
+        // power line already here — road runs alongside it on the same tile
+        if(funds<COST.road){ showToast('Insufficient funds — need §'+COST.road); return; }
+        funds -= COST.road;
+        tile.type='road'; tile.hasPower=true;
+        recomputePower(); updateHUD(); draw();
+      } else if(tile.type==='water'){
+        openCrossingPrompt(r,c);
+      } else {
+        showToast("Can't place road there.");
+      }
+      return;
+    }
+
+    if(FOOTPRINTS[tool]){
+      const fp=FOOTPRINTS[tool];
+      if(r+fp.h>ROWS || c+fp.w>COLS){ showToast("Won't fit within the map here."); return; }
+      let allBuildable=true;
+      for(let dr=0; dr<fp.h && allBuildable; dr++){
+        for(let dc=0; dc<fp.w; dc++){
+          const ct=grid[r+dr][c+dc].type;
+          if(ct!=='empty' && ct!=='power'){ allBuildable=false; break; }
+        }
+      }
+      if(!allBuildable){ showToast('That plot needs to be clear.'); return; }
+      if(WATER_REQUIRED.has(tool)){
+        let touchesWater=false;
+        for(let dr=0; dr<fp.h && !touchesWater; dr++){
+          for(let dc=0; dc<fp.w; dc++){
+            if(hasWaterAdjacent(r+dr,c+dc)){ touchesWater=true; break; }
+          }
+        }
+        if(!touchesWater){ showToast('Must be built along the coast.'); return; }
+      }
+      const cost=COST[tool];
+      if(funds<cost){ showToast('Insufficient funds — need §'+cost); return; }
+      funds -= cost;
+      for(let dr=0; dr<fp.h; dr++){
+        for(let dc=0; dc<fp.w; dc++){
+          const had = grid[r+dr][c+dc].type==='power';
+          if(dr===0 && dc===0){
+            grid[r][c]={type:tool, level:0, powered:false, hasPower:had, footprint:{w:fp.w,h:fp.h}};
+          } else {
+            grid[r+dr][c+dc]={type:'reserved', ownerR:r, ownerC:c, level:0, powered:false, hasPower:had};
+          }
+        }
+      }
+      recomputePower(); updateHUD(); draw();
+      return;
+    }
+
+    const cost=COST[tool];
+    if(tile.type==='empty' || tile.type==='power'){
+      if(WATER_REQUIRED.has(tool) && !hasWaterAdjacent(r,c)){ showToast('Must be built along the coast.'); return; }
+      const had = tile.type==='power';
+      if(funds<cost){ showToast('Insufficient funds — need §'+cost); return; }
+      funds -= cost;
+      grid[r][c]={type:tool, level:0, powered:false, roadAdj:false, hasPower:had};
+      recomputePower();
+      updateHUD();
+      draw();
+    }
+  }
+
+  function clearFootprint(ar,ac){
+    const anchor=grid[ar][ac];
+    const fp = anchor.footprint || {w:1,h:1};
+    for(let dr=0; dr<fp.h; dr++){
+      for(let dc=0; dc<fp.w; dc++){
+        grid[ar+dr][ac+dc]={type:'empty', level:0, powered:false, hasPower:false};
+      }
+    }
+  }
+
+  // ---------- water crossings ----------
+  let pendingCrossing=null;   // {r,c} — water tile that triggered the initial prompt
+  let pendingEndpoint=null;   // {kind,r,c} — waiting for the player to click the far side
+  let ferryRoutes=[];         // [{r1,c1,r2,c2}]
+  let ferryBoats=[];          // [{route, t, dir}]
+
+  function openCrossingPrompt(r,c){
+    if(pendingCrossing || pendingEndpoint) return; // one crossing flow at a time
+    pendingCrossing={r,c};
+    document.getElementById('crossingText').textContent='Cross the water here?';
+    document.getElementById('crossingBtns').innerHTML =
+      '<button id="btnBridge">Bridge <span>§1,000</span></button>'+
+      '<button id="btnFerry">Ferry <span>§3,000</span></button>'+
+      '<button id="btnCancelCrossing">Cancel</button>';
+    document.getElementById('btnBridge').addEventListener('click', ()=>chooseCrossingKind('bridge'));
+    document.getElementById('btnFerry').addEventListener('click', ()=>chooseCrossingKind('ferry'));
+    document.getElementById('btnCancelCrossing').addEventListener('click', closeCrossingPrompt);
+    document.getElementById('crossingPrompt').classList.add('show');
+  }
+  function closeCrossingPrompt(){
+    pendingCrossing=null;
+    pendingEndpoint=null;
+    document.getElementById('crossingPrompt').classList.remove('show');
+  }
+  function chooseCrossingKind(kind){
+    if(!pendingCrossing) return;
+    const {r,c}=pendingCrossing;
+    if(grid[r][c].type!=='water'){ closeCrossingPrompt(); return; }
+    pendingEndpoint={kind,r,c};
+    pendingCrossing=null;
+    document.getElementById('crossingText').textContent =
+      kind==='bridge' ? 'Now click the far bank to finish the bridge.' : 'Now click the far dock to finish the ferry route.';
+    document.getElementById('crossingBtns').innerHTML = '<button id="btnCancelCrossing">Cancel</button>';
+    document.getElementById('btnCancelCrossing').addEventListener('click', closeCrossingPrompt);
+  }
+
+  function resolveEndpoint(r2,c2){
+    if(!pendingEndpoint) return;
+    const {kind,r:r1,c:c1}=pendingEndpoint;
+    if(r2===r1 && c2===c1){ showToast('Pick a different tile for the far end.'); return; }
+    const cost=COST[kind];
+    if(funds<cost){ showToast('Insufficient funds — need §'+cost); closeCrossingPrompt(); return; }
+
+    if(kind==='bridge'){
+      if(r1!==r2 && c1!==c2){ showToast('Bridges run in a straight line — pick a tile in the same row or column.'); return; }
+      const path=[];
+      if(r1===r2){
+        const lo=Math.min(c1,c2), hi=Math.max(c1,c2);
+        for(let cc=lo; cc<=hi; cc++) path.push([r1,cc]);
+      } else {
+        const lo=Math.min(r1,r2), hi=Math.max(r1,r2);
+        for(let rr=lo; rr<=hi; rr++) path.push([rr,c1]);
+      }
+      for(const [rr,cc] of path){
+        const ty=grid[rr][cc].type;
+        if(ty!=='water' && ty!=='empty' && ty!=='road'){ showToast('Something is in the way of that span.'); return; }
+      }
+      funds -= cost;
+      for(const [rr,cc] of path){
+        const t=grid[rr][cc];
+        if(t.type==='road') continue; // already connected, leave as-is
+        grid[rr][cc] = {type:'road', level:0, powered:false, hasPower:false, isBridge:true, revertType:t.type};
+      }
+      recomputePower(); updateHUD(); draw();
+      showToast('Bridge built for §'+cost.toLocaleString()+'.');
+    } else {
+      const destTy=grid[r2][c2].type;
+      if(destTy!=='water' && destTy!=='empty' && destTy!=='road'){ showToast("Can't dock a ferry there."); return; }
+      funds -= cost;
+      const t1=grid[r1][c1], t2=grid[r2][c2];
+      grid[r1][c1] = {type:'road', level:0, powered:false, hasPower:false, isFerry:true, revertType:t1.type};
+      if(destTy!=='road'){
+        grid[r2][c2] = {type:'road', level:0, powered:false, hasPower:false, isFerry:true, revertType:t2.type};
+      }
+      const route={r1,c1,r2,c2};
+      ferryRoutes.push(route);
+      ferryBoats.push({route, t:Math.random(), dir:1});
+      recomputePower(); updateHUD(); draw();
+      showToast('Ferry crossing built for §'+cost.toLocaleString()+'.');
+    }
+    closeCrossingPrompt();
+  }
+
+  function removeFerryRoutesAt(r,c){
+    const doomed = ferryRoutes.filter(rt => (rt.r1===r&&rt.c1===c)||(rt.r2===r&&rt.c2===c));
+    if(doomed.length===0) return;
+    ferryRoutes = ferryRoutes.filter(rt => !doomed.includes(rt));
+    ferryBoats = ferryBoats.filter(b => !doomed.includes(b.route));
+  }
+
+  function updateFerryBoats(dtSec){
+    for(const boat of ferryBoats){
+      boat.t += dtSec*0.12*boat.dir;
+      if(boat.t>=1){ boat.t=1; boat.dir=-1; }
+      else if(boat.t<=0){ boat.t=0; boat.dir=1; }
+    }
+  }
+
+  function drawFerryBoats(){
+    for(const boat of ferryBoats){
+      const route=boat.route;
+      const px=(route.c1+0.5)*TILE + ((route.c2-route.c1)*boat.t)*TILE;
+      const py=(route.r1+0.5)*TILE + ((route.r2-route.r1)*boat.t)*TILE;
+      const heading=Math.atan2(route.r2-route.r1, route.c2-route.c1) + (boat.dir<0?Math.PI:0);
+      ctx.save();
+      ctx.translate(px,py);
+      ctx.rotate(heading);
+      ctx.fillStyle='#C7D3DE';
+      ctx.beginPath();
+      ctx.moveTo(6,0); ctx.lineTo(-5,-3.5); ctx.lineTo(-3,0); ctx.lineTo(-5,3.5);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#E8B94A';
+      ctx.fillRect(-1,-6,2,5);
+      ctx.restore();
+    }
+  }
+
+  let dragging=false;
+  canvas.addEventListener('mousedown', e=>{
+    dragging=true;
+    const rect=canvas.getBoundingClientRect();
+    placeAt((e.clientX-rect.left)*(canvas.width/rect.width), (e.clientY-rect.top)*(canvas.height/rect.height), e.button===2);
+  });
+  canvas.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const rect=canvas.getBoundingClientRect();
+    placeAt((e.clientX-rect.left)*(canvas.width/rect.width), (e.clientY-rect.top)*(canvas.height/rect.height), e.buttons===2);
+  });
+  window.addEventListener('mouseup', ()=>dragging=false);
+  canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+  canvas.addEventListener('mousemove', e=>{
+    const rect=canvas.getBoundingClientRect();
+    const px=(e.clientX-rect.left)*(canvas.width/rect.width);
+    const py=(e.clientY-rect.top)*(canvas.height/rect.height);
+    const c=Math.floor(px/TILE), r=Math.floor(py/TILE);
+    const info=document.getElementById('hoverInfo');
+    if(r<0||c<0||r>=ROWS||c>=COLS){ info.classList.remove('show'); return; }
+    const {title,lines}=describeTile(r,c);
+    info.innerHTML = '<div class="hi-title">'+title+'</div>' + lines.map(l=>'<div class="hi-line">'+l+'</div>').join('');
+    info.classList.add('show');
+    const wrapRect = canvas.parentElement.getBoundingClientRect();
+    let left = e.clientX - wrapRect.left + 16;
+    let top = e.clientY - wrapRect.top + 16;
+    if(left > wrapRect.width - 230) left = e.clientX - wrapRect.left - 230;
+    if(top > wrapRect.height - 90) top = e.clientY - wrapRect.top - 90;
+    info.style.left = left+'px';
+    info.style.top = top+'px';
+  });
+  canvas.addEventListener('mouseleave', ()=>{
+    document.getElementById('hoverInfo').classList.remove('show');
+  });
+
+  // ---------- tax ----------
+  document.getElementById('taxSlider').addEventListener('input', e=>{
+    taxRate=parseInt(e.target.value,10);
+    document.getElementById('taxVal').textContent=taxRate+'%';
+    updateHUD();
+  });
+
+  // ---------- department funding ----------
+  document.getElementById('roadFundingSlider').addEventListener('input', e=>{
+    roadFunding=parseInt(e.target.value,10);
+    document.getElementById('roadFundingVal').textContent=roadFunding+'%';
+    if(roadFunding>=50) roadDecayWarned=false;
+  });
+  document.getElementById('policeFundingSlider').addEventListener('input', e=>{
+    policeFunding=parseInt(e.target.value,10);
+    document.getElementById('policeFundingVal').textContent=policeFunding+'%';
+  });
+  document.getElementById('fireFundingSlider').addEventListener('input', e=>{
+    fireFunding=parseInt(e.target.value,10);
+    document.getElementById('fireFundingVal').textContent=fireFunding+'%';
+  });
+
+  // ---------- loan ----------
+  document.getElementById('btnBorrow').addEventListener('click', ()=>{
+    if(loanBalance>=LOAN_MAX){ showToast('Loan limit reached — §'+LOAN_MAX.toLocaleString()+' max.'); return; }
+    const amount=Math.min(LOAN_STEP, LOAN_MAX-loanBalance);
+    loanBalance += amount;
+    funds += amount;
+    updateHUD();
+    showToast('Borrowed §'+amount.toLocaleString()+' at '+loanRate.toFixed(1)+'% interest.');
+  });
+  document.getElementById('btnRepay').addEventListener('click', ()=>{
+    if(loanBalance<=0){ showToast('No outstanding loan.'); return; }
+    if(funds<=0){ showToast('No funds available to repay.'); return; }
+    const amount=Math.round(Math.min(loanBalance, funds, LOAN_STEP));
+    loanBalance -= amount;
+    funds -= amount;
+    updateHUD();
+    showToast('Repaid §'+Math.round(amount).toLocaleString()+(loanBalance<=0.5 ? ' — loan cleared!' : '.'));
+  });
+
+  // ---------- music ----------
+  // A short original ambient loop, synthesized in-browser — a slow pad chord
+  // progression with a gentle arpeggio on top. No audio files, so nothing to
+  // license or download.
+  const Music = (function(){
+    let ctx=null, master=null, enabled=false, timer=null;
+    let trackIdx=0, unitIdx=0, passesLeft=0;
+
+    // Für Elise (Beethoven, d. 1827) and Pachelbel's Canon in D (c. 1680) —
+    // both long public domain. Each piece loops several times through before
+    // handing off to the other, so the whole thing runs a good while before
+    // any single melody repeats.
+    const N = {
+      A2:110.00, B2:123.47, D2:73.42, Fs2:92.50, G2:98.00,
+      A4:440.00, B4:493.88, C4:261.63, C5:523.25, D4:293.66, D5:587.33,
+      Ds5:622.25, E4:329.63, E5:659.25, Fs4:369.99, Fs5:739.99,
+      G4:392.00, Gs4:415.30, Cs5:554.37,
+      C2:65.41, E2:82.41, F2:87.31, F4:349.23, G3:196.00,
+    };
+
+    const furEliseTheme=[
+      [N.E5,1],[N.Ds5,1],[N.E5,1],[N.Ds5,1],[N.E5,1],[N.B4,1],[N.D5,1],[N.C5,1],[N.A4,2],
+      [0,1],[N.C4,1],[N.E4,1],[N.A4,1],[N.B4,2],
+      [0,1],[N.E4,1],[N.Gs4,1],[N.B4,1],[N.C5,2],
+      [0,1],[N.E5,1],[N.Ds5,1],[N.E5,1],[N.Ds5,1],[N.E5,1],[N.B4,1],[N.D5,1],[N.C5,1],[N.A4,2],
+      [0,1],[N.C4,1],[N.E4,1],[N.A4,1],[N.B4,2],
+      [0,1],[N.E4,1],[N.C5,1],[N.B4,1],[N.A4,2],
+    ];
+
+    const canonInD=[
+      { bass:N.D2,  arp:[N.D4, N.Fs4,N.A4, N.D5 ] }, // D
+      { bass:N.A2,  arp:[N.A4, N.Cs5,N.E5, N.Cs5] }, // A
+      { bass:N.B2,  arp:[N.B4, N.D5, N.Fs5,N.D5 ] }, // Bm
+      { bass:N.Fs2, arp:[N.Fs4,N.A4, N.Cs5,N.A4 ] }, // F#m
+      { bass:N.G2,  arp:[N.G4, N.B4, N.D5, N.B4 ] }, // G
+      { bass:N.D2,  arp:[N.D4, N.Fs4,N.A4, N.Fs4] }, // D
+      { bass:N.G2,  arp:[N.G4, N.B4, N.D5, N.G4 ] }, // G
+      { bass:N.A2,  arp:[N.A4, N.Cs5,N.E5, N.A4 ] }, // A
+    ];
+
+    // same ground-bass shape as the D version, transposed down a whole step:
+    // C–G–Am–Em–F–C–F–G
+    const canonInC=[
+      { bass:N.C2, arp:[N.C4,N.E4,N.G4,N.C5] }, // C
+      { bass:N.G2, arp:[N.G4,N.B4,N.D5,N.B4] }, // G
+      { bass:N.A2, arp:[N.A4,N.C5,N.E5,N.C5] }, // Am
+      { bass:N.E2, arp:[N.E4,N.G4,N.B4,N.G4] }, // Em
+      { bass:N.F2, arp:[N.F4,N.A4,N.C5,N.A4] }, // F
+      { bass:N.C2, arp:[N.C4,N.E4,N.G4,N.E4] }, // C
+      { bass:N.F2, arp:[N.F4,N.A4,N.C5,N.F4] }, // F
+      { bass:N.G2, arp:[N.G4,N.B4,N.D5,N.G4] }, // G
+    ];
+
+    // Ode to Joy — Beethoven, Symphony No. 9 finale (public domain).
+    // Full four-phrase theme (the "Freude, schöner Götterfunken" tune).
+    const odeToJoyTheme=[
+      [N.E4,2],[N.E4,2],[N.F4,2],[N.G4,2],
+      [N.G4,2],[N.F4,2],[N.E4,2],[N.D4,2],
+      [N.C4,2],[N.C4,2],[N.D4,2],[N.E4,2],
+      [N.E4,3],[N.D4,1],[N.D4,4],
+
+      [N.E4,2],[N.E4,2],[N.F4,2],[N.G4,2],
+      [N.G4,2],[N.F4,2],[N.E4,2],[N.D4,2],
+      [N.C4,2],[N.C4,2],[N.D4,2],[N.E4,2],
+      [N.D4,3],[N.C4,1],[N.C4,4],
+
+      [N.D4,2],[N.D4,2],[N.E4,2],[N.C4,2],
+      [N.D4,1],[N.E4,1],[N.F4,2],[N.E4,2],[N.C4,2],
+      [N.D4,1],[N.E4,1],[N.F4,2],[N.E4,2],[N.D4,2],
+      [N.C4,2],[N.D4,2],[N.G3,4],
+
+      [N.E4,2],[N.E4,2],[N.F4,2],[N.G4,2],
+      [N.G4,2],[N.F4,2],[N.E4,2],[N.D4,2],
+      [N.C4,2],[N.C4,2],[N.D4,2],[N.E4,2],
+      [N.D4,3],[N.C4,1],[N.C4,4],
+    ];
+
+    const playlist=[
+      { type:'melody', name:'Für Elise', eighth:0.30, notes:furEliseTheme, passes:2 },
+      { type:'melody', name:'Ode to Joy', eighth:0.28, notes:odeToJoyTheme, passes:2 },
+      { type:'chords', name:'Canon in D', chordLen:5.6, progression:canonInD, passes:3 },
+      { type:'chords', name:'Canon in C', chordLen:5.6, progression:canonInC, passes:3 },
+    ];
+
+    function ensureCtx(){
+      if(!ctx){
+        ctx=new (window.AudioContext||window.webkitAudioContext)();
+        master=ctx.createGain();
+        master.gain.value=0;
+        const limiter=ctx.createDynamicsCompressor();
+        limiter.threshold.value=-8;
+        limiter.knee.value=14;
+        limiter.ratio.value=10;
+        limiter.attack.value=0.003;
+        limiter.release.value=0.25;
+        master.connect(limiter);
+        limiter.connect(ctx.destination);
+      }
+    }
+    function playMelodyNote(freq,when,len){
+      if(!freq) return; // rest
+      const g=ctx.createGain();
+      g.gain.value=0;
+      g.connect(master);
+      const osc=ctx.createOscillator();
+      osc.type='triangle';
+      osc.frequency.value=freq;
+      osc.connect(g);
+      g.gain.setValueAtTime(0,when);
+      g.gain.linearRampToValueAtTime(0.32,when+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001,when+len*0.95);
+      osc.start(when); osc.stop(when+len);
+      osc.onended=()=>{ osc.disconnect(); g.disconnect(); };
+      const g2=ctx.createGain();
+      g2.gain.value=0;
+      g2.connect(master);
+      const osc2=ctx.createOscillator();
+      osc2.type='sine';
+      osc2.frequency.value=freq/2;
+      osc2.connect(g2);
+      g2.gain.setValueAtTime(0,when);
+      g2.gain.linearRampToValueAtTime(0.10,when+0.012);
+      g2.gain.exponentialRampToValueAtTime(0.0001,when+len*0.95);
+      osc2.start(when); osc2.stop(when+len);
+      osc2.onended=()=>{ osc2.disconnect(); g2.disconnect(); };
+    }
+    function playChordStep(step,chordLen){
+      const now=ctx.currentTime;
+      const bg=ctx.createGain();
+      bg.gain.value=0;
+      bg.connect(master);
+      const bass=ctx.createOscillator();
+      bass.type='sine';
+      bass.frequency.value=step.bass;
+      bass.connect(bg);
+      bg.gain.linearRampToValueAtTime(0.26, now+1.4);
+      bg.gain.linearRampToValueAtTime(0, now+chordLen-0.5);
+      bass.start(now); bass.stop(now+chordLen);
+      bass.onended=()=>{ bass.disconnect(); bg.disconnect(); };
+
+      const noteLen=chordLen/step.arp.length;
+      step.arp.forEach((freq,i)=>{
+        const when=now+i*noteLen;
+        const g=ctx.createGain();
+        g.gain.value=0;
+        g.connect(master);
+        const osc=ctx.createOscillator();
+        osc.type='triangle';
+        osc.frequency.value=freq;
+        osc.connect(g);
+        g.gain.setValueAtTime(0,when);
+        g.gain.linearRampToValueAtTime(0.24, when+0.25);
+        g.gain.exponentialRampToValueAtTime(0.0001, when+noteLen*1.7);
+        osc.start(when); osc.stop(when+noteLen*1.8);
+        osc.onended=()=>{ osc.disconnect(); g.disconnect(); };
+      });
+    }
+
+    function scheduleStep(){
+      if(!enabled) return;
+      const track=playlist[trackIdx];
+      let len;
+      if(track.type==='melody'){
+        const [freq,units]=track.notes[unitIdx];
+        len=units*track.eighth;
+        playMelodyNote(freq, ctx.currentTime, len*0.98);
+      } else {
+        const step=track.progression[unitIdx];
+        len=track.chordLen;
+        playChordStep(step, len);
+      }
+      unitIdx++;
+      const seqLen = track.type==='melody' ? track.notes.length : track.progression.length;
+      if(unitIdx>=seqLen){
+        unitIdx=0;
+        passesLeft--;
+        if(passesLeft<=0){
+          trackIdx=(trackIdx+1)%playlist.length;
+          passesLeft=playlist[trackIdx].passes;
+        }
+      }
+      timer=setTimeout(scheduleStep, len*1000);
+    }
+    return {
+      start(){
+        ensureCtx();
+        const resumeResult = ctx.state==='suspended' ? ctx.resume() : Promise.resolve();
+        resumeResult.then(()=>{
+          if(ctx.state!=='running'){
+            showToast("Audio didn't start — your browser may be blocking sound here. Try opening the file directly in its own browser tab.");
+          }
+        }).catch(()=>{
+          showToast("Audio didn't start — your browser may be blocking sound here. Try opening the file directly in its own browser tab.");
+        });
+        master.gain.cancelScheduledValues(ctx.currentTime);
+        master.gain.linearRampToValueAtTime(1, ctx.currentTime+0.6);
+        if(enabled) return;
+        enabled=true;
+        if(passesLeft<=0) passesLeft=playlist[trackIdx].passes;
+        scheduleStep();
+      },
+      stop(){
+        enabled=false;
+        clearTimeout(timer);
+        if(master && ctx){
+          master.gain.cancelScheduledValues(ctx.currentTime);
+          master.gain.linearRampToValueAtTime(0, ctx.currentTime+0.3);
+        }
+      }
+    };
+  })();
+  let musicOn=false;
+  function setMusicButton(){
+    const b=document.getElementById('btnMusic');
+    b.textContent = musicOn ? '♪ On' : '♪ Off';
+    b.classList.toggle('active', musicOn);
+  }
+  setMusicButton();
+  document.getElementById('btnMusic').addEventListener('click', e=>{
+    musicOn=!musicOn;
+    if(musicOn){ Music.start(); } else { Music.stop(); }
+    setMusicButton();
+  });
+
+  // ---------- speed / pause ----------
+  document.getElementById('btnPause').addEventListener('click', e=>{
+    paused=!paused;
+    e.target.textContent = paused ? '▶' : 'II';
+  });
+  document.getElementById('btnSpeed1').addEventListener('click', ()=>setSpeed(1));
+  document.getElementById('btnSpeed2').addEventListener('click', ()=>setSpeed(3));
+  function setSpeed(s){
+    speed=s;
+    document.getElementById('btnSpeed1').classList.toggle('active', s===1);
+    document.getElementById('btnSpeed2').classList.toggle('active', s===3);
+  }
+
+  // ---------- save/load ----------
+  document.getElementById('btnSave').addEventListener('click', ()=>{
+    const data={grid,funds,month,year,taxRate,loanBalance,loanRate,roadFunding,policeFunding,fireFunding,crimeLevel};
+    localStorage.setItem('blueprint_save', JSON.stringify(data));
+    showToast('City saved.');
+  });
+  document.getElementById('btnLoad').addEventListener('click', ()=>{
+    const raw=localStorage.getItem('blueprint_save');
+    if(!raw){ showToast('No saved city found.'); return; }
+    const data=JSON.parse(raw);
+    grid=data.grid; funds=data.funds; month=data.month; year=data.year; taxRate=data.taxRate;
+    loanBalance=data.loanBalance||0; loanRate=data.loanRate||(6+Math.random()*4);
+    roadFunding=data.roadFunding??100; policeFunding=data.policeFunding??100; fireFunding=data.fireFunding??100;
+    crimeLevel=data.crimeLevel||0; fires=[]; mobs=[]; roadDecayWarned=(roadFunding<50);
+    document.getElementById('taxSlider').value=taxRate;
+    document.getElementById('taxVal').textContent=taxRate+'%';
+    document.getElementById('roadFundingSlider').value=roadFunding;
+    document.getElementById('roadFundingVal').textContent=roadFunding+'%';
+    document.getElementById('policeFundingSlider').value=policeFunding;
+    document.getElementById('policeFundingVal').textContent=policeFunding+'%';
+    document.getElementById('fireFundingSlider').value=fireFunding;
+    document.getElementById('fireFundingVal').textContent=fireFunding+'%';
+    recomputePower();
+    updateHUD(); draw();
+    showToast('City loaded.');
+  });
+  let newCityArmed=false, newCityTimer=null;
+  document.getElementById('btnNew').addEventListener('click', ()=>{
+    const btn=document.getElementById('btnNew');
+    if(newCityArmed){
+      clearTimeout(newCityTimer);
+      newCityArmed=false;
+      btn.classList.remove('confirm-armed');
+      btn.lastChild.textContent='New City';
+      newCity();
+    } else {
+      newCityArmed=true;
+      btn.classList.add('confirm-armed');
+      btn.lastChild.textContent='Click again to confirm';
+      showToast('Unsaved progress will be lost — click New City again to confirm.');
+      newCityTimer=setTimeout(()=>{
+        newCityArmed=false;
+        btn.classList.remove('confirm-armed');
+        btn.lastChild.textContent='New City';
+      }, 4000);
+    }
+  });
+
+  // ---------- main loop ----------
+  let acc=0, last=performance.now();
+  function loop(now){
+    const dt=now-last; last=now;
+    const dtSec=Math.min(dt,100)/1000; // clamp huge gaps (e.g. tab was backgrounded)
+    if(!paused){
+      acc += dt*speed;
+      if(acc > 1400){ acc=0; simTick(); }
+      updateCars(dtSec*speed);
+      updateShips(dtSec*speed);
+      updateFerryBoats(dtSec*speed);
+      updatePlanes(dtSec*speed);
+      updateStadiums(dtSec*speed);
+      updateBeaches(dtSec*speed);
+      maybeCrashPlanes(dtSec*speed);
+      updateCrashes(dtSec*speed);
+      updateMobs(dtSec*speed);
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  newCity();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

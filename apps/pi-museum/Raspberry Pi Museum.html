@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>The Raspberry Pi Museum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,700;1,6..96,500&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a gallery wall. Exhibits hang as plinth + brass placard; a timeline rail and a room plan of wings sit above. */
+:root{
+  --wall:#e6eae7; --plinth:#f7f8f6; --ink:#16201b; --muted:#56635c; --rule:#c6cec9;
+  --accent:#a8114a; --brass:#86703f; --s1:#1f78b4; --s2:#b0174f; --good:#2f7d4f; --p5v:#d23a3a; --p3v:#e08a2b; --pgnd:#55595c; --pgpio:#3fa36b; --pi2c:#3d8fd6; --pspi:#9a6ad6; --puart:#d9b23c; --pid:#9aa0a4; --brass-soft:#efe6d1; --shadow:rgba(22,32,27,.10);
+  --f-display:"Bodoni Moda", "Didot", "Times New Roman", serif;
+  --f-body:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --wall:#111614; --plinth:#1a211e; --ink:#e5ebe7; --muted:#97a69e; --rule:#2d3833;
+  --accent:#f2689a; --brass:#cdb47a; --brass-soft:#2a2619; --shadow:rgba(0,0,0,.45); --s1:#3d8fd6; --s2:#d9507c; --good:#5fc48a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --wall:#111614; --plinth:#1a211e; --ink:#e5ebe7; --muted:#97a69e; --rule:#2d3833;
+  --accent:#f2689a; --brass:#cdb47a; --brass-soft:#2a2619; --shadow:rgba(0,0,0,.45); --s1:#3d8fd6; --s2:#d9507c; --good:#5fc48a; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--wall);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+h1,h2,h3{font-family:var(--f-display);font-weight:500;text-wrap:balance;margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+a{color:var(--accent)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+/* Entrance */
+.entrance{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:40px;align-items:center;padding-block:56px 40px;border-bottom:1px solid var(--rule)}
+.entrance h1{font-size:clamp(42px,6.4vw,84px);line-height:.98;letter-spacing:-.01em}
+.entrance h1 em{font-style:italic;color:var(--accent)}
+.entrance p{max-width:58ch;color:var(--muted);margin:18px 0 0}
+.hours{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:26px;font-family:var(--f-mono);font-size:13px}
+.hours b{display:block;font-family:var(--f-display);font-size:30px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.hero-obj{background:var(--plinth);box-shadow:0 18px 40px -18px var(--shadow);padding:28px 26px 18px;position:relative}
+.hero-obj svg{display:block;width:100%;height:auto}
+.hero-obj figcaption{display:flex;justify-content:space-between;gap:12px;margin-top:14px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+
+/* Timeline rail */
+.rail-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin:40px 0 14px}
+.rail-head h2{font-size:30px}
+.rail{overflow-x:auto;border-top:2px solid var(--ink);padding-bottom:6px}
+.rail-in{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(78px,1fr);min-width:1100px}
+.yr{border-left:1px solid var(--rule);padding:8px 6px 4px;display:flex;flex-direction:column;gap:5px}
+.yr:first-child{border-left:0}
+.yr > span{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tick{all:unset;cursor:pointer;font-size:12.5px;line-height:1.25;padding:4px 6px;border-radius:2px;background:var(--plinth);border-left:3px solid var(--c,var(--accent))}
+.tick:hover{background:var(--brass-soft)}
+.tick:focus-visible{outline:2px solid var(--accent)}
+.tick.future{border-left-style:dashed;color:var(--muted);cursor:default;background:transparent}
+
+/* Wings filter */
+.plan{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:space-between;margin:48px 0 22px}
+.wings{display:flex;flex-wrap:wrap;gap:8px}
+.wing{border:1px solid var(--rule);background:transparent;padding:7px 13px;font-size:14px;cursor:pointer;border-radius:999px;display:inline-flex;align-items:center;gap:7px}
+.wing i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.wing[aria-pressed="true"]{background:var(--ink);color:var(--wall);border-color:var(--ink)}
+.wing .n{font-family:var(--f-mono);font-size:11.5px;opacity:.7}
+.search{border:1px solid var(--rule);background:var(--plinth);padding:8px 12px;font:inherit;font-size:14px;color:var(--ink);min-width:0;width:240px;max-width:100%}
+
+/* Gallery */
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:34px 26px}
+.exhibit{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:0}
+.exhibit .stand{background:var(--plinth);aspect-ratio:3/2;display:grid;place-items:center;padding:18px;box-shadow:0 14px 28px -18px var(--shadow);transition:transform .25s ease, box-shadow .25s ease;max-width:100%}
+.exhibit .stand svg{width:100%;height:100%}
+.exhibit:hover .stand,.exhibit:focus-visible .stand{transform:translateY(-3px);box-shadow:0 22px 34px -18px var(--shadow)}
+.exhibit:focus-visible{outline:2px solid var(--accent);outline-offset:6px}
+.placard{margin:14px 0 0;padding:10px 12px 11px;background:var(--brass-soft);border-top:2px solid var(--brass);display:grid;gap:2px}
+.placard .acc{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;color:var(--brass);display:flex;justify-content:space-between;gap:8px}
+.placard h3{font-size:21px;line-height:1.15}
+.placard p{margin:0;font-size:13.5px;color:var(--muted)}
+.empty{grid-column:1/-1;color:var(--muted);padding:40px 0}
+
+/* Spec wall */
+.section-h{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin:72px 0 16px;border-bottom:2px solid var(--ink);padding-bottom:10px}
+.section-h h2{font-size:34px}
+.section-h p{margin:0;color:var(--muted);max-width:60ch;font-size:14.5px}
+.tablebox{overflow-x:auto;background:var(--plinth)}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--plinth)}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--brass-soft)}
+td .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:8px}
+
+/* Future wing */
+.future-wing{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px}
+.sign{border:1.5px dashed var(--rule);padding:20px 22px;background:transparent}
+.sign h3{font-size:24px;margin:4px 0 8px}
+.sign p{margin:0;color:var(--muted);font-size:14.5px}
+
+footer{margin-top:64px;padding-top:18px;border-top:1px solid var(--rule);color:var(--muted);font-size:13px;display:grid;gap:6px}
+
+/* Exhibit room (dialog) */
+dialog{border:0;padding:0;background:var(--wall);color:var(--ink);width:min(1040px,calc(100vw - 24px));max-height:calc(100dvh - 24px);box-shadow:0 30px 80px -20px rgba(0,0,0,.5)}
+dialog::backdrop{background:rgba(10,14,12,.62)}
+.room{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+.room-art{background:var(--plinth);padding:34px 28px}
+.art-in{position:sticky;top:34px;display:flex;flex-direction:column;gap:18px}
+.room-art svg{width:100%;height:auto}
+.room-art .cap{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.room-text{padding:26px 28px 30px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.room-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.nav{display:flex;gap:6px}
+.nav button{border:1px solid var(--rule);background:var(--plinth);padding:6px 11px;cursor:pointer;font-size:13px}
+.nav button:hover{border-color:var(--ink)}
+.room h2{font-size:clamp(30px,4vw,44px);line-height:1.02}
+.room .intro{margin:0;color:var(--muted)}
+dl.specs{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:0;margin:0;border-top:1px solid var(--rule)}
+dl.specs dt,dl.specs dd{padding:7px 0;border-bottom:1px solid var(--rule);margin:0;font-size:14px}
+dl.specs dt{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding-right:18px;padding-top:9px}
+.notes h4{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.notes h4::before{content:"";width:14px;height:2px;background:var(--k)}
+.notes ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:14.5px}
+.notes.hacks{--k:var(--brass)}
+.notes.issues{--k:var(--accent)}
+.museum-note{font-family:var(--f-display);font-style:italic;font-size:18px;line-height:1.4;border-left:2px solid var(--brass);padding-left:14px;margin:0}
+
+/* Room plan nav */
+.topnav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--wall);border-bottom:1px solid var(--rule);overflow-x:auto;margin-inline:-20px;padding-inline:20px}
+.topnav div{display:flex;gap:22px;white-space:nowrap;padding-block:11px}
+.topnav a{font-family:var(--f-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-decoration:none}
+.topnav a:hover{color:var(--accent)}
+section{scroll-margin-top:60px}
+.panel{background:var(--plinth);padding:20px 22px;min-width:0}
+.panel h3{font-size:24px;margin-bottom:6px}
+.panel > p.lede{margin:0 0 14px;color:var(--muted);font-size:14.5px;max-width:62ch}
+.fine{font-size:12.5px;color:var(--muted);margin:12px 0 0;max-width:80ch}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}
+.field{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+select,.txt{font:inherit;font-size:14px;color:var(--ink);background:var(--wall);border:1px solid var(--rule);padding:8px 10px;min-width:0;max-width:100%}
+.txt{width:100%;font-family:var(--f-mono);font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--rule)}
+.seg button{border:0;background:transparent;padding:7px 13px;font-size:13.5px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--wall)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px solid var(--rule);background:var(--wall);padding:6px 11px;font-size:13.5px;cursor:pointer;border-radius:999px}
+.chips button[aria-pressed="true"]{background:var(--ink);color:var(--wall);border-color:var(--ink)}
+.link{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.link:focus-visible{outline:2px solid var(--accent)}
+
+/* Compare */
+.cmp-pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:14px}
+#cmpTable{min-width:720px}
+#cmpTable th[scope="row"]{width:150px}
+#cmpTable td{font-size:14px}
+.mini{height:8px;background:var(--rule);border-radius:4px;margin-top:6px;overflow:hidden;max-width:220px}
+.mini span{display:block;height:100%;background:var(--s1);border-radius:0 4px 4px 0}
+.best{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-left:6px}
+
+/* Bars */
+.bars{display:grid;gap:9px}
+.brow{display:grid;grid-template-columns:minmax(120px,210px) minmax(0,1fr);gap:12px;align-items:center}
+.brow .lab{font-size:13.5px;line-height:1.25}
+.brow .lab small{display:block;color:var(--muted);font-size:11.5px}
+.track{position:relative;display:grid;gap:2px}
+.bar{height:14px;background:var(--c,var(--s1));border-radius:0 4px 4px 0;min-width:2px;position:relative}
+.bar b{position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);font-family:var(--f-mono);font-size:12px;font-weight:500;color:var(--ink);white-space:nowrap}
+.bar:hover{filter:brightness(1.12)}
+.legend{display:flex;gap:18px;font-size:13px;color:var(--muted);margin-bottom:12px;flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--c);vertical-align:-1px;margin-right:6px}
+.readout{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);min-height:1.5em;margin-top:10px}
+
+/* AI lab */
+.ai-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px}
+.ai-ctl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ai-out{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:18px}
+.ai-out .big{font-family:var(--f-display);font-size:64px;line-height:1;font-variant-numeric:tabular-nums}
+.ai-out .unit{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.pill{display:inline-block;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--rule)}
+.pill.ok{border-color:var(--good);color:var(--good)}
+.pill.no{border-color:var(--accent);color:var(--accent)}
+.pill.meas{border-color:var(--brass);color:var(--brass)}
+.typing{font-family:var(--f-mono);font-size:13.5px;background:var(--wall);padding:12px 14px;min-height:6.2em;margin-top:14px;white-space:pre-wrap;word-break:break-word}
+.typing::after{content:"▌";color:var(--accent)}
+.heat{min-width:760px}
+.heat td.cell{text-align:center;font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:13px;border:2px solid var(--plinth);cursor:pointer}
+.heat td.cell.nofit{color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 5px,var(--rule) 5px 6px)}
+.heat td.cell.sel{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* Workbench */
+.bench{display:grid;gap:22px}
+.decode{display:grid;grid-template-columns:max-content minmax(0,1fr);margin-top:14px;border-top:1px solid var(--rule)}
+.decode dt,.decode dd{margin:0;padding:6px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.decode dt{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding-right:18px;padding-top:8px}
+.ex-codes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ex-codes button{font-family:var(--f-mono);font-size:12px;border:1px solid var(--rule);background:var(--wall);padding:3px 8px;cursor:pointer}
+.pins-wrap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:start}
+.pins{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;background:#151617;padding:8px;border-radius:4px;width:max-content}
+.pin{all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--f-mono);font-size:11px;color:#e9ecea;padding:2px 6px;min-width:96px;border-radius:2px}
+.pin:nth-child(even){flex-direction:row-reverse;text-align:right}
+.pin i{width:12px;height:12px;border-radius:2px;background:var(--pc);flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.pin:hover,.pin.sel{background:#33373a}
+.pin:focus-visible{outline:2px solid #f2689a}
+.pin.dim{opacity:.3}
+.pin-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin:10px 0 14px}
+.pin-legend i{display:inline-block;width:11px;height:11px;border-radius:2px;background:var(--pc);margin-right:5px;vertical-align:-1px}
+.pin-info h4{font-family:var(--f-display);font-size:28px;font-weight:500;margin:0}
+.q{display:grid;gap:8px;margin-bottom:14px}
+.q > span{font-size:13px;color:var(--muted)}
+.rec{border-top:2px solid var(--brass);background:var(--brass-soft);padding:14px 16px;margin-top:6px}
+.rec h4{font-family:var(--f-display);font-size:26px;font-weight:500;margin:2px 0 6px}
+.rec p{margin:0;font-size:14.5px}
+.fixes{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.fix{background:var(--wall);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.fix h4{font-size:16px;margin:0;font-family:var(--f-body);font-weight:600}
+.fix p{margin:0;font-size:13.5px;color:var(--muted)}
+.fix .for{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;color:var(--brass);text-transform:uppercase}
+.code{position:relative;background:#141917;color:#dfe8e2;font-family:var(--f-mono);font-size:12.5px;padding:10px 12px;overflow-x:auto;white-space:pre;margin:0;border-radius:2px}
+.copy{align-self:flex-start;border:1px solid var(--rule);background:var(--plinth);font-size:12px;padding:4px 10px;cursor:pointer}
+
+/* Overclocking */
+.oc-steps{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14.5px}
+table.oc{min-width:980px}
+table.oc td{font-size:13.5px}
+table.oc td.set{min-width:230px}
+table.oc .code{font-size:12px;padding:8px 10px}
+table.oc .copy{margin-top:6px}
+.gain{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-weight:500;color:var(--good)}
+/* Accessories + variants */
+.acc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:26px 20px}
+.acc{display:flex;flex-direction:column;min-width:0}
+.acc .stand{background:var(--plinth);aspect-ratio:4/3;display:grid;place-items:center;padding:16px;max-width:100%}
+.acc .stand svg{width:100%;height:100%}
+.acc-no{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;color:var(--brass)}
+.acc .placard p.what{color:var(--ink);font-size:13.5px}
+
+@media (max-width:820px){
+  .two,.ai-grid,.pins-wrap{grid-template-columns:1fr}
+  .cmp-pick,.ai-ctl{grid-template-columns:1fr}
+  .brow{grid-template-columns:minmax(0,1fr)}
+  .ai-out .big{font-size:52px}
+  .entrance{grid-template-columns:1fr;padding-block:34px 28px}
+  .room{grid-template-columns:1fr}
+  .room-art{padding:22px 18px}
+  .art-in{position:static}
+  .room-text{padding:20px 18px 24px}
+  .search{width:100%}
+}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+
+<div class="wrap">
+  <header class="entrance">
+    <div>
+      <div class="eyebrow">Permanent collection · Cambridge, 2012 to now</div>
+      <h1>The Raspberry Pi <em>Museum</em></h1>
+      <p>Every board, from the first $35 computer to the keyboard machines and microcontrollers. Each exhibit has the full spec sheet, the clever things people built with it, and the problems owners ran into.</p>
+      <div class="hours" id="stats"></div>
+    </div>
+    <figure class="hero-obj" style="margin:0">
+      <div id="heroArt"></div>
+      <figcaption><span>Object no. 1 · Raspberry Pi Model B</span><span>29 Feb 2012 · $35</span></figcaption>
+    </figure>
+  </header>
+  <nav class="topnav" aria-label="Rooms"><div>
+    <a href="#timeline">Timeline</a><a href="#galleries">Galleries</a><a href="#compare">Compare</a><a href="#speed">Speed lab</a><a href="#ai">AI lab</a><a href="#workbench">Workbench</a><a href="#overclock">Overclocking</a><a href="#accessories">Accessories</a><a href="#variants">Variants</a><a href="#specwall">Spec wall</a><a href="#prices">Prices</a><a href="#future">Future wing</a>
+  </div></nav>
+
+  <div class="rail-head" id="timeline" style="scroll-margin-top:60px">
+    <h2>Timeline</h2>
+    <span class="eyebrow">Tap a model to step inside</span>
+  </div>
+  <div class="rail"><div class="rail-in" id="rail"></div></div>
+
+  <div class="plan" id="galleries" style="scroll-margin-top:60px">
+    <div class="wings" id="wings" role="group" aria-label="Filter by wing"></div>
+    <label style="display:contents"><span class="eyebrow" style="position:absolute;left:-9999px">Search exhibits</span>
+      <input class="search" id="q" type="search" placeholder="Search: PCIe, Wi-Fi, overclock…" autocomplete="off"></label>
+  </div>
+  <main class="gallery" id="gallery"></main>
+
+  <section id="compare">
+    <div class="section-h"><h2>Compare models</h2><p>Pick up to three boards to see them side by side. The best value in each measured row is marked.</p></div>
+    <div class="cmp-pick">
+      <label class="field">First board<select id="cmpA"></select></label>
+      <label class="field">Second board<select id="cmpB"></select></label>
+      <label class="field">Third board<select id="cmpC"></select></label>
+    </div>
+    <div class="tablebox"><table id="cmpTable"></table></div>
+  </section>
+
+  <section id="speed">
+    <div class="section-h"><h2>Speed lab</h2><p>Relative CPU performance with the original Pi Model B set to 1. Boards that share a chip are grouped.</p></div>
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+        <div class="seg" role="group" aria-label="Benchmark"><button id="spMulti" aria-pressed="true">All cores</button><button id="spSingle" aria-pressed="false">One core</button></div>
+        <span class="eyebrow" id="spLabel">All-core index · Pi 1 Model B = 1</span>
+      </div>
+      <div class="bars" id="speedChart"></div>
+      <div class="readout" id="spRead">Hover or tap a bar for details.</div>
+      <p class="fine">Estimates built from Raspberry Pi's official speed-up figures for each generation (about 6× for the Pi 2, 10× for the Pi 3, up to 3× again for the Pi 4, and 2 to 3× again for the Pi 5) and public benchmark results. Real results swing with cooling, power supply and the test used, so read these as rough ratios, not lab numbers.</p>
+    </div>
+  </section>
+
+  <section id="ai">
+    <div class="section-h"><h2>AI lab: tokens per second</h2><p>How fast each board can run a local language model on its CPU with llama.cpp or Ollama. Choose a board and a model to see the estimate and how fast it would type.</p></div>
+    <div class="ai-grid">
+      <div class="panel">
+        <div class="ai-ctl">
+          <label class="field">Board<select id="aiBoard"></select></label>
+          <label class="field">Model<select id="aiModel"></select></label>
+          <label class="field">Quantization<select id="aiQuant"><option value="q4">Q4 (smaller, usual)</option><option value="q8">Q8 (larger, sharper)</option></select></label>
+        </div>
+        <div class="ai-out"><span class="big" id="aiTps">–</span><span class="unit">tokens / second</span><span id="aiTags"></span></div>
+        <p class="fine" id="aiNote" style="margin-top:8px"></p>
+        <div class="typing" id="aiType" aria-live="off"></div>
+      </div>
+      <div class="panel">
+        <h3>Reading the numbers</h3>
+        <p class="lede">A token is roughly three quarters of a word. Generation speed on a Pi is limited mostly by memory bandwidth, so bigger models slow down in proportion to their file size.</p>
+        <div class="bars" id="aiScale"></div>
+        <p class="fine">Measured values come from Jeff Geerling's public AI benchmarks (Ollama, default Q4 quantization): Pi 5 8 GB 4.61, Pi 5 16 GB 4.88, Pi 500+ 5.55 and Pi 400 1.60 tokens/s on Llama 3.2 3B, and 1.20 on a 14B model. Everything else is estimated from those points using each board's memory bandwidth and CPU speed. Prompt reading is faster than generation; these are generation speeds.</p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:22px">
+      <h3>The tokens-per-second wall</h3>
+      <p class="lede">Every board against every model at Q4. Hatched cells won't fit in memory. Tap a cell to load it into the estimator. ● marks a measured result.</p>
+      <div class="tablebox" style="background:transparent"><table class="heat" id="heat"></table></div>
+    </div>
+  </section>
+
+  <section id="workbench">
+    <div class="section-h"><h2>Workbench</h2><p>Tools to keep open while you work on a Pi.</p></div>
+    <div class="bench">
+      <div class="two">
+        <div class="panel">
+          <h3>Identify your Pi</h3>
+          <p class="lede">On the Pi, run <code>cat /proc/cpuinfo</code> and paste the output here, or just the revision code from its last lines.</p>
+          <textarea class="txt" id="revIn" rows="3" placeholder="Revision : c03114"></textarea>
+          <div class="ex-codes" aria-label="Example codes"><span class="eyebrow" style="align-self:center">Try</span><button data-rev="d04170">d04170</button><button data-rev="c03114">c03114</button><button data-rev="902120">902120</button><button data-rev="a02082">a02082</button><button data-rev="000e">000e</button></div>
+          <dl class="decode" id="revOut"></dl>
+        </div>
+        <div class="panel">
+          <h3>Which Pi should I buy?</h3>
+          <p class="lede">Three questions, one recommendation.</p>
+          <div class="q"><span>What is it for?</span><div class="chips" data-q="use"><button data-v="desktop">Desktop computer</button><button data-v="server">Home server</button><button data-v="media">Media / retro games</button><button data-v="tiny">Tiny or wearable</button><button data-v="elec">Electronics, no OS</button><button data-v="ai">Camera AI / local LLM</button></div></div>
+          <div class="q"><span>Power?</span><div class="chips" data-q="power"><button data-v="mains">Wall socket</button><button data-v="battery">Battery</button></div></div>
+          <div class="q"><span>Budget for the board</span><div class="chips" data-q="budget"><button data-v="low">As cheap as possible</button><button data-v="mid">Middle</button><button data-v="high">Best available</button></div></div>
+          <div class="rec" id="rec"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>40-pin GPIO map</h3>
+        <p class="lede">The header shared by every Model B since the B+, the Zeros, the keyboard computers and the Pi 5. Pin 1 is the square pad nearest the board corner. Tap a pin for details.</p>
+        <div class="pin-legend" id="pinLegend"></div>
+        <div class="pins-wrap"><div class="pins" id="pins" role="group" aria-label="GPIO header pins"></div><div class="pin-info" id="pinInfo"></div></div>
+      </div>
+      <div class="panel">
+        <h3>Fix-it cards</h3>
+        <p class="lede">Copy-paste fixes for the known issues in the galleries. Settings go in <code>/boot/firmware/config.txt</code> on current Raspberry Pi OS (<code>/boot/config.txt</code> on older releases) unless the card says otherwise. Reboot after changes.</p>
+        <div class="fixes" id="fixes"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="overclock">
+    <div class="section-h"><h2>Overclocking table</h2><p>Common, well-tested starting points for every board. Each chip is different, so some boards go further and some won't manage these.</p></div>
+    <div class="two" style="margin-bottom:22px">
+      <div class="panel">
+        <h3>Before you start</h3>
+        <ul class="oc-steps">
+          <li>Use the recommended power supply. Overclocks fail first on weak supplies.</li>
+          <li>Add the cooling listed. A board that hits its thermal limit throttles back and loses the gain.</li>
+          <li>Add the lines to <code>/boot/firmware/config.txt</code> (<code>/boot/config.txt</code> on older releases), save and reboot.</li>
+          <li>Raise one step at a time and stress-test for 10 minutes or more before going further.</li>
+          <li>If it won't boot, put the SD card in another computer and delete the lines you added.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Test and watch it</h3>
+        <pre class="code" id="ocTest">sudo apt install stress-ng
+stress-ng --cpu 4 --timeout 10m &amp;
+watch -n 2 'vcgencmd measure_clock arm; vcgencmd measure_temp; vcgencmd get_throttled'</pre>
+        <button class="copy" data-copy="ocTest" style="margin-top:8px">Copy</button>
+        <p class="fine">You want the clock to stay at your target, the temperature under about 80 °C, and get_throttled to read 0x0. Anything else means back off or cool it better.</p>
+      </div>
+    </div>
+    <div class="tablebox"><table id="ocTable" class="oc"><thead><tr><th>Board</th><th>Stock</th><th>Overclock</th><th>Gain</th><th>Settings</th><th>Cooling needed</th><th>Notes</th></tr></thead><tbody></tbody></table></div>
+    <p class="fine">On boards before the Pi 4, over_voltage above 6 together with force_turbo sets a permanent warranty bit in the chip. Pi 4 and later use a different voltage system. The Pico settings are MicroPython; in C use <code>set_sys_clock_khz()</code>.</p>
+  </section>
+
+  <section id="accessories">
+    <div class="section-h"><h2>Accessories wing</h2><p>The official cameras, screens and add-on boards that shaped what people built.</p></div>
+    <div class="acc-grid" id="accGrid"></div>
+  </section>
+
+  <section id="variants">
+    <div class="section-h"><h2>Variants and revisions</h2><p>Boards that share a room with their parent model. Tap a row to visit the parent.</p></div>
+    <div class="tablebox"><table id="varTable"><thead><tr><th>Variant</th><th>When</th><th>What changed</th><th>Price</th><th>Room</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <div class="section-h" id="specwall" style="scroll-margin-top:60px">
+    <h2>The spec wall</h2>
+    <p>Every exhibit side by side. Prices are launch prices in US dollars; memory-driven increases in 2025 and 2026 raised many of them.</p>
+  </div>
+  <div class="tablebox"><table id="specTable"><thead><tr>
+    <th>Model</th><th>Launched</th><th>Chip</th><th>CPU</th><th>Memory</th><th>Networking</th><th>Launch price</th>
+  </tr></thead><tbody></tbody></table></div>
+
+  <section id="prices">
+    <div class="section-h"><h2>Price then and now</h2><p>Launch prices against 2026 prices for the memory-heavy boards. LPDDR4 memory costs rose about sevenfold in a year, and Raspberry Pi passed it on in December 2025, February 2026 and April 2026.</p></div>
+    <div class="panel">
+      <div class="legend"><span style="--c:var(--s1)"><i></i>Launch price</span><span style="--c:var(--s2)"><i></i>2026 price (at least)</span></div>
+      <div class="bars" id="priceChart"></div>
+      <div class="readout" id="prRead">Hover or tap a bar for the steps in between.</div>
+      <p class="fine">2026 figures add the published April 2026 increases to the published December 2025 prices. The February 2026 increase amounts were not published in the sources used here, so real prices may be a little higher; the Pi 500+ figure is the reported April 2026 price. The 1 GB and 2 GB Pi 4 and Pi 5, the Pi 400, and the LPDDR2 classics (Zero, Zero W, Zero 2 W, Pi 1, Pi 3, 3B+, 3A+, CM1, CM3+) were left out of the April rise. Not shown: a new 1 GB Pi 5 launched at $45 in December 2025.</p>
+    </div>
+    <div class="tablebox" style="margin-top:16px"><table id="priceTable"><thead><tr><th>Board</th><th>Launch</th><th>Dec 2025</th><th>April 2026 change</th><th>2026, at least</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <div class="section-h" id="future" style="scroll-margin-top:60px">
+    <h2>Future wing</h2>
+    <p>Rooms under construction, based on what Raspberry Pi's leadership said in a public Reddit AMA in May 2026.</p>
+  </div>
+  <div class="future-wing">
+    <div class="sign"><div class="eyebrow">Not before 2028</div><h3>Raspberry Pi 6</h3><p>CEO Eben Upton said the next flagship won't arrive before early 2028. Expect the same overall layout as the Pi 5 with faster CPU cores, more I/O and more memory bandwidth. No built-in NPU is planned.</p></div>
+    <div class="sign"><div class="eyebrow">Planned</div><h3>Raspberry Pi Zero 3</h3><p>The company confirmed a Zero 3 is coming, and warned it will cost more than the Zero line has in the past.</p></div>
+    <div class="sign"><div class="eyebrow">Ongoing · 2026</div><h3>The memory squeeze</h3><p>LPDDR4 prices rose about sevenfold over a year, so Raspberry Pi raised prices in December 2025, February 2026 and April 2026, and added a 3GB Pi 4 at $83.75 as a cheaper middle option.</p></div>
+  </div>
+
+  <footer>
+    <span>Board pictures are drawn illustrations based on each model's real layout; port positions are close, not exact.</span>
+    <span>Specs reflect the official product briefs. Where a model had several revisions, the room notes say what changed.</span>
+  </footer>
+</div>
+
+<dialog id="room" aria-labelledby="roomTitle"></dialog>
+
+<script>
+/* ---------- Drawing kit (units are millimetres) ---------- */
+const PCB='#1e6a3a', PCB_EDGE='#145029', TRACE='#2a7d48', SILK='#e8efe6', GOLD='#d6b25a', METAL='#c4c9cd', METAL_HI='#dde1e4', METAL_D='#8a9298', CHIP='#24272a', FFC='#ece3cb';
+const R=(x,y,w,h,f,rx=0,ex='')=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${f}" ${ex}/>`;
+const T=(x,y,s,txt,f=SILK,ex='')=>`<text x="${x}" y="${y}" font-size="${s}" fill="${f}" font-family="IBM Plex Mono, monospace" ${ex}>${txt}</text>`;
+let seed=1; const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646};
+function traces(w,h,n,s){seed=s;let o='';for(let i=0;i<n;i++){const x=2+rnd()*(w-4),y=2+rnd()*(h-4),dx=(rnd()-.5)*w*.5,dy=(rnd()-.5)*h*.5;o+=`<path d="M${x.toFixed(1)} ${y.toFixed(1)} h${dx.toFixed(1)} l${(Math.sign(dy)*Math.min(4,Math.abs(dy))).toFixed(1)} ${(Math.sign(dy)*Math.min(4,Math.abs(dy))).toFixed(1)} v${dy.toFixed(1)}" fill="none" stroke="${TRACE}" stroke-width=".35" opacity=".7"/>`}return o}
+function board(w,h,holes,s=3,rx=3){let o=R(0,0,w,h,PCB,rx)+traces(w,h,14,s)+R(.35,.35,w-.7,h-.7,'none',rx-.3,`stroke="${PCB_EDGE}" stroke-width=".6"`);
+  for(const [x,y] of holes) o+=`<circle cx="${x}" cy="${y}" r="1.75" fill="${GOLD}"/><circle cx="${x}" cy="${y}" r="1.25" style="fill:var(--plinth)"/>`;return o}
+function gpio(x,y,cols,pop=true){let o=pop?R(x,y,cols*2.54,5.08,'#141516',.3):'';
+  for(let c=0;c<cols;c++)for(let r=0;r<2;r++){const cx=x+1.27+c*2.54,cy=y+1.27+r*2.54;
+    o+=pop?R(cx-.4,cy-.4,.8,.8,GOLD):`<circle cx="${cx}" cy="${cy}" r=".75" fill="${GOLD}"/><circle cx="${cx}" cy="${cy}" r=".4" fill="${PCB_EDGE}"/>`}return o}
+function chip(x,y,w,h,label,metal=false){let o=metal?R(x,y,w,h,METAL,.8)+R(x+.6,y+.6,w-1.2,h-1.2,METAL_HI,.5):R(x,y,w,h,CHIP,.4);
+  if(label)o+=T(x+w/2,y+h/2+.6,Math.min(1.9,w/6),label,metal?METAL_D:'#9aa0a4','text-anchor="middle"');return o}
+function usb(x,y,w,h,tongue='#151617'){return R(x,y,w,h,METAL,.5)+R(x+.8,y+.8,w-2.6,h-1.6,METAL_HI,.3)+R(x+w-1.4,y+1,1,h-2,tongue,.2)+`<path d="M${x+2} ${y+h/2} h${w-5}" stroke="${METAL_D}" stroke-width=".3"/>`}
+function eth(x,y,w,h){return R(x,y,w,h,METAL,.5)+R(x+1,y+1.5,w-3.5,h-3,METAL_HI,.3)+R(x+w-1.6,y+1.3,1.2,2.2,'#4fd06a',.2)+R(x+w-1.6,y+h-3.5,1.2,2.2,'#e9b23c',.2)}
+function hdmi(x,y,w,h){return R(x,y,w,h,METAL,.6)+R(x+.8,y+.8,w-1.6,h-2.6,METAL_HI,.4)}
+function audio(x,y,col='#151617'){return R(x,y,7,9,col,.6)+`<circle cx="${x+3.5}" cy="${y+9.5}" r="2.6" fill="${col}"/><circle cx="${x+3.5}" cy="${y+9.5}" r="1.2" fill="#6b7075"/>`}
+function ffc(x,y,w,h){return R(x,y,w,h,FFC,.3)+R(x+(w>h?.8:w*.35),y+(w>h?h*.35:.8),w>h?w-1.6:w*.3,w>h?h*.3:h-1.6,'#3b3a36',.1)}
+function can(x,y,w,h,label=''){let o=R(x,y,w,h,METAL,.6)+R(x+.7,y+.7,w-1.4,h-1.4,METAL_HI,.4);if(label)o+=T(x+w/2,y+h/2+.5,1.5,label,METAL_D,'text-anchor="middle"');return o}
+function berry(x,y,s=1){const c=SILK;let o=`<g transform="translate(${x} ${y}) scale(${s})" fill="none" stroke="${c}" stroke-width=".45">`;
+  o+=`<path d="M-2 -4.2 q2 -1.4 2 .8 q0 -2.2 2 -.8" />`;
+  for(const [cx,cy] of [[-1.6,-1.4],[1.6,-1.4],[0,-.4],[-2.4,1],[2.4,1],[-1,2.2],[1,2.2],[0,3.6]])o+=`<circle cx="${cx}" cy="${cy}" r="1.25"/>`;return o+'</g>'}
+function sdcard(x,y,w,h){return R(x,y,w,h,'#9aa3a9',.6)+R(x+.8,y+.8,w-1.6,h*.45,'#3a6fb0',.4)}
+const svg=(vb,inner,label)=>`<svg viewBox="${vb}" role="img" aria-label="Drawing of the ${label}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+
+/* Model B family, 85 x 56 */
+const H40=[[3.5,3.5],[61.5,3.5],[3.5,52.5],[61.5,52.5]];
+function artP1B(label,ram){let o=sdcard(-14,12,19,25)+board(85,56,[],5)+gpio(1,1,13);
+  o+=R(40,-3.5,9,10,'#e2c22b',.8)+`<circle cx="44.5" cy="-1" r="2.3" fill="#c9a816"/>`+audio(56,-4,'#2f78c4');
+  o+=usb(68,3,18,17)+eth(65,33,21,16)+hdmi(32,44,15,13)+R(-2,44,6,8,METAL,.4)+chip(27,18,13,13,'BCM2835')+chip(54,21,8,8,'LAN')+ffc(53,34,2.5,10)+ffc(3,13,2.5,14);
+  for(let i=0;i<5;i++)o+=`<circle cx="${70-i*2}" cy="52" r=".6" fill="${['#f04','#4d4','#4d4','#4d4','#fb0'][i]}"/>`;
+  o+=berry(15,30,.9)+T(8,40.5,1.8,'Raspberry Pi (c)2011.12')+T(8,43,1.5,ram);
+  return svg('-16 -6 106 66',o,label)}
+function artP1A(label){let o=sdcard(-14,12,19,25)+board(85,56,[],7)+gpio(1,1,13);
+  o+=R(40,-3.5,9,10,'#e2c22b',.8)+`<circle cx="44.5" cy="-1" r="2.3" fill="#c9a816"/>`+audio(56,-4,'#2f78c4');
+  o+=usb(70,6,16,8)+hdmi(32,44,15,13)+R(-2,44,6,8,METAL,.4)+chip(27,18,13,13,'BCM2835')+ffc(53,34,2.5,10)+ffc(3,13,2.5,14);
+  o+=berry(15,30,.9)+T(8,40.5,1.8,'Raspberry Pi Model A');
+  return svg('-16 -6 106 66',o,label)}
+function artBplus(label,{soc='BCM2835',metal=false,wifi=0,poe=false,text=''}={}){let o=R(-2,22,4,12,'#9aa3a9',.4)+board(85,56,H40,label.length)+gpio(7.1,1,20);
+  o+=usb(69,2.5,17.5,13)+usb(69,20.5,17.5,13)+eth(66,38,21.5,16)+R(6,51,8,6,METAL,.5)+hdmi(24.5,45,15,12)+audio(50,47);
+  o+=chip(22,21,14,14,soc,metal)+chip(57,27,9,9,metal?'LAN7515':'LAN9514')+ffc(44,33,2.6,20)+ffc(1.2,16,2.6,21);
+  if(wifi===1)o+=R(1.5,45,3,5,'#d8d2c2',.3)+chip(9,38,6,6,'');
+  if(wifi===2)o+=can(5.5,8.5,12,9,'Wi-Fi');
+  if(poe)o+=gpio(59,7.5,2)+'';
+  o+=berry(13,30,.85)+T(40,12.5,1.7,text);
+  return svg('-4 -3 94 63',o,label)}
+function artP4(label){let o=R(-2,22,4,12,'#9aa3a9',.4)+board(85,56,H40,11)+gpio(7.1,1,20);
+  o+=eth(66,2.5,21.5,16)+usb(69,21,17.5,13,'#2f6fd6')+usb(69,38.5,17.5,13)+R(5.5,50.5,9,6.5,METAL,2)+hdmi(21,49,7.5,8)+hdmi(34.5,49,7.5,8)+audio(50,47);
+  o+=chip(21,17,15,15,'BCM2711',true)+chip(38,18,10,14,'LPDDR4')+chip(58,32,8,8,'VL805')+can(5,8.5,12,9,'Wi-Fi')+gpio(59,7.5,2)+ffc(45,33,2.6,18)+ffc(1.2,15,2.6,21);
+  o+=berry(13,32,.85)+T(22,42,1.7,'Raspberry Pi 4 Model B');
+  return svg('-4 -3 94 63',o,label)}
+function artP5(label){let o=R(-2,30,4,12,'#9aa3a9',.4)+board(85,56,H40,13)+gpio(7.1,1,20);
+  o+=usb(69,2.5,17.5,13)+usb(69,19.5,17.5,13,'#2f6fd6')+eth(66,36.5,21.5,16)+R(5.5,50.5,9,6.5,METAL,2)+hdmi(20,49,7.5,8)+hdmi(33,49,7.5,8);
+  o+=chip(19,17,15,15,'BCM2712',true)+chip(36,19,10,12,'LPDDR4X')+chip(53,25,10,10,'RP1')+can(5,8.5,11,9,'Wi-Fi')+R(59,7.5,5,3,'#f2f2ee',.3)+ffc(-1,13,3,15)+ffc(45,36,2,12)+ffc(52,36,2,12);
+  o+=`<circle cx="2.4" cy="47.5" r="1.4" fill="#2b2d2f"/>`+R(44,51.5,4,3,'#f2f2ee',.3);
+  o+=berry(12,34,.85)+T(19,43.5,1.7,'Raspberry Pi 5');
+  return svg('-4 -3 94 63',o,label)}
+function artAplus(label,{soc='BCM2835',metal=false,wifi=false,text='Raspberry Pi A+'}={}){let o=R(-2,22,4,12,'#9aa3a9',.4)+board(65,56,H40,9)+gpio(7.1,1,20);
+  o+=usb(50,20,17.5,14)+R(6,51,8,6,METAL,.5)+hdmi(24.5,45,15,12)+audio(50,47)+chip(22,21,14,14,soc,metal)+ffc(44,30,2.6,14)+ffc(1.2,16,2.6,21);
+  if(wifi)o+=can(5.5,8.5,12,9,'Wi-Fi');
+  o+=berry(12,31,.8)+T(22,40,1.6,text);
+  return svg('-4 -3 74 63',o,label)}
+/* Zero family, 65 x 30 */
+function artZero(label,{cam=true,wifi=false,two=false}={}){const h=[[3.5,3.5],[61.5,3.5],[3.5,26.5],[61.5,26.5]];
+  let o=R(-1.5,9,4,11,'#9aa3a9',.4)+board(65,30,h,two?21:17)+gpio(7.1,.9,20,false);
+  o+=hdmi(8,24.5,11.5,6.5)+R(37,25,8,5.5,METAL,.6)+R(49.5,25,8,5.5,METAL,.6)+T(37.8,23.6,1.3,'USB')+T(50.2,23.6,1.3,'PWR');
+  if(cam)o+=ffc(61,8.5,4.2,13);
+  if(two)o+=can(19,8,23,14,'RP3A0');else o+=chip(22,10,12,12,'BCM2835');
+  if(wifi)o+=`<path d="M8 10 l4 0 l-2 4 z M9 11.5 h2" fill="none" stroke="${GOLD}" stroke-width=".4"/>`+chip(44,12,6,6,'');
+  o+=T(44.5,22,1.4,two?'Zero 2 W':wifi?'Zero W':'Zero')+berry(11,17,.55);
+  return svg('-3 -2 71 35',o,label)}
+/* Keyboard computers, 286 x 122 */
+function artKbd(label,v){const dark=v==='500plus',caseC=dark?'#2b2d31':'#cf2550',plate=dark?'#36393e':'#f3f1ee',keyC=dark?'#43464c':'#ffffff',edge=dark?'#26282c':'#d9d6d1';
+  let o=R(0,0,286,122,caseC,9)+R(5,6,276,111,plate,6);
+  const u=17.5,rows=[[1,1,1,1,1,1,1,1,1,1,1,1,1,2],[1.5,1,1,1,1,1,1,1,1,1,1,1,1,1.5],[1.75,1,1,1,1,1,1,1,1,1,1,1,2.25],[2.25,1,1,1,1,1,1,1,1,1,1,2.75],[1.25,1.25,1.25,6.25,1.25,1.25,1.25,1.25]];
+  for(let i=0;i<16;i++)o+=R(11.75+i*16.4,12,15,8,keyC,1.4,`stroke="${edge}" stroke-width=".6"`);
+  let k=0;rows.forEach((r,ri)=>{let x=11.75;r.forEach((wu,ci)=>{const w=wu*u-2,y=25+ri*u;
+    if(dark){const hue=(x/286)*300;o+=R(x-.8,y-.8,w+1.6,u-.4,`hsl(${hue} 80% 55%)`,2.4,'opacity=".55"')}
+    o+=R(x,y,w,u-2,keyC,2,`stroke="${edge}" stroke-width=".6"`)+R(x+1.2,y+1,w-2.4,u-5,dark?'#4b4e55':'#fbfaf8',1.4);
+    if(ri===4&&ci===2)o+=`<g transform="translate(${x+w/2} ${y+7.5})">${berry(0,0,.95).replace(new RegExp(SILK,'g'),dark?'#e9e9ea':'#cf2550')}</g>`;
+    x+=wu*u;k++})});
+  const back=[['gpio',18,30],['sd',60,10],['h',78,8],['h',92,8],['c',108,9],['u',128,14],['u',146,14],['u',164,14],['e',186,17]];
+  for(const [t,x,w] of back){o+= t==='gpio'?R(x,-3,w,4,'#141516',.5):t==='e'?R(x,-4,w,5,METAL,.6):R(x,-3,w,4,t==='u'&&x<150?'#2f6fd6':METAL,.6)}
+  if(dark)o+=T(250,116,3.2,'500+','#c9cbd0');
+  return svg('-4 -8 294 134',o,label)}
+/* Pico family, 51 x 21 */
+function artPico(label,{w=false,chipName='RP2040'}={}){let o=board(51,21,[[2,4.8],[2,16.2],[49,4.8],[49,16.2]],w?31:29,1);
+  for(let i=0;i<20;i++){const x=1.61+i*2.54;o+=`<circle cx="${x}" cy="0" r=".85" fill="${GOLD}"/><circle cx="${x}" cy="21" r=".85" fill="${GOLD}"/>`+R(x-.7,0,1.4,1.6,GOLD,.2)+R(x-.7,19.4,1.4,1.6,GOLD,.2)}
+  o+=R(-1.4,6.5,5.6,8,METAL,.6)+R(10.5,5.5,3.6,3.6,'#f1efe9',.4)+`<circle cx="12.3" cy="7.3" r="1" fill="#d9d4c6"/>`+T(9.6,11.4,1,'BOOTSEL');
+  o+=chip(20,6.5,8,8,chipName)+chip(14.5,12.6,4.2,3.2,'')+R(30,11,3,2,METAL,.3)+R(5.3,3.2,1.2,.9,'#5ee08a',.2);
+  if(w)o+=can(34,4.5,9.5,12,'Wi-Fi')+R(45,2.4,5,16.2,'#2c8a55',.5)+`<path d="M46 4 h3 v2 h-3 v2 h3 v2 h-3 v2 h3" fill="none" stroke="${GOLD}" stroke-width=".35"/>`;
+  else o+=`<circle cx="48" cy="8.5" r=".55" fill="${GOLD}"/><circle cx="48" cy="10.5" r=".55" fill="${GOLD}"/><circle cx="48" cy="12.5" r=".55" fill="${GOLD}"/>`;
+  o+=T(28,4.2,1.2,label.replace('Raspberry ',''));
+  return svg('-3 -2.5 57 26',o,label)}
+/* Compute Modules */
+function artSodimm(label,soc){let o=R(0,0,67.6,31,PCB,1.2)+traces(67.6,31,9,41)+chip(6,5,13,13,soc)+chip(27,6,11.5,13,'eMMC')+chip(44,7,6,6,'')+chip(53,8,5,5,'');
+  for(let x=2;x<65;x+=1.05){if(x>38.6&&x<42.4)continue;o+=R(x,27.6,.65,3.4,GOLD,.1)}
+  o+=R(39.6,28.2,1.9,3.4,'',0,'style="fill:var(--plinth)"')+T(6,23,1.6,label.replace('Raspberry Pi ',''))+berry(55,20,.6);
+  return svg('-2 -2 72 36',o,label)}
+function artCM45(label,soc,ram){const h=[[3.5,3.5],[51.5,3.5],[3.5,36.5],[51.5,36.5]];
+  let o=board(55,40,h,soc==='BCM2712'?51:47,2)+`<rect x="7" y="1.2" width="41" height="3.2" fill="none" stroke="${SILK}" stroke-width=".3" stroke-dasharray="1 .8" opacity=".6"/><rect x="7" y="35.6" width="41" height="3.2" fill="none" stroke="${SILK}" stroke-width=".3" stroke-dasharray="1 .8" opacity=".6"/>`;
+  o+=chip(12,9,15,15,soc,true)+chip(29,10,9,13,ram)+chip(3,19,9,10,'eMMC')+can(40,6,11,9,'Wi-Fi')+R(46.5,18,3,3,GOLD,.6)+R(41,24,10,6,'#2c8a55',.5)+T(13,31,1.6,label.replace('Raspberry Pi ',''));
+  return svg('-2 -2 59 44',o,label)}
+
+/* ---------- Collection ---------- */
+const WINGS={B:{name:'Model B',c:'#a8114a'},A:{name:'Model A',c:'#c47a16'},Z:{name:'Zero',c:'#2f7d5b'},K:{name:'Keyboard computers',c:'#c2365e'},C:{name:'Compute Modules',c:'#4a6aa8'},P:{name:'Pico',c:'#7a4fb0'}};
+const EX=[
+{id:'pi1b',name:'Raspberry Pi Model B',wing:'B',date:'2012-02-29',when:'29 Feb 2012',year:2012,price:'$35',soc:'Broadcom BCM2835',cpu:'1 × ARM1176JZF-S at 700 MHz (ARMv6)',ram:'256 MB, then 512 MB from Oct 2012',storage:'Full-size SD card',net:'10/100 Ethernet',video:'HDMI, composite RCA',ports:'2 × USB 2.0, 3.5 mm audio, CSI camera, DSI display',gpio:'26-pin header',power:'5 V micro-USB, about 700 mA',
+ intro:'The board that started it. A credit-card computer for teaching kids to code, priced so a school could buy a classroom set.',
+ hacks:['PiFM: toggling GPIO 4 fast enough turned the board into a short-range FM radio transmitter','The raspi-config "Turbo" preset overclocked it to 1 GHz without voiding the warranty','RetroPie and XBMC (later Kodi) made it a favourite under-the-TV box','Pi-hole began life on these boards as a network-wide ad blocker'],
+ issues:['USB ports sat behind polyfuses, so power-hungry keyboards and Wi-Fi dongles dropped out unless you used a powered hub','SD cards corrupted easily if power was pulled mid-write','Rev 1 boards had no mounting holes and swapped I²C bus numbers on the header, which broke code moving to Rev 2'],
+ note:'Orders opened on a leap day. Demand was so high the two distributors’ websites buckled within minutes.',art:()=>artP1B('Raspberry Pi Model B','512MB · Rev 2')},
+{id:'pi1a',name:'Raspberry Pi Model A',wing:'A',date:'2013-02-04',when:'Feb 2013',year:2013,price:'$25',soc:'Broadcom BCM2835',cpu:'1 × ARM1176JZF-S at 700 MHz',ram:'256 MB',storage:'Full-size SD card',net:'None',video:'HDMI, composite RCA',ports:'1 × USB 2.0, 3.5 mm audio, CSI, DSI',gpio:'26-pin header',power:'5 V micro-USB, lower draw than Model B',
+ intro:'The cut-down sibling: no Ethernet, one USB port, a third less power. Built for battery projects and embedded jobs.',
+ hacks:['Popular in high-altitude balloon flights, where low power draw mattered more than networking','Used as a cheap, frugal camera controller for time-lapse rigs'],
+ issues:['One USB port meant a hub for even basic setup with a keyboard and Wi-Fi dongle','256 MB was tight even in 2013'],
+ note:'The Model A shipped a year after the B, even though the names suggest the opposite order.',art:()=>artP1A('Raspberry Pi Model A')},
+{id:'pi1bplus',name:'Raspberry Pi Model B+',wing:'B',date:'2014-07-14',when:'14 Jul 2014',year:2014,price:'$35',soc:'Broadcom BCM2835',cpu:'1 × ARM1176JZF-S at 700 MHz',ram:'512 MB',storage:'microSD (push-push slot)',net:'10/100 Ethernet',video:'HDMI, composite through the 4-pole audio jack',ports:'4 × USB 2.0, CSI, DSI',gpio:'40-pin header (HAT standard)',power:'5 V micro-USB, switching regulators cut draw by up to 1 W',
+ intro:'The redesign that set the shape of every Model B since: 40-pin header, four USB ports, four mounting holes, microSD.',
+ hacks:['Two B+ boards with Sense HATs flew to the International Space Station in 2015 as the first Astro Pi computers','The new HAT spec let add-on boards identify themselves with an onboard EEPROM'],
+ issues:['Same single-core chip as 2012, so it feels very slow with a modern desktop','The first microSD slots were push-push and some cards popped out under vibration'],
+ note:'This layout was good enough that the Pi 2, 3 and 3B+ reused it almost unchanged.',art:()=>artBplus('Raspberry Pi Model B+',{text:'Raspberry Pi B+'})},
+{id:'pi1aplus',name:'Raspberry Pi Model A+',wing:'A',date:'2014-11-10',when:'10 Nov 2014',year:2014,price:'$20',soc:'Broadcom BCM2835',cpu:'1 × ARM1176JZF-S at 700 MHz',ram:'256 MB, later 512 MB',storage:'microSD',net:'None',video:'HDMI, composite via audio jack',ports:'1 × USB 2.0, CSI, DSI',gpio:'40-pin header',power:'5 V micro-USB, very low draw',
+ intro:'A shorter 65 mm board with the B+ header and the lowest power draw of the classic Pis.',
+ hacks:['A favourite inside robots and wildlife camera traps that run for days on batteries','Fits a HAT exactly, making a tidy square stack'],
+ issues:['No networking at all without a USB adapter','The single USB port is easy to block with a chunky dongle'],
+ note:'Its 65 × 56 mm footprint matches a HAT, which is why it looks square.',art:()=>artAplus('Raspberry Pi Model A+')},
+{id:'cm1',name:'Raspberry Pi Compute Module 1',wing:'C',date:'2014-04-07',when:'Apr 2014',year:2014,price:'$30 (in batches)',soc:'Broadcom BCM2835',cpu:'1 × ARM1176JZF-S at 700 MHz',ram:'512 MB',storage:'4 GB eMMC on board',net:'Through the carrier board',video:'Through the carrier board (2 × CSI and 2 × DSI exposed)',ports:'All I/O on a 200-pin SODIMM edge',gpio:'Up to 46 GPIO on the edge connector',power:'Supplied by the carrier board',
+ intro:'The Pi squeezed onto a laptop-memory-sized card, for companies building their own products around it.',
+ hacks:['Exposed two camera interfaces, so it was the go-to for early stereo camera rigs','Inside industrial displays and kiosks from launch'],
+ issues:['Useless on its own; you need a carrier board','Flashing the eMMC needs the rpiboot USB tool and a jumper on the IO board'],
+ note:'It uses the SODIMM shape of laptop RAM, but it is not memory and will not fit a laptop.',art:()=>artSodimm('Raspberry Pi Compute Module 1','BCM2835')},
+{id:'pi2b',name:'Raspberry Pi 2 Model B',wing:'B',date:'2015-02-02',when:'2 Feb 2015',year:2015,price:'$35',soc:'Broadcom BCM2836 (v1.2: BCM2837)',cpu:'4 × Cortex-A7 at 900 MHz (v1.2: Cortex-A53)',ram:'1 GB',storage:'microSD',net:'10/100 Ethernet',video:'HDMI, composite via audio jack',ports:'4 × USB 2.0, CSI, DSI',gpio:'40-pin header',power:'5 V micro-USB',
+ intro:'Four cores and a full gigabyte, in the B+ body, for the same $35. Roughly six times faster than the original.',
+ hacks:['First Pi with an official Windows 10 IoT Core build','Ubuntu Snappy Core and other ARMv7 distros could finally run','Built into small Beowulf-style clusters for teaching parallel computing'],
+ issues:['The "xenon death flash": a camera flash pointed at the U16 power chip made the board reboot, because the chip was light-sensitive','Version 1.2 quietly switched to the 64-bit BCM2837 chip, which confused some OS builds'],
+ note:'The flash bug was harmless and easily fixed with a blob of Blu Tack over the chip.',art:()=>artBplus('Raspberry Pi 2 Model B',{soc:'BCM2836',text:'Raspberry Pi 2 Model B'})},
+{id:'zero',name:'Raspberry Pi Zero',wing:'Z',date:'2015-11-26',when:'26 Nov 2015',year:2015,price:'$5',soc:'Broadcom BCM2835',cpu:'1 × ARM1176JZF-S at 1 GHz',ram:'512 MB',storage:'microSD',net:'None',video:'Mini-HDMI, composite via test pads',ports:'1 × micro-USB OTG, CSI camera from v1.3',gpio:'40-pin, unpopulated holes',power:'5 V micro-USB',
+ intro:'A $5 computer half the size of a Model A+. It shipped free on the cover of a magazine.',
+ hacks:['USB gadget mode lets it pose as a network adapter or flash drive over one cable, no Wi-Fi needed','Small enough to hide inside old game controllers, Game Boy shells and USB sticks','Bit-banged composite video from test pads for tiny CRT TV projects'],
+ issues:['No wireless, and only one data USB port','Needs mini-HDMI and micro-USB OTG adapters before you can use it','The GPIO header has to be soldered on'],
+ note:'Copies came free on the cover of The MagPi issue 40, the first computer given away with a magazine.',art:()=>artZero('Raspberry Pi Zero',{cam:true})},
+{id:'pi3b',name:'Raspberry Pi 3 Model B',wing:'B',date:'2016-02-29',when:'29 Feb 2016',year:2016,price:'$35',soc:'Broadcom BCM2837',cpu:'4 × Cortex-A53 at 1.2 GHz (64-bit)',ram:'1 GB LPDDR2',storage:'microSD, USB and network boot',net:'10/100 Ethernet, 2.4 GHz Wi-Fi 802.11n, Bluetooth 4.1',video:'HDMI, composite via audio jack',ports:'4 × USB 2.0, CSI, DSI',gpio:'40-pin header',power:'5 V 2.5 A micro-USB',
+ intro:'The first Pi with Wi-Fi and Bluetooth built in, and the first 64-bit one. For many people this was the Pi.',
+ hacks:['Network boot over PXE, so a whole classroom could run with no SD cards','LibreELEC and OSMC made it the standard Kodi media centre','RetroPie handled the 16-bit and arcade era comfortably'],
+ issues:['Ran hot and throttled under load without a heatsink','The under-voltage lightning bolt appeared with cheap power supplies and thin cables','Bluetooth took the good UART, so serial-console users had to remap it with a device-tree overlay'],
+ note:'Launched on the Pi’s fourth birthday, which, as a leap day, was its first real birthday.',art:()=>artBplus('Raspberry Pi 3 Model B',{soc:'BCM2837',wifi:1,text:'Raspberry Pi 3 Model B v1.2'})},
+{id:'cm3',name:'Raspberry Pi Compute Module 3 / 3+',wing:'C',date:'2017-01-16',when:'Jan 2017 (3+ Jan 2019)',year:2017,price:'$30 (Lite $25)',soc:'Broadcom BCM2837 (3+: BCM2837B0)',cpu:'4 × Cortex-A53 at 1.2 GHz',ram:'1 GB',storage:'4 GB eMMC; 3+ adds 8, 16, 32 GB; Lite has none',net:'Through the carrier board',video:'Through the carrier board',ports:'200-pin SODIMM edge',gpio:'Up to 48 GPIO',power:'Supplied by the carrier board',
+ intro:'The Pi 3 chip on the same SODIMM card as CM1, a drop-in upgrade for existing products.',
+ hacks:['Inside commercial signage, NEC displays and industrial controllers by the thousand','The Lite version boots from an SD slot on your own carrier board'],
+ issues:['The 3+ added a metal heat spreader because the original throttled in sealed enclosures','Same rpiboot flashing routine as CM1'],
+ note:'CM3+ stayed in production for industrial buyers long after the Pi 3 itself was eclipsed.',art:()=>artSodimm('Raspberry Pi Compute Module 3+','BCM2837')},
+{id:'zerow',name:'Raspberry Pi Zero W',wing:'Z',date:'2017-02-28',when:'28 Feb 2017',year:2017,price:'$10 (WH with header, 2018)',soc:'Broadcom BCM2835',cpu:'1 × ARM1176JZF-S at 1 GHz',ram:'512 MB',storage:'microSD',net:'2.4 GHz Wi-Fi 802.11n, Bluetooth 4.1',video:'Mini-HDMI',ports:'1 × micro-USB OTG, CSI camera',gpio:'40-pin (WH: pre-soldered)',power:'5 V micro-USB',
+ intro:'The Zero with wireless. It made a $10 networked computer normal.',
+ hacks:['Headless Pi-hole, print servers and OctoPrint boxes the size of a pack of gum','Hidden inside smart mirrors, LED signs and home sensors','A small trace antenna made it easy to build into enclosures'],
+ issues:['Still the 2012-era single core, so desktop use is painful','2.4 GHz only, and the tiny antenna struggles through walls'],
+ note:'The WH version, with the header already soldered, arrived in January 2018 after many requests.',art:()=>artZero('Raspberry Pi Zero W',{wifi:true})},
+{id:'pi3bplus',name:'Raspberry Pi 3 Model B+',wing:'B',date:'2018-03-14',when:'14 Mar 2018',year:2018,price:'$35',soc:'Broadcom BCM2837B0',cpu:'4 × Cortex-A53 at 1.4 GHz',ram:'1 GB LPDDR2',storage:'microSD, USB and network boot',net:'Gigabit Ethernet over USB 2.0 (about 300 Mbit/s), dual-band Wi-Fi 802.11ac, Bluetooth 4.2',video:'HDMI, composite via audio jack',ports:'4 × USB 2.0, CSI, DSI, PoE header',gpio:'40-pin header',power:'5 V 2.5 A micro-USB, or PoE with a HAT',
+ intro:'A refined Pi 3 with a metal heat spreader, 5 GHz Wi-Fi and Power over Ethernet support.',
+ hacks:['PoE HAT means one Ethernet cable for power and data, ideal for ceiling cameras','The heat spreader let it hold full speed far longer than the Pi 3'],
+ issues:['"Gigabit" Ethernet is capped at roughly 300 Mbit/s because it shares the USB 2.0 bus','Draws more power; weak supplies cause throttling','The early PoE HAT had a fault that tripped USB overcurrent on some devices'],
+ note:'Launched on Pi Day, March 14.',art:()=>artBplus('Raspberry Pi 3 Model B+',{soc:'BCM2837B0',metal:true,wifi:2,poe:true,text:'Raspberry Pi 3 Model B+'})},
+{id:'pi3aplus',name:'Raspberry Pi 3 Model A+',wing:'A',date:'2018-11-15',when:'15 Nov 2018',year:2018,price:'$25',soc:'Broadcom BCM2837B0',cpu:'4 × Cortex-A53 at 1.4 GHz',ram:'512 MB',storage:'microSD',net:'Dual-band Wi-Fi 802.11ac, Bluetooth 4.2',video:'HDMI, composite via audio jack',ports:'1 × USB 2.0, CSI, DSI',gpio:'40-pin header',power:'5 V 2.5 A micro-USB',
+ intro:'3B+ speed in the small A+ footprint, with wireless instead of Ethernet.',
+ hacks:['Strong pick for compact retro consoles and robot brains','Fits HAT-sized cases for neat sensor builds'],
+ issues:['512 MB limits browsers and desktop use','Runs warm in small closed cases'],
+ note:'A long-requested model: people wanted Pi 3 power without paying for ports they did not use.',art:()=>artAplus('Raspberry Pi 3 Model A+',{soc:'BCM2837B0',metal:true,wifi:true,text:'Raspberry Pi 3 A+'})},
+{id:'pi4b',name:'Raspberry Pi 4 Model B',wing:'B',date:'2019-06-24',when:'24 Jun 2019',year:2019,price:'From $35 (1 GB); 3 GB $83.75 in 2026',soc:'Broadcom BCM2711',cpu:'4 × Cortex-A72 at 1.5 GHz (1.8 GHz on later boards)',ram:'1, 2, 4, 8 GB LPDDR4; 3 GB added April 2026',storage:'microSD, USB SSD boot',net:'True Gigabit Ethernet, dual-band Wi-Fi 802.11ac, Bluetooth 5.0',video:'2 × micro-HDMI, dual 4K',ports:'2 × USB 3.0, 2 × USB 2.0, CSI, DSI, PoE header',gpio:'40-pin header',power:'5 V 3 A USB-C',
+ intro:'The Pi that became a real desktop: USB 3, real Gigabit, two 4K screens and up to 8 GB of memory.',
+ hacks:['Booting from a USB SSD transforms speed and reliability compared with microSD','Overclocks past 2 GHz with decent cooling','Home-lab favourite: Kubernetes clusters, Home Assistant, NAS and PiKVM builds'],
+ issues:['The first boards had a USB-C wiring mistake, so "smart" e-marked laptop cables would not power them','Ran hot at launch until firmware updates cut power use','HDMI at 2560 × 1440 could interfere with 2.4 GHz Wi-Fi'],
+ note:'The 8 GB model arrived in May 2020; a 3 GB model appeared in April 2026 to soften memory-driven price rises.',art:()=>artP4('Raspberry Pi 4 Model B')},
+{id:'cm4',name:'Raspberry Pi Compute Module 4',wing:'C',date:'2020-10-19',when:'19 Oct 2020',year:2020,price:'From $25',soc:'Broadcom BCM2711',cpu:'4 × Cortex-A72 at 1.5 GHz',ram:'1, 2, 4, 8 GB',storage:'None, 8, 16 or 32 GB eMMC',net:'Gigabit Ethernet PHY on board; optional Wi-Fi and Bluetooth 5.0',video:'2 × HDMI via the carrier',ports:'PCIe 2.0 × 1, USB 2.0, 2 × CSI, 2 × DSI via two 100-pin connectors',gpio:'28 GPIO',power:'5 V from the carrier board',
+ intro:'A new, smaller shape with high-density connectors, and the first Pi to expose PCIe directly.',
+ hacks:['PCIe made room for NVMe drives, 2.5G network cards and even GPU experiments','Inside routers, cluster boards like Turing Pi, and handheld game consoles','Optional external antenna connector for products in metal cases'],
+ issues:['Fully needs a carrier board; the cheapest dev path is the official IO board','eMMC versions ignore the SD slot, which surprises first-time users','Shortages in 2021 and 2022 made it very hard to buy'],
+ note:'Its board-to-board connectors replaced the SODIMM edge, so CM4 is not a drop-in swap for CM3.',art:()=>artCM45('Raspberry Pi Compute Module 4','BCM2711','LPDDR4')},
+{id:'pi400',name:'Raspberry Pi 400',wing:'K',date:'2020-11-02',when:'2 Nov 2020',year:2020,price:'$70 ($100 kit)',soc:'Broadcom BCM2711',cpu:'4 × Cortex-A72 at 1.8 GHz',ram:'4 GB LPDDR4',storage:'microSD, USB SSD boot',net:'Gigabit Ethernet, dual-band Wi-Fi 802.11ac, Bluetooth 5.0',video:'2 × micro-HDMI, dual 4K',ports:'2 × USB 3.0, 1 × USB 2.0',gpio:'40-pin header on the back',power:'5 V 3 A USB-C',
+ intro:'A Pi 4 built into a compact keyboard. Plug in a screen and you have a home computer, 1980s style.',
+ hacks:['A huge internal heat spreader means it overclocks to 2.2 GHz with no fan','A popular base for retro emulation stations and kids’ first computers','GPIO on the back still works with breakout cables and HATs'],
+ issues:['No camera or display ribbon connectors and no audio jack','The GPIO header faces backwards, awkward for HATs','Keyboard layouts vary by country, so check before buying'],
+ note:'Its look is a nod to the BBC Micro and the other keyboard computers that taught a generation to program.',art:()=>artKbd('Raspberry Pi 400','400')},
+{id:'pico',name:'Raspberry Pi Pico',wing:'P',date:'2021-01-21',when:'21 Jan 2021',year:2021,price:'$4',soc:'RP2040 (designed by Raspberry Pi)',cpu:'2 × Cortex-M0+ at 133 MHz',ram:'264 KB SRAM',storage:'2 MB QSPI flash',net:'None',video:'None built in',ports:'Micro-USB 1.1, 26 GPIO, 3 ADC, 2 UART, 2 SPI, 2 I²C, 16 PWM',gpio:'Castellated edge, breadboard friendly',power:'1.8 to 5.5 V input',
+ intro:'Raspberry Pi’s first microcontroller and its first in-house chip. It runs one program, instantly, with no operating system.',
+ hacks:['PIO state machines can generate VGA and even DVI video from plain GPIO pins','Overclocks from 133 MHz to well over 250 MHz','Drag-and-drop programming with MicroPython, CircuitPython or C; KMK and QMK keyboards run on it'],
+ issues:['No wireless on the original board','The ADC has known non-linear spots at certain readings','Micro-USB rather than USB-C'],
+ note:'The RP2040 chip went on to power hundreds of third-party boards, not just the Pico.',art:()=>artPico('Raspberry Pi Pico')},
+{id:'zero2w',name:'Raspberry Pi Zero 2 W',wing:'Z',date:'2021-10-28',when:'28 Oct 2021',year:2021,price:'$15',soc:'RP3A0 system-in-package (BCM2710A1 + 512 MB)',cpu:'4 × Cortex-A53 at 1 GHz',ram:'512 MB LPDDR2',storage:'microSD',net:'2.4 GHz Wi-Fi 802.11n, Bluetooth 4.2',video:'Mini-HDMI',ports:'1 × micro-USB OTG, CSI camera',gpio:'40-pin, unpopulated (WH: soldered)',power:'5 V 2.5 A micro-USB',
+ intro:'Pi 3 class power stacked into the Zero footprint, about five times faster than the Zero W.',
+ hacks:['The default brain for pocket retro handhelds and tiny cyberdecks','Runs OctoPrint for a 3D printer comfortably','Same board outline as the Zero, so old cases and HATs still fit'],
+ issues:['512 MB is the hard limit','Gets warm under all-core load; a small heatsink helps','Supply has been tight; Raspberry Pi qualified a second supplier in 2026 to fix shortages'],
+ note:'The memory is stacked on top of the processor inside one package, which is how four cores fit in that space.',art:()=>artZero('Raspberry Pi Zero 2 W',{two:true})},
+{id:'picow',name:'Raspberry Pi Pico W',wing:'P',date:'2022-06-30',when:'30 Jun 2022',year:2022,price:'$6',soc:'RP2040 + Infineon CYW43439',cpu:'2 × Cortex-M0+ at 133 MHz',ram:'264 KB SRAM',storage:'2 MB flash',net:'2.4 GHz Wi-Fi 802.11n; Bluetooth 5.2 enabled in 2023',video:'None built in',ports:'Micro-USB, 26 GPIO, 3 ADC',gpio:'Castellated edge, same pinout as Pico',power:'1.8 to 5.5 V',
+ intro:'The Pico with Wi-Fi, which turned it into a cheap internet-connected sensor and controller.',
+ hacks:['Tiny web servers and MQTT sensors for home automation','Bluetooth keyboards, gamepads and MIDI controllers after the 2023 firmware update'],
+ issues:['The onboard LED moved to the wireless chip, so classic "blink pin 25" code stopped working; use the name "LED"','Wireless uses several internal pins, and the antenna end must stay clear of metal'],
+ note:'Bluetooth hardware was there from day one but switched on in software about a year later.',art:()=>artPico('Raspberry Pi Pico W',{w:true})},
+{id:'pi5',name:'Raspberry Pi 5',wing:'B',date:'2023-10-23',when:'Oct 2023',year:2023,price:'$60 (4 GB), $80 (8 GB)',soc:'Broadcom BCM2712 + RP1 I/O chip',cpu:'4 × Cortex-A76 at 2.4 GHz',ram:'2, 4, 8, 16 GB LPDDR4X',storage:'microSD (SDR104), NVMe via PCIe',net:'Gigabit Ethernet (PoE+ with HAT), dual-band Wi-Fi 802.11ac, Bluetooth 5.0',video:'2 × micro-HDMI, dual 4K60',ports:'2 × USB 3.0, 2 × USB 2.0, PCIe 2.0 × 1, 2 × MIPI camera/display, UART, RTC, fan header, power button',gpio:'40-pin header',power:'5 V 5 A USB-C PD recommended',
+ intro:'Two to three times faster than the Pi 4, with Raspberry Pi’s own RP1 chip handling the I/O and a real power button at last.',
+ hacks:['NVMe SSDs through an M.2 HAT+, and PCIe can be forced to Gen 3 for roughly double the bandwidth','Overclocks to 3 GHz and beyond with the Active Cooler','AI HAT+ boards with Hailo accelerators run real-time vision'],
+ issues:['Needs active cooling for sustained work','Without a 5 A supply, USB current is capped at 600 mA total','No 3.5 mm audio jack and no hardware H.264 decoding','Memory price spikes pushed costs up in late 2025 and April 2026 (the 16 GB rose by $100)'],
+ note:'The first flagship with silicon designed in-house. Raspberry Pi says it stays the flagship until at least 2028.',art:()=>artP5('Raspberry Pi 5')},
+{id:'pico2',name:'Raspberry Pi Pico 2',wing:'P',date:'2024-08-08',when:'8 Aug 2024',year:2024,price:'$5',soc:'RP2350',cpu:'2 × Cortex-M33 or 2 × Hazard3 RISC-V at 150 MHz',ram:'520 KB SRAM',storage:'4 MB flash',net:'None',video:'HSTX port for DVI output',ports:'Micro-USB, 26 GPIO, 3 ADC, 12 PIO state machines',gpio:'Same pinout as Pico',power:'1.8 to 5.5 V',
+ intro:'Twice the memory and flash, faster cores, real security features, and a choice of Arm or RISC-V at boot.',
+ hacks:['Switch between Arm and open RISC-V cores without changing hardware','Secure boot and TrustZone, tested by a public $10,000 hacking challenge in 2024 that several teams eventually cracked','HSTX makes DVI video output easy'],
+ issues:['Erratum E9 on the first A2 stepping: some GPIO inputs latch with internal pull-downs, fixed in the later A4 stepping','Still micro-USB'],
+ note:'The RISC-V cores are an open design called Hazard3, written by a Raspberry Pi engineer.',art:()=>artPico('Raspberry Pi Pico 2',{chipName:'RP2350'})},
+{id:'pico2w',name:'Raspberry Pi Pico 2 W',wing:'P',date:'2024-11-25',when:'Nov 2024',year:2024,price:'$7',soc:'RP2350 + Infineon CYW43439',cpu:'2 × Cortex-M33 or Hazard3 RISC-V at 150 MHz',ram:'520 KB SRAM',storage:'4 MB flash',net:'2.4 GHz Wi-Fi 802.11n, Bluetooth 5.2',video:'HSTX port',ports:'Micro-USB, 26 GPIO',gpio:'Same pinout as Pico W',power:'1.8 to 5.5 V',
+ intro:'Pico 2 with the same wireless chip as the Pico W. The default choice for new connected microcontroller projects.',
+ hacks:['Drop-in upgrade for Pico W projects with more RAM for TLS and web servers','Bluetooth HID devices and wireless sensor nodes'],
+ issues:['Early boards share the RP2350 E9 GPIO erratum','Same LED and antenna-clearance quirks as the Pico W'],
+ note:'Four Pico models now share one pinout, so many projects move between them unchanged.',art:()=>artPico('Raspberry Pi Pico 2 W',{w:true,chipName:'RP2350'})},
+{id:'cm5',name:'Raspberry Pi Compute Module 5',wing:'C',date:'2024-11-27',when:'27 Nov 2024',year:2024,price:'From $45',soc:'Broadcom BCM2712',cpu:'4 × Cortex-A76 at 2.4 GHz',ram:'2, 4, 8 GB (16 GB added 2025)',storage:'None, 16, 32 or 64 GB eMMC',net:'Gigabit Ethernet PHY; optional Wi-Fi and Bluetooth 5.0',video:'2 × HDMI 4K60 via carrier',ports:'PCIe 2.0 × 1, 2 × USB 3.0, MIPI via two 100-pin connectors',gpio:'28 GPIO',power:'5 V from the carrier board',
+ intro:'Pi 5 performance in the CM4 footprint, so many existing carrier boards can move up a generation.',
+ hacks:['Powers Raspberry Pi’s own development kit and many DIY laptops and handhelds','Fast enough for small NAS and edge AI boxes with an NVMe drive'],
+ issues:['Mostly compatible with CM4 carriers, but a few signals changed and it needs more power and cooling; check your carrier board','Runs hot in sealed cases without a heatsink'],
+ note:'The first Compute Module launched alongside a ready-made case, cooler and dev kit.',art:()=>artCM45('Raspberry Pi Compute Module 5','BCM2712','LPDDR4X')},
+{id:'pi500',name:'Raspberry Pi 500',wing:'K',date:'2024-12-09',when:'9 Dec 2024',year:2024,price:'$90 ($120 kit)',soc:'Broadcom BCM2712',cpu:'4 × Cortex-A76 at 2.4 GHz',ram:'8 GB LPDDR4X',storage:'microSD (32 GB card included)',net:'Gigabit Ethernet, dual-band Wi-Fi 802.11ac, Bluetooth 5.0',video:'2 × micro-HDMI, dual 4K60',ports:'2 × USB 3.0, 1 × USB 2.0',gpio:'40-pin header on the back',power:'5 V 5 A USB-C',
+ intro:'The keyboard computer rebuilt around the Pi 5, with double the memory of the Pi 400.',
+ hacks:['The board has an empty M.2 footprint inside, and confident solderers have added a connector for an NVMe SSD','Runs cool thanks to the large internal heat spreader'],
+ issues:['No camera connectors and no audio jack','Price rose after the 2026 memory-driven increases','GPIO still faces backwards'],
+ note:'That unpopulated M.2 pad was a clue: the 500+ added the slot properly nine months later.',art:()=>artKbd('Raspberry Pi 500','500')},
+{id:'pi500plus',name:'Raspberry Pi 500+',wing:'K',date:'2025-09-25',when:'Sep 2025',year:2025,price:'$200 (now $350 after 2026 rises)',soc:'Broadcom BCM2712',cpu:'4 × Cortex-A76 at 2.4 GHz',ram:'16 GB LPDDR4X',storage:'256 GB NVMe SSD in an internal M.2 slot',net:'Gigabit Ethernet, dual-band Wi-Fi 802.11ac, Bluetooth 5.0',video:'2 × micro-HDMI, dual 4K60',ports:'2 × USB 3.0, 1 × USB 2.0',gpio:'40-pin header on the back',power:'5 V 5 A USB-C',
+ intro:'The premium keyboard computer: low-profile mechanical switches with per-key RGB, 16 GB of memory and an SSD inside.',
+ hacks:['Swappable mechanical switches and keycaps, programmable lighting','The internal SSD can be upgraded to a larger M.2 2280 drive'],
+ issues:['Memory price rises took it from $200 at launch to $350 by April 2026','Still no camera connectors or audio jack'],
+ note:'The first Raspberry Pi sold with an SSD instead of relying on a memory card.',art:()=>artKbd('Raspberry Pi 500+','500plus')}
+];
+EX.sort((a,b)=>a.date.localeCompare(b.date));
+EX.forEach((e,i)=>{e.acc=`RPM-${e.year}-${String(i+1).padStart(3,'0')}`;e.svg=e.art()});
+
+/* ---------- Page ---------- */
+const $=s=>document.querySelector(s);
+$('#heroArt').innerHTML=EX[0].svg;
+$('#stats').innerHTML=[[EX.length,'exhibits'],[new Set(EX.map(e=>e.wing)).size,'wings'],['$4','cheapest'],['16 GB','most memory']].map(([n,l])=>`<span><b>${n}</b>${l}</span>`).join('');
+
+// timeline
+const years=[];for(let y=2012;y<=2028;y++)years.push(y);
+$('#rail').innerHTML=years.map(y=>{const items=EX.filter(e=>e.year===y);
+  let inner=items.map(e=>`<button class="tick" style="--c:${WINGS[e.wing].c}" data-id="${e.id}">${e.name.replace('Raspberry Pi ','').replace('Compute Module','CM')}</button>`).join('');
+  if(y===2028)inner+=`<span class="tick future" style="--c:var(--muted)">Pi 6 (not before)</span>`;
+  if(y>2025&&!items.length&&y!==2028)inner+=`<span class="tick future" style="--c:var(--muted)">${y===2026?'3 GB Pi 4, price rises':'—'}</span>`;
+  return `<div class="yr"><span>${y}</span>${inner}</div>`}).join('');
+
+// wings
+let wing='all',query='';
+const wingBtns=[['all','All rooms','var(--ink)',EX.length],...Object.entries(WINGS).map(([k,v])=>[k,v.name,v.c,EX.filter(e=>e.wing===k).length])];
+$('#wings').innerHTML=wingBtns.map(([k,n,c,cnt])=>`<button class="wing" data-w="${k}" aria-pressed="${k==='all'}" style="--c:${c}"><i></i>${n} <span class="n">${cnt}</span></button>`).join('');
+$('#wings').addEventListener('click',e=>{const b=e.target.closest('.wing');if(!b)return;wing=b.dataset.w;
+  document.querySelectorAll('.wing').forEach(x=>x.setAttribute('aria-pressed',x===b));draw();try{localStorage.setItem('pimuseum-wing',wing)}catch(_){}});
+$('#q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw()});
+
+function visible(){return EX.filter(e=>(wing==='all'||e.wing===wing)&&(!query||JSON.stringify([e.name,e.soc,e.cpu,e.ram,e.net,e.ports,e.storage,e.hacks,e.issues,e.intro]).toLowerCase().includes(query)))}
+function draw(){const list=visible();
+  $('#gallery').innerHTML=list.length?list.map(e=>`<button class="exhibit" data-id="${e.id}" aria-label="Open ${e.name}">
+    <div class="stand">${e.svg}</div>
+    <div class="placard"><div class="acc"><span>${e.acc}</span><span style="color:${WINGS[e.wing].c}">${WINGS[e.wing].name}</span></div>
+    <h3>${e.name.replace('Raspberry Pi ','Pi ')}</h3><p>${e.when} · ${e.price.split(' (')[0].split(';')[0]}</p><p>${e.cpu.split(' (')[0]} · ${e.ram.split(',')[0].split(' then')[0].split(' (')[0]}${/,/.test(e.ram)?' +':''}</p></div></button>`).join('')
+    :`<p class="empty">No exhibits match "${query}". Try a broader word like "USB" or "Wi-Fi".</p>`}
+try{const w=localStorage.getItem('pimuseum-wing');if(w&&(w==='all'||WINGS[w])){wing=w;document.querySelectorAll('.wing').forEach(x=>x.setAttribute('aria-pressed',x.dataset.w===w))}}catch(_){}
+draw();
+
+// spec wall
+$('#specTable tbody').innerHTML=EX.map(e=>`<tr class="row" data-id="${e.id}" tabindex="0"><td style="--c:${WINGS[e.wing].c}"><span class="dot"></span>${e.name.replace('Raspberry Pi ','Pi ')}</td><td class="num">${e.date.slice(0,7)}</td><td>${e.soc}</td><td>${e.cpu}</td><td>${e.ram}</td><td>${e.net}</td><td class="num">${e.price}</td></tr>`).join('');
+
+/* ---------- Exhibit room ---------- */
+const dlg=$('#room');let cur=0;
+function openRoom(id){cur=EX.findIndex(e=>e.id===id);if(cur<0)return;renderRoom();if(!dlg.open)dlg.showModal();}
+function renderRoom(){const e=EX[cur],w=WINGS[e.wing];
+  const rows=[['Launched',e.when],['Launch price',e.price],['Chip',e.soc],['CPU',e.cpu],['Memory',e.ram],['Storage',e.storage],['Networking',e.net],['Video',e.video],['Ports',e.ports],['GPIO',e.gpio],['Power',e.power]];
+  dlg.innerHTML=`<div class="room"><div class="room-art"><div class="art-in">${e.svg}<div class="cap">${e.acc} · illustration, top view</div></div></div>
+  <div class="room-text"><div class="room-top"><span class="eyebrow" style="color:${w.c}">${w.name} wing · ${cur+1} of ${EX.length}</span>
+    <div class="nav"><button data-go="-1" aria-label="Previous exhibit">← Prev</button><button data-go="1" aria-label="Next exhibit">Next →</button><button data-close aria-label="Close">Close</button></div></div>
+  <h2 id="roomTitle">${e.name}</h2><p class="intro">${e.intro}</p>
+  <dl class="specs">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+  <div class="notes hacks"><h4>Clever hacks</h4><ul>${e.hacks.map(h=>`<li>${h}</li>`).join('')}</ul></div>
+  <div class="notes issues"><h4>Known issues</h4><ul>${e.issues.map(h=>`<li>${h}</li>`).join('')}</ul></div>
+  <p class="museum-note">${e.note}</p></div></div>`;
+  dlg.scrollTop=0;}
+dlg.addEventListener('click',ev=>{const g=ev.target.closest('[data-go]');if(g){cur=(cur+ +g.dataset.go+EX.length)%EX.length;renderRoom();return}
+  if(ev.target.closest('[data-close]')||ev.target===dlg)dlg.close()});
+dlg.addEventListener('keydown',ev=>{if(ev.key==='ArrowRight'){cur=(cur+1)%EX.length;renderRoom()}if(ev.key==='ArrowLeft'){cur=(cur-1+EX.length)%EX.length;renderRoom()}});
+document.addEventListener('click',ev=>{const t=ev.target.closest('.exhibit,.tick[data-id],tr.row');if(t&&!dlg.contains(t))openRoom(t.dataset.id)});
+document.addEventListener('keydown',ev=>{const t=ev.target.closest&&ev.target.closest('tr.row');if(t&&(ev.key==='Enter'||ev.key===' ')){ev.preventDefault();openRoom(t.dataset.id)}});
+if(location.hash&&EX.some(e=>e.id===location.hash.slice(1)))openRoom(location.hash.slice(1));
+
+/* ---------- Workshop data per exhibit ---------- */
+const V6='Raspberry Pi OS 32-bit only (ARMv6 chip). Light images such as Raspberry Pi OS Lite run best.';
+const V8='Raspberry Pi OS 32-bit or 64-bit, Ubuntu, LibreELEC, DietPi and more.';
+const PICO_OS='No operating system. MicroPython, CircuitPython, the C/C++ SDK, Arduino or Rust.';
+const PICO_OC='# MicroPython\nimport machine\nmachine.freq(250_000_000)  # many boards run this; not guaranteed';
+const EXTRA={
+pi1b:{psu:'5 V, 1.2 A',draw:'≈ 500 mA',cool:'None needed',boot:'SD card',os:V6,oc:'# raspi-config "Turbo" preset\narm_freq=1000\ncore_freq=500\nsdram_freq=600\nover_voltage=6',cpu:[1,1],ai:'pi1'},
+pi1a:{psu:'5 V, 700 mA',draw:'≈ 200 mA',cool:'None needed',boot:'SD card',os:V6,oc:'arm_freq=1000\ncore_freq=500\nsdram_freq=600\nover_voltage=6',cpu:[1,1],ai:'pi1'},
+pi1bplus:{psu:'5 V, 1.8 A',draw:'≈ 330 mA',cool:'None needed',boot:'SD card (USB via a bootcode.bin-only SD card)',os:V6,oc:'arm_freq=1000\ncore_freq=500\nsdram_freq=600\nover_voltage=6',cpu:[1,1],ai:'pi1'},
+pi1aplus:{psu:'5 V, 700 mA',draw:'≈ 180 mA',cool:'None needed',boot:'SD card',os:V6,oc:'arm_freq=1000\ncore_freq=500\nsdram_freq=600\nover_voltage=6',cpu:[1,1],ai:'pi1'},
+cm1:{psu:'From the carrier board',draw:'≈ 200 to 300 mA',cool:'None needed',boot:'eMMC (flash it over USB with rpiboot)',os:V6,oc:'arm_freq=1000\nover_voltage=6',cpu:[1,1],ai:'pi1'},
+pi2b:{psu:'5 V, 1.8 A',draw:'≈ 450 mA',cool:'None needed',boot:'SD card; v1.2 boards can also boot from USB',os:'Raspberry Pi OS 32-bit; 64-bit and Ubuntu only on v1.2 boards. Windows 10 IoT Core was supported.',oc:'# raspi-config "Pi 2" preset\narm_freq=1000\ncore_freq=500\nsdram_freq=500\nover_voltage=2',cpu:[1.6,6],ai:'pi2'},
+zero:{psu:'5 V, 1.2 A',draw:'≈ 100 to 150 mA',cool:'None needed',boot:'SD card, or over USB from another computer with rpiboot',os:V6,oc:'arm_freq=1100\nover_voltage=6  # many boards manage this',cpu:[1.4,1.4],ai:'pi1'},
+pi3b:{psu:'5 V, 2.5 A',draw:'≈ 400 mA',cool:'Stick-on heatsink recommended',boot:'SD card, USB and network (set once with program_usb_boot_mode=1)',os:V8,oc:'arm_freq=1300\nover_voltage=4\n# needs a heatsink',cpu:[2.6,10],ai:'pi3b'},
+cm3:{psu:'From the carrier board',draw:'≈ 400 mA',cool:'Heatsink in sealed cases',boot:'eMMC (rpiboot to flash); Lite boots from the carrier’s SD slot',os:V8,oc:'arm_freq=1300\nover_voltage=4',cpu:[2.6,10],ai:'pi3b'},
+zerow:{psu:'5 V, 1.2 A',draw:'≈ 150 mA',cool:'None needed',boot:'SD card, or USB from a host with rpiboot',os:V6,oc:'arm_freq=1100\nover_voltage=6  # many boards manage this',cpu:[1.4,1.4],ai:'pi1'},
+pi3bplus:{psu:'5 V, 2.5 A',draw:'≈ 500 mA',cool:'Built-in heat spreader; add a heatsink for long jobs',boot:'SD card, USB and network, enabled from the factory',os:V8,oc:'arm_freq=1500\nover_voltage=4',cpu:[3,11.5],ai:'pi3bp'},
+pi3aplus:{psu:'5 V, 2.5 A',draw:'≈ 350 mA',cool:'Heat spreader; heatsink in small cases',boot:'SD card and USB',os:V8,oc:'arm_freq=1500\nover_voltage=4',cpu:[3,11.5],ai:'pi3ap'},
+pi4b:{psu:'5.1 V, 3 A USB-C',draw:'≈ 600 mA',cool:'Heatsink or small fan for sustained loads',boot:'SD card, USB and network; set the order in raspi-config (Advanced → Boot Order)',os:V8,oc:'arm_freq=2000\nover_voltage=6\ngpu_freq=750\n# needs a fan or big heatsink',cpu:[6.5,28],ai:'pi4-8'},
+cm4:{psu:'From the carrier board (5 V)',draw:'≈ 600 mA',cool:'Heatsink',boot:'eMMC or carrier SD (Lite), USB, NVMe and network',os:V8,oc:'arm_freq=2000\nover_voltage=6',cpu:[6.5,28],ai:'cm4-8'},
+pi400:{psu:'5.1 V, 3 A USB-C',draw:'≈ 800 mA',cool:'None needed; a large heat spreader is built in',boot:'SD card, USB and network',os:V8,oc:'arm_freq=2147\nover_voltage=6\ngpu_freq=750',cpu:[7.8,33],ai:'pi400'},
+pico:{psu:'USB, or 1.8 to 5.5 V on VSYS',draw:'≈ 20 to 30 mA running',cool:'None needed',boot:'Onboard flash. Hold BOOTSEL while plugging in, then drag a .uf2 file to the drive that appears',os:PICO_OS,oc:PICO_OC,cpu:null,ai:null},
+zero2w:{psu:'5 V, 2.5 A',draw:'≈ 350 mA under load',cool:'Small heatsink for all-core work',boot:'SD card, or USB from a host with rpiboot',os:V8,oc:'arm_freq=1200\nover_voltage=6',cpu:[2.2,7.5],ai:'zero2w'},
+picow:{psu:'USB, or 1.8 to 5.5 V on VSYS',draw:'≈ 30 mA, more with Wi-Fi active',cool:'None needed',boot:'Onboard flash via BOOTSEL and .uf2',os:PICO_OS,oc:PICO_OC,cpu:null,ai:null},
+pi5:{psu:'5.1 V, 5 A USB-C (27 W PD supply)',draw:'≈ 800 mA idle; much more under load',cool:'Active Cooler or a fan case',boot:'SD card, USB, NVMe (M.2 HAT+) and network, including HTTP boot',os:'Raspberry Pi OS 64-bit recommended (32-bit works), Ubuntu, Fedora and more.',oc:'arm_freq=3000\nover_voltage_delta=50000\n# Active Cooler required',cpu:[16,65],ai:'pi5-8'},
+pico2:{psu:'USB, or 1.8 to 5.5 V on VSYS',draw:'≈ 20 to 30 mA running',cool:'None needed',boot:'Onboard flash via BOOTSEL and .uf2; Arm or RISC-V chosen by the image',os:PICO_OS,oc:PICO_OC,cpu:null,ai:null},
+pico2w:{psu:'USB, or 1.8 to 5.5 V on VSYS',draw:'≈ 30 mA, more with Wi-Fi active',cool:'None needed',boot:'Onboard flash via BOOTSEL and .uf2',os:PICO_OS,oc:PICO_OC,cpu:null,ai:null},
+cm5:{psu:'From the carrier board (5 V, up to about 25 W)',draw:'≈ 800 mA idle',cool:'Heatsink or the official cooler',boot:'eMMC or carrier SD (Lite), USB, NVMe and network',os:'Raspberry Pi OS 64-bit recommended, Ubuntu and more.',oc:'arm_freq=3000\nover_voltage_delta=50000',cpu:[16,65],ai:'cm5-16'},
+pi500:{psu:'5.1 V, 5 A USB-C',draw:'≈ 800 mA idle',cool:'None needed; large internal heat spreader',boot:'SD card, USB and network; NVMe if you solder in an M.2 connector',os:'Raspberry Pi OS 64-bit recommended.',oc:'arm_freq=2800\nover_voltage_delta=50000',cpu:[16,65],ai:'pi500'},
+pi500plus:{psu:'5.1 V, 5 A USB-C',draw:'≈ 800 mA idle',cool:'None needed; large internal heat spreader',boot:'Internal NVMe SSD, SD card, USB and network',os:'Raspberry Pi OS 64-bit, preinstalled on the SSD.',oc:'arm_freq=2800\nover_voltage_delta=50000',cpu:[16,65],ai:'pi500p'}};
+
+/* ---------- AI model ---------- */
+const AIB={
+ 'pi5-16':{n:'Pi 5 · 16 GB',k:10,C:16,ram:16,room:'pi5'},'pi5-8':{n:'Pi 5 · 8 GB',k:10,C:16,ram:8,room:'pi5'},'pi5-4':{n:'Pi 5 · 4 GB',k:10,C:16,ram:4,room:'pi5'},'pi5-2':{n:'Pi 5 · 2 GB',k:10,C:16,ram:2,room:'pi5'},
+ 'pi500p':{n:'Pi 500+ · 16 GB',k:11,C:18,ram:16,room:'pi500plus'},'pi500':{n:'Pi 500 · 8 GB',k:10,C:16,ram:8,room:'pi500'},'cm5-16':{n:'CM5 · 16 GB',k:10,C:16,ram:16,room:'cm5'},
+ 'pi4-8':{n:'Pi 4 · 8 GB',k:3,C:4.5,ram:8,room:'pi4b'},'pi4-4':{n:'Pi 4 · 4 GB',k:3,C:4.5,ram:4,room:'pi4b'},'pi400':{n:'Pi 400 · 4 GB',k:3.3,C:5.4,ram:4,room:'pi400'},'cm4-8':{n:'CM4 · 8 GB',k:3,C:4.5,ram:8,room:'cm4'},
+ 'pi3bp':{n:'Pi 3 B+ · 1 GB',k:1.2,C:1.8,ram:1,room:'pi3bplus'},'pi3b':{n:'Pi 3 B · 1 GB',k:1.1,C:1.6,ram:1,room:'pi3b'},'pi3ap':{n:'Pi 3 A+ · 512 MB',k:1.2,C:1.8,ram:.5,room:'pi3aplus'},
+ 'zero2w':{n:'Zero 2 W · 512 MB',k:.9,C:1.2,ram:.5,room:'zero2w'},'pi2':{n:'Pi 2 · 1 GB',k:.6,C:.7,ram:1,room:'pi2b'},'pi1':{n:'Pi 1 / Zero · 512 MB',k:.3,C:.08,ram:.5,room:'pi1bplus'}};
+const LLM=[{id:'smol',n:'SmolLM2 135M',p:.135,q4:.1},{id:'qwen05',n:'Qwen2.5 0.5B',p:.5,q4:.4},{id:'l1',n:'Llama 3.2 1B',p:1.24,q4:.8},{id:'l3',n:'Llama 3.2 3B',p:3.2,q4:2.0},{id:'l8',n:'Llama 3.1 8B',p:8,q4:4.9},{id:'d14',n:'DeepSeek R1 14B',p:14.8,q4:9.0}];
+const MEASURED={'pi5-8|l3':4.61,'pi5-16|l3':4.88,'pi500p|l3':5.55,'pi400|l3':1.60,'pi5-16|d14':1.20};
+function est(b,m,q='q4'){const B=AIB[b],M=LLM.find(x=>x.id===m),size=q==='q8'?M.q4*1.9:M.q4,over=Math.min(.7,B.ram*.3),fits=size+over<=B.ram;
+  const meas=q==='q4'?MEASURED[b+'|'+m]:undefined;const t=Math.min(B.k/size,B.C/M.p,B.C*3);return{fits,tps:meas??t,measured:meas!=null,size,need:size+over}}
+const fmtT=t=>t<.1?'<0.1':t<10?t.toFixed(1):Math.round(t)+'';
+const feel=t=>t<1?'Painfully slow: a word every few seconds.':t<3?'Slow. You will watch it type.':t<6?'Usable. Close to a slow reading pace.':t<12?'Comfortable. About as fast as most people read.':'Quick. Faster than you can read.';
+
+/* ---------- Room: workshop panel ---------- */
+function bar(v,max){return `<div class="mini"><span style="width:${Math.max(2,v/max*100)}%"></span></div>`}
+function workshop(e){const x=EXTRA[e.id];if(!x)return'';
+  const ai=x.ai?est(x.ai,'l3'):null;
+  const rows=[['Power supply',x.psu],['Typical draw',x.draw],['Cooling',x.cool],['Boot from',x.boot],['Software',x.os]];
+  if(x.cpu)rows.push(['CPU index',`${x.cpu[0]}× one core · ${x.cpu[1]}× all cores (Pi 1 = 1)`]);
+  if(ai)rows.push(['Llama 3.2 3B',ai.fits?`${fmtT(ai.tps)} tokens/s ${ai.measured?'(measured)':'(estimate)'} on ${AIB[x.ai].n}`:`Won't fit in memory. Try SmolLM2 or Qwen2.5 0.5B in the AI lab.`]);
+  return `<div class="notes"><h4 style="--k:var(--s1)">Workshop notes</h4></div><dl class="specs">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+  <div class="notes"><h4 style="--k:var(--s1)">Overclock starting point</h4><pre class="code" id="ocCode">${x.oc}</pre><button class="copy" data-copy="ocCode" style="margin-top:8px">Copy</button>
+  <p class="fine">Raise slowly, test with a stress run, and watch <code>vcgencmd measure_temp</code>. Every chip is different. On boards before the Pi 4, over_voltage above 6 with force_turbo sets a permanent warranty bit.</p></div>`}
+const _render=renderRoom;
+renderRoom=function(){_render();const e=EX[cur];const note=dlg.querySelector('.museum-note');if(note)note.insertAdjacentHTML('beforebegin',workshop(e))};
+
+/* ---------- Copy buttons ---------- */
+document.addEventListener('click',ev=>{const b=ev.target.closest('[data-copy]');if(!b)return;const el=document.getElementById(b.dataset.copy);const txt=el.textContent;
+  const done=()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1400)};
+  const sel=()=>{const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected, press Ctrl+C';setTimeout(()=>b.textContent='Copy',2200)};
+  try{navigator.clipboard.writeText(txt).then(done,sel)}catch(_){sel()}});
+
+/* ---------- Compare ---------- */
+const cmpSel=['cmpA','cmpB','cmpC'].map(id=>$('#'+id));
+cmpSel.forEach((s,i)=>{s.innerHTML=(i===2?'<option value="">None</option>':'')+EX.map(e=>`<option value="${e.id}">${e.name.replace('Raspberry Pi ','Pi ')}</option>`).join('');});
+cmpSel[0].value='pi3bplus';cmpSel[1].value='pi4b';cmpSel[2].value='pi5';
+function drawCompare(){const list=cmpSel.map(s=>EX.find(e=>e.id===s.value)).filter(Boolean);
+  const num=(e,f)=>{const x=EXTRA[e.id];return f(x)};
+  const meas=[['One-core speed',x=>x&&x.cpu?x.cpu[0]:null,v=>v+'×',70],['All-core speed',x=>x&&x.cpu?x.cpu[1]:null,v=>v+'×',70],['Llama 3.2 3B',x=>{if(!x||!x.ai)return null;const r=est(x.ai,'l3');return r.fits?r.tps:0},v=>v?fmtT(v)+' tok/s':"Won't fit",6]];
+  const text=[['Launched',e=>e.when],['Launch price',e=>e.price],['Chip',e=>e.soc],['CPU',e=>e.cpu],['Memory',e=>e.ram],['Storage',e=>e.storage],['Networking',e=>e.net],['Video',e=>e.video],['Ports',e=>e.ports],['Power supply',e=>EXTRA[e.id].psu],['Cooling',e=>EXTRA[e.id].cool],['Boot from',e=>EXTRA[e.id].boot]];
+  let h=`<thead><tr><th></th>${list.map(e=>`<th><button class="link" data-open="${e.id}">${e.name.replace('Raspberry Pi ','Pi ')}</button></th>`).join('')}</tr></thead><tbody>`;
+  for(const [lab,f,fmt,max] of meas){const vals=list.map(e=>num(e,f));const best=Math.max(...vals.filter(v=>v!=null));
+    h+=`<tr><th scope="row">${lab}</th>${vals.map(v=>v==null?'<td>Microcontroller, not comparable</td>':`<td class="num">${fmt(v)}${v===best&&list.length>1&&v>0?'<span class="best">best</span>':''}${v?bar(v,max):''}</td>`).join('')}</tr>`}
+  for(const [lab,f] of text)h+=`<tr><th scope="row">${lab}</th>${list.map(e=>`<td>${f(e)}</td>`).join('')}</tr>`;
+  $('#cmpTable').innerHTML=h+'</tbody>'}
+cmpSel.forEach(s=>s.addEventListener('change',drawCompare));drawCompare();
+document.addEventListener('click',ev=>{const b=ev.target.closest('[data-open]');if(b)openRoom(b.dataset.open)});
+
+/* ---------- Speed lab ---------- */
+const SPEED=[['Pi 1 family','A, B, B+, A+, CM1 · 700 MHz ARM11','pi1b',1,1],['Zero, Zero W','1 GHz ARM11','zero',1.4,1.4],['Pi 2','4 × Cortex-A7, 900 MHz','pi2b',1.6,6],['Zero 2 W','4 × Cortex-A53, 1 GHz','zero2w',2.2,7.5],['Pi 3 B, CM3','4 × Cortex-A53, 1.2 GHz','pi3b',2.6,10],['Pi 3 B+, 3 A+','4 × Cortex-A53, 1.4 GHz','pi3bplus',3,11.5],['Pi 4, CM4','4 × Cortex-A72, 1.5 GHz','pi4b',6.5,28],['Pi 400','4 × Cortex-A72, 1.8 GHz','pi400',7.8,33],['Pi 5, 500, 500+, CM5','4 × Cortex-A76, 2.4 GHz','pi5',16,65]];
+let spMode=1;
+function drawSpeed(){const max=Math.max(...SPEED.map(r=>r[3+spMode]));
+  $('#speedChart').innerHTML=SPEED.map((r,i)=>`<div class="brow"><div class="lab">${r[0]}<small>${r[1]}</small></div><div class="track"><div class="bar" data-i="${i}" tabindex="0" style="width:${r[3+spMode]/max*82}%"><b>${r[3+spMode]}×</b></div></div></div>`).join('');
+  $('#spLabel').textContent=spMode?'All-core index · Pi 1 Model B = 1':'One-core index · Pi 1 Model B = 1'}
+function spRead(i){const r=SPEED[i];$('#spRead').textContent=`${r[0]}: ${r[3]}× one core, ${r[4]}× all cores compared with the 2012 Model B.`}
+$('#speedChart').addEventListener('mouseover',e=>{const b=e.target.closest('.bar');if(b)spRead(b.dataset.i)});
+$('#speedChart').addEventListener('focusin',e=>{const b=e.target.closest('.bar');if(b)spRead(b.dataset.i)});
+$('#speedChart').addEventListener('click',e=>{const b=e.target.closest('.bar');if(b)spRead(b.dataset.i)});
+$('#spMulti').onclick=()=>{spMode=1;$('#spMulti').setAttribute('aria-pressed',true);$('#spSingle').setAttribute('aria-pressed',false);drawSpeed()};
+$('#spSingle').onclick=()=>{spMode=0;$('#spSingle').setAttribute('aria-pressed',true);$('#spMulti').setAttribute('aria-pressed',false);drawSpeed()};
+drawSpeed();
+
+/* ---------- AI lab ---------- */
+$('#aiBoard').innerHTML=Object.entries(AIB).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
+$('#aiModel').innerHTML=LLM.map(m=>`<option value="${m.id}">${m.n}</option>`).join('');
+$('#aiBoard').value='pi5-8';$('#aiModel').value='l3';
+const SAMPLE='A Raspberry Pi is a small, low-cost computer the size of a credit card. You can plug it into a screen and keyboard, learn to program, build robots, run a home server, or try running a language model like this one on its own processor. ';
+let typer=null;
+function drawAI(){const b=$('#aiBoard').value,m=$('#aiModel').value,q=$('#aiQuant').value,r=est(b,m,q);const box=$('#aiType');clearInterval(typer);box.textContent='';
+  if(!r.fits){$('#aiTps').textContent='—';$('#aiTags').innerHTML='<span class="pill no">Won’t fit</span>';
+    $('#aiNote').textContent=`This model needs about ${r.need.toFixed(1)} GB including the OS, more than the ${AIB[b].ram} GB on this board. Pick a smaller model or Q4.`;return}
+  $('#aiTps').textContent=fmtT(r.tps);
+  $('#aiTags').innerHTML=(r.measured?'<span class="pill meas">● Measured</span>':'<span class="pill">Estimate</span>')+' <span class="pill ok">Fits</span>';
+  $('#aiNote').textContent=`${feel(r.tps)} Model file about ${r.size.toFixed(1)} GB.`;
+  const words=SAMPLE.split(/(\s+)/);let i=0;const rate=Math.max(.15,r.tps*.75);const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce){box.textContent=SAMPLE;return}
+  typer=setInterval(()=>{if(i>=words.length){i=0;box.textContent=''}box.textContent+=words[i]+(words[i+1]||'');i+=2},1000/rate)}
+['aiBoard','aiModel','aiQuant'].forEach(id=>$('#'+id).addEventListener('change',()=>{drawAI();drawHeat()}));
+const SCALE=[['Pi 1 / Zero','pi1'],['Zero 2 W','zero2w'],['Pi 3 B+','pi3bp'],['Pi 4 · 8 GB','pi4-8'],['Pi 400','pi400'],['Pi 5 · 8 GB','pi5-8'],['Pi 500+','pi500p']];
+function drawScale(){const m='l1',vals=SCALE.map(([n,b])=>{const r=est(b,m);return[n,r.fits?r.tps:0,r]});const max=Math.max(...vals.map(v=>v[1]));
+  $('#aiScale').innerHTML='<div class="eyebrow" style="margin-bottom:4px">Llama 3.2 1B at Q4, tokens/s</div>'+vals.map(([n,t,r])=>`<div class="brow"><div class="lab">${n}</div><div class="track">${r.fits?`<div class="bar" style="width:${Math.max(.6,t/max*82)}%"><b>${fmtT(t)}</b></div>`:'<span class="fine" style="margin:0">Won’t fit</span>'}</div></div>`).join('')}
+function drawHeat(){const q='q4',selB=$('#aiBoard').value,selM=$('#aiModel').value;
+  let h=`<thead><tr><th>Board</th>${LLM.map(m=>`<th>${m.n}</th>`).join('')}</tr></thead><tbody>`;
+  for(const [b,B] of Object.entries(AIB)){h+=`<tr><th scope="row" style="position:static;font-family:var(--f-body);text-transform:none;letter-spacing:0;font-size:13.5px;color:var(--ink)">${B.n}</th>`;
+    for(const m of LLM){const r=est(b,m.id,q);const sel=b===selB&&m.id===selM?' sel':'';
+      if(!r.fits){h+=`<td class="cell nofit${sel}" data-b="${b}" data-m="${m.id}" title="${B.n}, ${m.n}: won't fit">–</td>`;continue}
+      const pct=Math.round(12+Math.min(1,Math.log10(r.tps*10+1)/2.4)*70);
+      h+=`<td class="cell${sel}" data-b="${b}" data-m="${m.id}" title="${B.n}, ${m.n}: ${fmtT(r.tps)} tokens/s${r.measured?' (measured)':' (estimate)'}" style="background:color-mix(in oklab, var(--s1) ${pct}%, var(--plinth));color:${pct>50?'var(--plinth)':'var(--ink)'}">${fmtT(r.tps)}${r.measured?' ●':''}</td>`}
+    h+='</tr>'}
+  $('#heat').innerHTML=h+'</tbody>'}
+$('#heat').addEventListener('click',e=>{const c=e.target.closest('td.cell');if(!c)return;$('#aiBoard').value=c.dataset.b;$('#aiModel').value=c.dataset.m;$('#aiQuant').value='q4';drawAI();drawHeat();
+  document.getElementById('ai').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})});
+drawAI();drawScale();drawHeat();
+
+/* ---------- Identify your Pi ---------- */
+const TYPES={0:'Model A',1:'Model B',2:'Model A+',3:'Model B+',4:'Pi 2 Model B',5:'Alpha (prototype)',6:'Compute Module 1',8:'Pi 3 Model B',9:'Zero',10:'Compute Module 3',12:'Zero W',13:'Pi 3 Model B+',14:'Pi 3 Model A+',15:'Internal use',16:'Compute Module 3+',17:'Pi 4 Model B',18:'Zero 2 W',19:'Pi 400',20:'Compute Module 4',21:'Compute Module 4S',22:'Internal use',23:'Pi 5',24:'Compute Module 5',25:'Pi 500',26:'Compute Module 5 Lite'};
+const ROOMS={0:'pi1a',1:'pi1b',2:'pi1aplus',3:'pi1bplus',4:'pi2b',6:'cm1',8:'pi3b',9:'zero',10:'cm3',12:'zerow',13:'pi3bplus',14:'pi3aplus',16:'cm3',17:'pi4b',18:'zero2w',19:'pi400',20:'cm4',21:'cm4',23:'pi5',24:'cm5',25:'pi500',26:'cm5'};
+const PROCS=['BCM2835','BCM2836','BCM2837','BCM2711','BCM2712'],MAKERS=['Sony UK','Egoman','Embest','Sony Japan','Embest','Stadium'],MEMS=['256 MB','512 MB','1 GB','2 GB','4 GB','8 GB','16 GB'];
+const OLD={'0002':['Model B','1.0','256 MB','Egoman','pi1b'],'0003':['Model B (ECN0001)','1.0','256 MB','Egoman','pi1b'],'0004':['Model B','2.0','256 MB','Sony UK','pi1b'],'0005':['Model B','2.0','256 MB','Qisda','pi1b'],'0006':['Model B','2.0','256 MB','Egoman','pi1b'],'0007':['Model A','2.0','256 MB','Egoman','pi1a'],'0008':['Model A','2.0','256 MB','Sony UK','pi1a'],'0009':['Model A','2.0','256 MB','Qisda','pi1a'],'000d':['Model B','2.0','512 MB','Egoman','pi1b'],'000e':['Model B','2.0','512 MB','Sony UK','pi1b'],'000f':['Model B','2.0','512 MB','Egoman','pi1b'],'0010':['Model B+','1.2','512 MB','Sony UK','pi1bplus'],'0011':['Compute Module 1','1.0','512 MB','Sony UK','cm1'],'0012':['Model A+','1.1','256 MB','Sony UK','pi1aplus'],'0013':['Model B+','1.2','512 MB','Embest','pi1bplus'],'0014':['Compute Module 1','1.0','512 MB','Embest','cm1'],'0015':['Model A+','1.1','256 MB or 512 MB','Embest','pi1aplus']};
+function decodeRev(raw){const out=$('#revOut');const t=raw.trim();if(!t){out.innerHTML='';return}
+  let m=t.match(/Revision\s*:\s*([0-9a-fA-F]+)/);let code=(m?m[1]:t.replace(/^0x/i,'')).toLowerCase().replace(/[^0-9a-f]/g,'');
+  const model=(t.match(/Model\s*:\s*(.+)/)||[])[1];const serial=(t.match(/Serial\s*:\s*([0-9a-f]+)/i)||[])[1];
+  const rows=[];
+  if(!/^[0-9a-f]{4,8}$/.test(code)){out.innerHTML='<dt>Result</dt><dd>No revision code found. Look for the line that starts with "Revision".</dd>';return}
+  const n=parseInt(code,16);
+  if(n&(1<<23)){const type=(n>>4)&0xff,rev=n&0xf,proc=(n>>12)&0xf,mk=(n>>16)&0xf,mem=(n>>20)&7;
+    rows.push(['Board',TYPES[type]?`Raspberry Pi ${TYPES[type]}`:`Type 0x${type.toString(16)} (newer than this guide)`],['Board revision','1.'+rev],['Memory',MEMS[mem]||`Code ${mem} (newer size)`],['Chip',PROCS[proc]||`Code ${proc}`],['Made by',MAKERS[mk]||`Code ${mk}`]);
+    if(n>>>31&1)rows.push(['Warranty bit','Set: this board has been overvolted']);
+    if(n&(1<<29)||n&(1<<30))rows.push(['OTP','OTP programming or reading has been disabled']);
+    if(ROOMS[type])rows.push(['Room',`<button class="link" data-open="${ROOMS[type]}">Visit the ${TYPES[type]} exhibit</button>`]);
+  }else{let k=code.slice(-4);const over=code.length>4&&code.startsWith('100');const o=OLD[k];
+    if(!o){out.innerHTML='<dt>Result</dt><dd>That code isn’t in this guide. Check it against the revision list in the official Raspberry Pi documentation.</dd>';return}
+    rows.push(['Board','Raspberry Pi '+o[0]],['Board revision',o[1]],['Memory',o[2]],['Chip','BCM2835'],['Made by',o[3]]);
+    if(over)rows.push(['Warranty bit','Set: this board has been overvolted']);
+    rows.push(['Room',`<button class="link" data-open="${o[4]}">Visit the ${o[0]} exhibit</button>`])}
+  if(model)rows.unshift(['Reported model',model]);if(serial)rows.push(['Serial',serial.replace(/^0+(?=.{8})/,'')]);
+  rows.unshift(['Code',`<code>${code}</code>`]);
+  out.innerHTML=rows.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('')}
+$('#revIn').addEventListener('input',e=>decodeRev(e.target.value));
+document.querySelector('.ex-codes').addEventListener('click',e=>{const b=e.target.closest('[data-rev]');if(!b)return;$('#revIn').value='Revision\t: '+b.dataset.rev;decodeRev($('#revIn').value)});
+$('#revIn').value='Revision\t: d04170';decodeRev($('#revIn').value);
+
+/* ---------- Picker ---------- */
+const ans={use:'desktop',power:'mains',budget:'mid'};
+const PICK={
+ desktop:{low:['pi4b','A Pi 4 with 2 GB handles browsing, school work and coding, and the 1 GB and 2 GB models were spared the 2026 price rises.'],mid:['pi500','Everything in one keyboard: plug in a screen and go. 8 GB of memory and Pi 5 speed.'],high:['pi500plus','16 GB of memory, a real SSD and a mechanical keyboard. The fastest Pi desktop you can buy.']},
+ server:{low:['pi3bplus','Fine for Pi-hole, a print server or Home Assistant basics, and its price hasn’t moved in 2026.'],mid:['pi5','A 4 GB Pi 5 with an NVMe drive on the M.2 HAT+ is quick and reliable for Docker, Home Assistant and file sharing.'],high:['pi5','A 16 GB Pi 5 with NVMe runs a full self-hosted stack and still has headroom.']},
+ media:{low:['pi3b','Kodi for 1080p and RetroPie up to 16-bit and arcade games.'],mid:['pi4b','4K Kodi playback and smooth emulation up to the PlayStation 1 and N64 era.'],high:['pi5','Handles the toughest emulators a Pi can manage and 4K60 on two screens.']},
+ tiny:{low:['zerow','Tiny, frugal and very cheap. Enough for a single sensor or a small web page.'],mid:['zero2w','Four cores in the Zero footprint. The usual choice for handhelds and small gadgets.'],high:['zero2w','Still the best Linux board in this size. Add a heatsink if it works hard.']},
+ elec:{low:['pico','A $4 microcontroller that starts instantly and runs MicroPython.'],mid:['pico2w','More memory than the original Pico, plus Wi-Fi and Bluetooth.'],high:['pico2w','The most capable Pico, with Wi-Fi, Bluetooth and Arm or RISC-V cores.']},
+ ai:{low:['pi5','A 4 GB Pi 5 runs 1B to 3B language models at a few tokens a second, or pair it with the AI Camera for vision.'],mid:['pi5','An 8 GB Pi 5 runs 3B models at about 4.6 tokens/s and fits 8B models; add an AI HAT+ for real-time vision.'],high:['pi5','A 16 GB Pi 5 can load 14B models, around 1.2 tokens/s. For speed, add the AI HAT+ 2 or stick to 3B models.']}};
+function drawPick(){document.querySelectorAll('.chips[data-q]').forEach(g=>g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',ans[g.dataset.q]===b.dataset.v)));
+  let [id,why]=PICK[ans.use][ans.budget];let extra='';
+  if(ans.power==='battery'&&['desktop','server','media','ai'].includes(ans.use)){extra=` On battery, a Pi 5 needs a big USB-C power bank that can supply 5 V at 5 A; consider a Zero 2 W or a Pico for long runtimes.`}
+  if(ans.power==='battery'&&ans.use==='tiny'&&ans.budget!=='low')extra=' Typical draw is about 350 mA under load, so a small 2,000 mAh cell gives a few hours.';
+  const e=EX.find(x=>x.id===id);
+  $('#rec').innerHTML=`<div class="eyebrow">Recommended</div><h4>${e.name}</h4><p>${why}${extra}</p><p style="margin-top:8px"><button class="link" data-open="${id}">Open the exhibit</button></p>`}
+document.querySelectorAll('.chips[data-q]').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;ans[g.dataset.q]=b.dataset.v;drawPick()}));
+drawPick();
+
+/* ---------- GPIO map ---------- */
+const PT={p5:['5 V power','--p5v'],p3:['3.3 V power','--p3v'],g:['Ground','--pgnd'],io:['General GPIO','--pgpio'],i2c:['I²C','--pi2c'],spi:['SPI','--pspi'],uart:['UART','--puart'],id:['HAT ID EEPROM','--pid']};
+const PINS=[[1,'3V3','p3'],[2,'5V','p5'],[3,'GPIO 2','i2c','SDA1, I²C data. Has a fixed 1.8 kΩ pull-up.'],[4,'5V','p5'],[5,'GPIO 3','i2c','SCL1, I²C clock. Has a fixed 1.8 kΩ pull-up.'],[6,'GND','g'],[7,'GPIO 4','io','GPCLK0. The pin PiFM used, and the default 1-Wire pin for DS18B20 sensors.'],[8,'GPIO 14','uart','TXD, serial transmit.'],[9,'GND','g'],[10,'GPIO 15','uart','RXD, serial receive.'],
+[11,'GPIO 17','io',''],[12,'GPIO 18','io','PWM0 and PCM clock. Common for NeoPixel strips and I²S audio.'],[13,'GPIO 27','io',''],[14,'GND','g'],[15,'GPIO 22','io',''],[16,'GPIO 23','io',''],[17,'3V3','p3'],[18,'GPIO 24','io',''],[19,'GPIO 10','spi','SPI0 MOSI.'],[20,'GND','g'],
+[21,'GPIO 9','spi','SPI0 MISO.'],[22,'GPIO 25','io',''],[23,'GPIO 11','spi','SPI0 SCLK, clock.'],[24,'GPIO 8','spi','SPI0 CE0, chip select 0.'],[25,'GND','g'],[26,'GPIO 7','spi','SPI0 CE1, chip select 1.'],[27,'GPIO 0','id','ID_SD. Reserved for the HAT ID EEPROM; leave it alone.'],[28,'GPIO 1','id','ID_SC. Reserved for the HAT ID EEPROM.'],[29,'GPIO 5','io',''],[30,'GND','g'],
+[31,'GPIO 6','io',''],[32,'GPIO 12','io','PWM0.'],[33,'GPIO 13','io','PWM1.'],[34,'GND','g'],[35,'GPIO 19','io','PWM1, PCM frame sync, SPI1 MISO.'],[36,'GPIO 16','io','SPI1 CE2.'],[37,'GPIO 26','io',''],[38,'GPIO 20','io','PCM data in, SPI1 MOSI.'],[39,'GND','g'],[40,'GPIO 21','io','PCM data out, SPI1 SCLK.']];
+$('#pinLegend').innerHTML=Object.values(PT).map(([n,c])=>`<span style="--pc:var(${c})"><i></i>${n}</span>`).join('');
+$('#pins').innerHTML=PINS.map(([n,l,t])=>`<button class="pin" data-pin="${n}" style="--pc:var(${PT[t][1]})" aria-label="Pin ${n}, ${l}"><i></i>${n} ${l}</button>`).join('');
+function pinInfo(n){const [num,l,t,d]=PINS[n-1];document.querySelectorAll('.pin').forEach(p=>p.classList.toggle('sel',+p.dataset.pin===n));
+  const bcm=l.startsWith('GPIO')?l.split(' ')[1]:null;const all=PINS.filter(p=>p[2]===t).map(p=>p[0]);
+  let desc=d||({p5:'Connected straight to the 5 V supply. Never connect it to a GPIO pin.',p3:'3.3 V from the board regulator, good for sensors drawing up to about 50 mA in total.',g:'Ground. Any ground pin works.',io:'General-purpose input or output at 3.3 V. Pins are not 5 V tolerant.'}[t]||'');
+  $('#pinInfo').innerHTML=`<div class="eyebrow">Physical pin ${num}</div><h4>${l}</h4><p style="margin:6px 0 10px">${desc}</p>
+  <dl class="decode" style="margin-top:0"><dt>Type</dt><dd>${PT[t][0]}</dd>${bcm?`<dt>BCM number</dt><dd>${bcm} (use this in gpiozero, e.g. <code>LED(${bcm})</code>)</dd><dt>Logic level</dt><dd>3.3 V. Not 5 V tolerant.</dd>`:''}<dt>Same type</dt><dd>Pins ${all.join(', ')}</dd></dl>
+  <p class="fine">Pi 1 Model A and B have only pins 1 to 26. On their Rev 1 boards, pins 3 and 5 are GPIO 0 and 1 and pin 13 is GPIO 21. On the Pi 5 the header is driven by the RP1 chip, so old libraries such as RPi.GPIO need replacing with gpiozero or lgpio.</p>`}
+$('#pins').addEventListener('click',e=>{const p=e.target.closest('.pin');if(p)pinInfo(+p.dataset.pin)});
+pinInfo(12);
+
+/* ---------- Fix-it cards ---------- */
+const FIXES=[
+['Lightning bolt or "low voltage" warning','Every board','The supply or cable can’t hold 5 V under load. Check what the firmware saw, then swap to an official supply and a short, thick cable. 0x50005 means under-voltage now and earlier throttling.','vcgencmd get_throttled\n# 0x0 = all good'],
+['Pi 5 limits USB to 600 mA','Pi 5, Pi 500','Without a 5 A supply the Pi 5 caps total USB current. With a supply you trust to deliver 5 A but which doesn’t report it, add this to config.txt.','usb_max_current_enable=1'],
+['Faster NVMe on a Pi 5','Pi 5, CM5','The PCIe link runs at Gen 2 by default. Gen 3 roughly doubles bandwidth but is not officially certified, so test your drive.','dtparam=pciex1\ndtparam=pciex1_gen=3'],
+['Boot from NVMe or USB first','Pi 4, Pi 400, Pi 5, Pi 500','Update the bootloader, then set the boot order. 0xf416 tries NVMe, then SD, then USB on a Pi 5.','sudo rpi-eeprom-update -a\nsudo rpi-eeprom-config --edit\n# add or change:\nBOOT_ORDER=0xf416'],
+['Serial console stopped working','Pi 3, 3B+, 4, Zero W, Zero 2 W','Bluetooth uses the good PL011 UART on wireless boards. Give it back to pins 8 and 10 by turning Bluetooth off, or use miniuart-bt to keep both.','enable_uart=1\ndtoverlay=disable-bt'],
+['Running hot or slowing down','Pi 3 and newer','Check temperature and throttling. Throttling starts near 80 °C (soft limit 60 °C on some models). Add a heatsink, a fan or a vented case.','vcgencmd measure_temp\nvcgencmd measure_clock arm'],
+['Pi 4 won’t power from a laptop USB-C cable','Early Pi 4 boards','The first Pi 4 boards have a USB-C wiring flaw, so "smart" e-marked cables don’t power them. Use the official supply or a basic USB-C cable. Board revision 1.2 and later are fixed.',null],
+['Wi-Fi drops at 1440p','Pi 4','HDMI at 2560 × 1440 can interfere with 2.4 GHz Wi-Fi. Use 5 GHz, Ethernet, or this setting.','hdmi_enable_4kp60=0\n# or move the router to 5 GHz'],
+['Pi 2 reboots when you take a flash photo','Pi 2 v1.1','The U16 power chip is light-sensitive. Cover it with a blob of Blu Tack or use a case. Harmless otherwise.',null],
+['SD card keeps getting corrupted','Every board','Shut down before pulling power. For kiosks and signs, make the card read-only with the overlay file system so a power cut can’t damage it.','sudo shutdown -h now\n# raspi-config → Performance Options → Overlay File System'],
+['Pico won’t appear as a drive','Pico family','Hold BOOTSEL while plugging in the cable, and use a data cable; many cheap micro-USB cables carry power only.',null],
+['Pico W blink code does nothing','Pico W, Pico 2 W','The LED is wired to the wireless chip, not GPIO 25. Use the name "LED".','import machine, time\nled = machine.Pin("LED", machine.Pin.OUT)\nwhile True:\n    led.toggle(); time.sleep(0.5)'],
+['Old GPIO scripts fail on a Pi 5','Pi 5, Pi 500, CM5','The header now runs through the RP1 chip, so RPi.GPIO doesn’t work. Switch to gpiozero, which is preinstalled.','from gpiozero import LED\nfrom time import sleep\nled = LED(17)\nled.blink()'],
+['Set up Wi-Fi and SSH without a screen','Every Linux board','Use Raspberry Pi Imager’s OS customisation before writing the card: set the hostname, Wi-Fi, user and SSH. Then connect with:','ssh yourname@raspberrypi.local']];
+$('#fixes').innerHTML=FIXES.map(([t,f,d,c],i)=>`<div class="fix"><span class="for">${f}</span><h4>${t}</h4><p>${d}</p>${c?`<pre class="code" id="fx${i}">${c.replace(/</g,'&lt;')}</pre><button class="copy" data-copy="fx${i}">Copy</button>`:''}</div>`).join('');
+
+/* ---------- Accessories ---------- */
+function artCam(lens='#1d1f21',big=false){let o=board(25,24,[[2,2],[23,2],[2,14.5],[23,14.5]],big?61:57,1.5);
+  if(big)return svg('-2 -2 42 42',R(0,0,38,38,PCB,2)+traces(38,38,10,63)+`<circle cx="19" cy="17" r="13" fill="#2b2d30"/><circle cx="19" cy="17" r="10" fill="#45484c"/><circle cx="19" cy="17" r="6" fill="${lens}"/><circle cx="16.5" cy="14.5" r="1.6" fill="#8fa4c6" opacity=".6"/>`+ffc(9,33,20,3.5),'camera');
+  o+=R(7.5,5,10,10,'#2b2d30',1)+`<circle cx="12.5" cy="10" r="3.6" fill="${lens}"/><circle cx="11.5" cy="9" r="1" fill="#8fa4c6" opacity=".6"/>`+ffc(5,19.5,15,3.5);return svg('-2 -2 29 28',o,'camera module')}
+function artScreen(w,h,portrait){const W=portrait?h:w,H=portrait?w:h;return svg(`-3 -3 ${W+6} ${H+6}`,R(0,0,W,H,'#202224',4)+R(5,5,W-10,H-10,'#2c4a63',1.5)+`<path d="M${W*.15} ${H*.75} l${W*.2} -${H*.25} l${W*.15} ${H*.12} l${W*.25} -${H*.3} l${W*.15} ${H*.43} z" fill="#4c7ea3" opacity=".7"/>`+`<circle cx="${W*.75}" cy="${H*.3}" r="${Math.min(W,H)*.07}" fill="#e9c46a" opacity=".85"/>`,'display')}
+function artHat(kind){let o=board(65,56,H40,kind.length*7)+gpio(7.1,1,20);
+  if(kind==='sense'){for(let r=0;r<8;r++)for(let c=0;c<8;c++)o+=R(17+c*4,16+r*4,3,3,`hsl(${(r*45+c*20)%360} 75% 60%)`,.4);o+=R(55,40,6,6,'#222',3)}
+  if(kind==='poe'){o+=R(10,14,30,30,'#2b2d30',2)+`<circle cx="25" cy="29" r="12" fill="#3a3d41"/><circle cx="25" cy="29" r="3" fill="#2b2d30"/>`+chip(45,18,12,10,'PoE+')+R(44,34,14,10,'#efe7d2',1)}
+  if(kind==='m2'){o+=R(6,16,52,24,'#141516',1)+R(8,18,44,20,'#2b5a8a',1)+T(10,29,2.4,'NVMe SSD','#dfe8f2')+R(52,24,6,8,GOLD,.5)+ffc(58,46,6,3)}
+  if(kind==='ai'){o+=can(18,16,20,20,'Hailo')+R(42,18,16,6,'#141516',.6)+ffc(58,46,6,3)}
+  if(kind==='ai2'){o+=can(14,16,18,18,'Hailo-10H')+chip(35,17,10,14,'RAM')+chip(47,17,10,14,'RAM')+ffc(58,46,6,3)}
+  if(kind==='cooler'){o='';o+=R(0,0,56,40,'#2b2d30',3);for(let i=0;i<9;i++)o+=R(3+i*5.6,3,3,34,'#3a3d41',1);o+=`<circle cx="40" cy="20" r="14" fill="#1b1c1e"/><circle cx="40" cy="20" r="4" fill="#3a3d41"/>`;for(let i=0;i<7;i++)o+=`<path d="M40 20 q${8*Math.cos(i)} ${8*Math.sin(i)} ${12*Math.cos(i+.6)} ${12*Math.sin(i+.6)}" stroke="#4a4d52" stroke-width="2.4" fill="none"/>`;return svg('-2 -2 60 44',o,'cooler')}
+  if(kind==='psu'){o='';o+=R(4,4,40,34,'#f1efec',6,'stroke="#d0ccc5" stroke-width=".8"')+R(44,18,10,6,'#d9d6d1',1)+R(54,19.5,6,3,METAL,.5)+berry(24,21,1.6).replace(new RegExp(SILK,'g'),'#cf2550');return svg('-2 -2 64 46',o,'power supply')}
+  if(kind==='ssd'){o='';o+=R(0,10,80,22,'#1d4f86',1.5)+R(4,13,36,16,'#141516',1)+chip(44,14,14,14,'NAND')+R(72,14,8,14,GOLD,.6)+T(6,22.5,2.6,'Raspberry Pi SSD','#e6eef7');return svg('-2 4 84 34',o,'SSD')}
+  return svg('-4 -3 74 63',o,kind+' board')}
+const ACC=[
+['Camera Module','May 2013','$25','5 MP OmniVision OV5647, fixed focus. The camera that started thousands of time-lapse and birdbox projects.',()=>artCam()],
+['Camera Module v2','Apr 2016','$25','8 MP Sony IMX219, sharper and better in low light. Infrared NoIR version for night shots.',()=>artCam()],
+['High Quality Camera','Apr 2020','$50','12.3 MP Sony IMX477 with interchangeable C and CS-mount lenses. Popular for microscopes and telescopes.',()=>artCam('#1d1f21',true)],
+['Camera Module 3','Jan 2023','$25','12 MP Sony IMX708 with autofocus and HDR. Standard, wide, and NoIR versions.',()=>artCam('#24324a')],
+['Global Shutter Camera','Mar 2023','$50','1.6 MP Sony IMX296 that captures the whole frame at once, so fast-moving objects don’t smear.',()=>artCam('#1d1f21',true)],
+['AI Camera','Sep 2024','$70','Sony IMX500 sensor with a neural network accelerator on the sensor itself. Object detection without loading the Pi.',()=>artCam('#3a1d2a')],
+['Touch Display','Sep 2015','$60','7-inch 800 × 480 touchscreen on the DSI ribbon. The classic Home Assistant wall panel.',()=>artScreen(48,30,false)],
+['Touch Display 2','Nov 2024','$60','7-inch 720 × 1280 multi-touch, a big jump in sharpness, and works in portrait or landscape.',()=>artScreen(48,30,true)],
+['Sense HAT','2015','','8 × 8 RGB LED grid, joystick, and temperature, humidity, pressure and motion sensors. Built for the Astro Pi missions.',()=>artHat('sense')],
+['PoE+ HAT','2021','$20','Power and data down one Ethernet cable for the Pi 4 and Pi 3B+, with a built-in fan.',()=>artHat('poe')],
+['M.2 HAT+','Jan 2024','$12','Connects an NVMe SSD to the Pi 5’s PCIe port. The single biggest speed upgrade for a Pi 5.',()=>artHat('m2')],
+['AI HAT+','Oct 2024','$70 / $110','Hailo-8L (13 TOPS) or Hailo-8 (26 TOPS) accelerator for real-time camera vision on the Pi 5.',()=>artHat('ai')],
+['AI HAT+ 2','2026','Rose $50 in Apr 2026','Hailo-10H accelerator with its own onboard memory, aimed at running small generative AI models off the CPU.',()=>artHat('ai2')],
+['Active Cooler','Oct 2023','$5','Clip-on heatsink and fan for the Pi 5. Speed is controlled by the board’s fan header.',()=>artHat('cooler')],
+['27W USB-C Power Supply','Oct 2023','$12','5.1 V at 5 A with USB PD, so the Pi 5 can give its USB ports their full current.',()=>artHat('psu')],
+['Raspberry Pi SSD','Nov 2024','$30 / $45','256 GB or 512 GB M.2 2230 NVMe drives sized for the M.2 HAT+.',()=>artHat('ssd')]];
+$('#accGrid').innerHTML=ACC.map(([n,w,p,d,a],i)=>`<div class="acc"><div class="stand">${a()}</div><div class="placard"><div class="acc-no">RPM-ACC-${String(i+1).padStart(2,'0')} · ${w}${p?' · '+p:''}</div><h3>${n}</h3><p class="what">${d}</p></div></div>`).join('');
+
+/* ---------- Variants ---------- */
+const VARS=[['Model B Rev 2','Oct 2012','Memory doubled to 512 MB, mounting holes added, I²C bus renumbered.','$35','pi1b'],['Pi 2 v1.2','Oct 2016','Switched to the 64-bit BCM2837 chip from the Pi 3, clocked at 900 MHz.','$35','pi2b'],['Zero v1.3','May 2016','Added the camera connector.','$5','zero'],['Zero WH','Jan 2018','Zero W with the 40-pin header pre-soldered.','$14','zerow'],['Zero 2 WH','2022','Zero 2 W with the header pre-soldered.','—','zero2w'],['CM3 Lite','Jan 2017','No eMMC; boots from an SD slot on your carrier board.','$25','cm3'],['CM4 Lite / CM4S','2020 / 2022','Lite drops the eMMC; CM4S puts the CM4 chip in the old CM3 SODIMM shape for existing products.','From $25','cm4'],['CM5 Lite','Nov 2024','No eMMC; boots from SD, USB or NVMe on the carrier.','From $45','cm5'],['Pi 4 8 GB','May 2020','First 8 GB Pi; made 64-bit Raspberry Pi OS worthwhile.','$75','pi4b'],['Pi 4 later boards (C0)','2021','Newer chip stepping that runs at 1.8 GHz by default and draws less power.','—','pi4b'],['Pi 4 3 GB','Apr 2026','A middle option added during the memory price rises.','$83.75','pi4b'],['Pi 5 2 GB','Aug 2024','Cheaper entry Pi 5 on a cost-reduced D0 chip stepping.','$50','pi5'],['Pi 5 16 GB','Jan 2025','The most memory on any Pi. Loads 14B language models.','$120','pi5'],['Pi 5 1 GB','Dec 2025','A low-memory model launched alongside the first memory price increase.','$45','pi5'],['Pico H / Pico WH','2022','Pre-soldered headers and a 3-pin debug connector.','$5 / $7','pico']];
+$('#varTable tbody').innerHTML=VARS.map(([n,w,d,p,r])=>`<tr class="row" data-id="${r}" tabindex="0"><td><b style="font-weight:600">${n}</b></td><td class="num">${w}</td><td>${d}</td><td class="num">${p}</td><td>${EX.find(e=>e.id===r).name.replace('Raspberry Pi ','Pi ')}</td></tr>`).join('');
+
+/* ---------- Prices ---------- */
+const PRICES=[['Pi 4 · 1 GB',35,35,0,'pi4b'],['Pi 4 · 2 GB',45,45,0,'pi4b'],['Pi 4 · 4 GB',55,60,25,'pi4b'],['Pi 4 · 8 GB',75,85,50,'pi4b'],['Pi 5 · 2 GB',50,55,0,'pi5'],['Pi 5 · 4 GB',60,70,25,'pi5'],['Pi 5 · 8 GB',80,95,50,'pi5'],['Pi 5 · 16 GB',120,145,100,'pi5'],['Pi 500',90,null,50,'pi500'],['Pi 500+',200,null,150,'pi500plus']];
+const now=r=>r[0]==='Pi 500+'?350:r[2]!=null?r[2]+r[3]:r[1]+r[3];
+const pmax=Math.max(...PRICES.map(now));
+$('#priceChart').innerHTML=PRICES.map((r,i)=>`<div class="brow"><div class="lab">${r[0]}</div><div class="track" data-i="${i}" tabindex="0"><div class="bar" style="--c:var(--s1);width:${r[1]/pmax*82}%"><b>$${r[1]}</b></div><div class="bar" style="--c:var(--s2);width:${now(r)/pmax*82}%"><b>$${now(r)}</b></div></div></div>`).join('');
+function prRead(i){const r=PRICES[i];$('#prRead').textContent=`${r[0]}: $${r[1]} at launch${r[2]!=null?`, $${r[2]} after December 2025`:''}${r[3]?`, +$${r[3]} in April 2026`:', no April 2026 change'}${r[0]==='Pi 500+'?' (reported at $350)':''}.`}
+['mouseover','focusin','click'].forEach(t=>$('#priceChart').addEventListener(t,e=>{const tr=e.target.closest('.track');if(tr)prRead(tr.dataset.i)}));
+$('#priceTable tbody').innerHTML=PRICES.map(r=>`<tr class="row" data-id="${r[4]}" tabindex="0"><td>${r[0]}</td><td class="num">$${r[1]}</td><td class="num">${r[2]!=null?'$'+r[2]:'not published'}</td><td class="num">${r[3]?'+$'+r[3]:'none'}</td><td class="num">$${now(r)}</td></tr>`).join('');
+
+/* ---------- Overclocking table ---------- */
+const OC=[
+['Pi 1 A, B, B+, A+, CM1','pi1b','700 MHz','1000 MHz','+43%','arm_freq=1000\ncore_freq=500\nsdram_freq=600\nover_voltage=6','None','The raspi-config "Turbo" preset. Some SD cards corrupted at this setting; drop sdram_freq to 500 if you see errors.'],
+['Zero, Zero W','zero','1000 MHz','1100 MHz','+10%','arm_freq=1100\nover_voltage=6','None, or a small heatsink','Not every board manages it. The single ARM11 core is the limit, not heat.'],
+['Pi 2 Model B','pi2b','900 MHz','1000 MHz','+11%','arm_freq=1000\ncore_freq=500\nsdram_freq=500\nover_voltage=2','None','The raspi-config "Pi 2" preset.'],
+['Zero 2 W','zero2w','1000 MHz','1200 MHz','+20%','arm_freq=1200\nover_voltage=6','Small heatsink','Warms up fast in a closed case; it throttles at 80 °C.'],
+['Pi 3 Model B, CM3','pi3b','1200 MHz','1300 MHz','+8%','arm_freq=1300\nover_voltage=4','Heatsink, ideally a fan','Gains are small because it already throttles under heavy load at stock.'],
+['Pi 3 B+, 3 A+, CM3+','pi3bplus','1400 MHz','1500 MHz','+7%','arm_freq=1500\nover_voltage=4','Heatsink','The heat spreader helps, but it soft-limits at 60 °C by default; temp_soft_limit=70 raises that.'],
+['Pi 4, CM4 (1.5 GHz boards)','pi4b','1500 MHz','2000 MHz','+33%','arm_freq=2000\nover_voltage=6\ngpu_freq=750','Fan or large heatsink','The best value overclock. Boards made from 2021 already run 1.8 GHz stock.'],
+['Pi 4 (1.8 GHz boards), Pi 400','pi400','1800 MHz','2147 MHz','+19%','arm_freq=2147\nover_voltage=6\ngpu_freq=750','Pi 400: none. Pi 4: fan','2147 MHz is the highest setting the Pi 4 firmware normally accepts.'],
+['Pi 5, CM5','pi5','2400 MHz','3000 MHz','+25%','arm_freq=3000\nover_voltage_delta=50000\n# lower to 2800 if unstable','Active Cooler (required)','Many boards manage 2.8 to 3.0 GHz. Uses over_voltage_delta in microvolts, not over_voltage.'],
+['Pi 500, Pi 500+','pi500','2400 MHz','2800 MHz','+17%','arm_freq=2800\nover_voltage_delta=50000','None; internal heat spreader','The keyboard\u2019s heat spreader is big but passive, so stay a step below a fan-cooled Pi 5.'],
+['Pico, Pico W (RP2040)','pico','133 MHz','250 MHz','+88%','import machine\nmachine.freq(250_000_000)','None','Above about 270 MHz the flash chip may need a slower clock divider in C builds.'],
+['Pico 2, Pico 2 W (RP2350)','pico2','150 MHz','250 MHz','+67%','import machine\nmachine.freq(250_000_000)','None','Not guaranteed by the datasheet. Test with your own code.']];
+$('#ocTable tbody').innerHTML=OC.map(([n,id,a,b,g,c,cool,note],i)=>`<tr><td><button class="link" data-open="${id}">${n}</button></td><td class="num">${a}</td><td class="num"><b>${b}</b></td><td class="gain">${g}</td><td class="set"><pre class="code" id="oct${i}">${c}</pre><button class="copy" data-copy="oct${i}">Copy</button></td><td>${cool}</td><td>${note}</td></tr>`).join('');
+</script>
+
+</body>
+</html>

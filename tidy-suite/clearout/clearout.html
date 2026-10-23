@@ -1,0 +1,1220 @@
+<!doctype html>
+<html lang="en"><head><script src="../suite-users.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Clearout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: app shell — header, scrollable tab bar, one panel at a time; forms left, yellow price tag / results right, stacking on phones */
+:root{
+  --bg:#edf2ee; --surface:#ffffff; --sunk:#e3ebe5; --ink:#16231c; --muted:#56685d; --line:#cfdbd2;
+  --green:#1d6a43; --green-ink:#ffffff; --tag:#f6c744; --tag-ink:#3a2900;
+  --good:#23824a; --warn:#b06d00; --bad:#bb3427; --scam:#7d1fa0;
+  --f-display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1612; --surface:#16211b; --sunk:#111a15; --ink:#e5eee8; --muted:#9bb0a2; --line:#28392f;
+  --green:#5cc18a; --green-ink:#0b1a12; --tag:#e8b83a; --tag-ink:#271b00;
+  --good:#5cc18a; --warn:#e6a53c; --bad:#f07264; --scam:#c98ae6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1612; --surface:#16211b; --sunk:#111a15; --ink:#e5eee8; --muted:#9bb0a2; --line:#28392f;
+  --green:#5cc18a; --green-ink:#0b1a12; --tag:#e8b83a; --tag-ink:#271b00;
+  --good:#5cc18a; --warn:#e6a53c; --bad:#f07264; --scam:#c98ae6; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);padding:0 16px;}
+.wrap{max-width:1080px;margin:0 auto;padding-block:20px 60px}
+h1,h2,h3{font-family:var(--f-display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:1.55rem;font-weight:800}
+h3{font-size:1.1rem;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+
+/* header */
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;flex:none}
+.brand h1{font-size:2rem;font-weight:800;letter-spacing:-.02em}
+.suite{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.hello{max-width:46ch;color:var(--muted)}
+.hello strong{color:var(--ink)}
+
+/* tabs */
+nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:4px;background:var(--sunk);border-radius:12px;margin-bottom:22px;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;border:0;background:transparent;color:var(--muted);font:700 .95rem var(--f-body);padding:10px 16px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tab:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--tag);outline-offset:2px}
+
+.panel-head{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+.panel-head p{max-width:65ch;color:var(--muted)}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:820px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+.box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.box > h3 + p{margin-top:-8px}
+
+/* form */
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+@media (max-width:480px){.fields{grid-template-columns:minmax(0,1fr)}}
+.full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:.85rem;font-weight:700;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;font-size:1rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:80px}
+.hint{font-size:.8rem;font-weight:400;color:var(--muted)}
+.money{position:relative}
+.money span{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.money input{padding-left:24px}
+
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:700 .92rem var(--f-body);border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+.btn.small{padding:6px 10px;font-size:.82rem}
+.btn:hover{filter:brightness(.97)}
+
+/* price tag */
+.tagwrap{padding:10px 6px 4px}
+.pricetag{position:relative;background:var(--tag);color:var(--tag-ink);border-radius:14px 14px 14px 46px;padding:22px 22px 20px 64px;transform:rotate(-1.2deg);box-shadow:0 8px 22px rgba(0,0,0,.15)}
+.pricetag::before{content:"";position:absolute;left:22px;top:50%;width:20px;height:20px;margin-top:-10px;border-radius:50%;background:var(--bg);box-shadow:inset 0 2px 3px rgba(0,0,0,.25)}
+.pricetag .lbl{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;opacity:.8}
+.pricetag .big{font-family:var(--f-display);font-weight:800;font-size:clamp(2.6rem,7vw,3.6rem);line-height:1;letter-spacing:-.03em;margin:4px 0 12px}
+.pricetag .rows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-top:2px dashed rgba(58,41,0,.35);padding-top:12px}
+.pricetag .rows div{min-width:0}
+.pricetag .rows b{display:block;font-family:var(--f-num);font-size:1.15rem}
+.pricetag .rows small{font-size:.72rem;font-weight:700;opacity:.8}
+.why{font-size:.9rem;color:var(--muted)}
+
+.links{display:flex;flex-wrap:wrap;gap:8px}
+.links a{font-size:.88rem;font-weight:700;color:var(--green);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--bg)}
+.links a:hover{border-color:var(--green)}
+
+/* platforms */
+.plats{display:flex;flex-direction:column;gap:10px}
+.plat{display:grid;grid-template-columns:34px minmax(0,1fr);gap:4px 12px;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg)}
+.plat .rank{grid-row:span 2;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:800 1rem var(--f-display);background:var(--sunk);color:var(--muted)}
+.plat.first .rank{background:var(--green);color:var(--green-ink)}
+.plat p{font-size:.92rem;color:var(--muted)}
+.plat .tip{font-size:.85rem}
+
+.out{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;font-size:.95rem;min-width:0;overflow-wrap:anywhere}
+.out.title{font-weight:700;white-space:normal}
+
+/* verdicts */
+.verdict{border-radius:var(--r);padding:16px;border:2px solid var(--v);background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.verdict .vt{font:800 1.3rem var(--f-display);color:var(--v)}
+.v-good{--v:var(--good)} .v-warn{--v:var(--warn)} .v-bad{--v:var(--bad)} .v-scam{--v:var(--scam)} .v-neutral{--v:var(--muted)}
+.meter{height:12px;background:var(--sunk);border-radius:999px;position:relative;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--v);border-radius:999px}
+.scale{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted)}
+
+.checks{display:flex;flex-direction:column;gap:6px}
+.check{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font-size:.95rem}
+.check input{width:18px;height:18px;flex:none;margin-top:3px;accent-color:var(--green)}
+.check .pill{margin-left:auto;flex:none}
+.group-lbl{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--muted);margin-top:6px}
+
+.pill{display:inline-block;font-size:.72rem;font-weight:700;border-radius:999px;padding:2px 8px;border:1px solid currentColor}
+.p-good{color:var(--good)} .p-bad{color:var(--bad)} .p-warn{color:var(--warn)} .p-scam{color:var(--scam)}
+
+.reassure{border-left:4px solid var(--green);padding:4px 0 4px 14px;display:flex;flex-direction:column;gap:6px}
+.reassure p{font-size:.95rem}
+
+/* services */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 .88rem var(--f-body);border-radius:999px;padding:7px 13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+.svcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.svc{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.svc .range{font-family:var(--f-num);font-weight:600;font-size:1.1rem;color:var(--green)}
+.svc p{font-size:.88rem;color:var(--muted)}
+.svc.sel{border-color:var(--green);box-shadow:inset 0 0 0 1px var(--green)}
+.svc .btn{align-self:flex-start;margin-top:auto}
+.empty{padding:22px;border:1px dashed var(--line);border-radius:var(--r);text-align:center;color:var(--muted)}
+
+.rate{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+.rate .big{font:800 2.4rem var(--f-display);letter-spacing:-.02em}
+
+.tpl{display:flex;flex-direction:column;gap:6px}
+.tpl-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+
+ul.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:.95rem}
+
+/* items */
+.totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:520px){.totals{grid-template-columns:minmax(0,1fr)}}
+.tot{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.tot small{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.tot b{display:block;font:800 1.8rem var(--f-display)}
+.tot.made b{color:var(--good)}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{width:100%;border-collapse:collapse;min-width:640px;font-size:.95rem}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+td.r,th.r{text-align:right}
+tr:last-child td{border-bottom:0}
+td select,td input{padding:6px 8px;font-size:.9rem}
+td input{max-width:110px}
+.ex{font-size:.7rem;font-weight:700;color:var(--warn);margin-left:6px;text-transform:uppercase;letter-spacing:.08em}
+
+.totals.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:760px){.totals.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.checkin{gap:12px}
+.checkin .q{font:800 1.45rem var(--f-display);line-height:1.2;text-wrap:balance}
+.checkin .sub{font-size:.85rem;color:var(--muted)}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.yn .btn{padding:14px;font-size:1.05rem}
+.btn.yes{background:var(--good);border-color:var(--good);color:var(--green-ink)}
+.btn.no{background:var(--bg)}
+.reasons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:480px){.reasons{grid-template-columns:minmax(0,1fr)}}
+.reasons .btn{text-align:left;font-weight:400;line-height:1.3}
+.reasons .btn b{display:block}
+.advice{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.advice ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.win{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:10px 0}
+.bell{width:72px;height:72px;transform-origin:50% 10%}
+.win.go .bell{animation:ring 1.1s ease-out}
+@media (prefers-reduced-motion:reduce){.win.go .bell{animation:none}}
+@keyframes ring{0%{transform:rotate(0)}15%{transform:rotate(22deg)}30%{transform:rotate(-18deg)}45%{transform:rotate(13deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}100%{transform:rotate(0)}}
+.win .gj{font:800 2.2rem var(--f-display);color:var(--good);letter-spacing:-.02em}
+.win .amt{font:600 1.3rem var(--f-num)}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:5}
+.bars{display:flex;flex-direction:column;gap:12px}
+.bar-row{display:grid;grid-template-columns:minmax(0,9rem) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:.92rem}
+.bar-track{height:14px;background:var(--sunk);border-radius:999px;overflow:hidden}
+.bar-track i{display:block;height:100%;background:var(--green);border-radius:999px}
+.attempts{font-size:.8rem;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;font-size:.9rem;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}.pricetag{transform:none}}
+
+/* saved light */
+.save-status{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted,#667);white-space:nowrap;padding:3px 10px;border:1px solid var(--line,#ccd);border-radius:99px;background:var(--surface,transparent)}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--good,#2C8A57);flex:none}
+.save-dot.saving{background:var(--warn,#E39A00);animation:svpulse .9s infinite ease-in-out}
+.save-dot.error{background:var(--bad,#C2453A)}
+.save-dot.example{background:var(--muted,#889)}
+@keyframes svpulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.save-dot.saving{animation:none}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 44 44" aria-hidden="true">
+        <path d="M6 10a4 4 0 0 1 4-4h16l12 12v16a4 4 0 0 1-4 4H22L6 22z" fill="var(--tag)"/>
+        <circle cx="13" cy="13" r="3.2" fill="var(--bg)"/>
+        <text x="26" y="31" text-anchor="middle" font-family="Bricolage Grotesque, sans-serif" font-weight="800" font-size="15" fill="var(--tag-ink)">$</text>
+      </svg>
+      <div>
+        <div class="suite">Tidy suite</div>
+        <h1>Clearout</h1>
+      </div>
+      <div class="save-status" aria-live="polite" title="Your work saves automatically in this browser"><span class="save-dot" id="saveDot"></span><span id="saveText">Saved</span></div>
+    </div>
+    <p class="hello"><strong>Too much stuff, or need some cash?</strong> Spent a little too long in Steady? You came to the right place. We'll price it, list it, handle the buyers, and find ways to earn with what you already know.</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Clearout sections">
+    <button class="tab" role="tab" id="t-price" aria-controls="p-price" aria-selected="true">1. Price it</button>
+    <button class="tab" role="tab" id="t-list" aria-controls="p-list" aria-selected="false">2. List it</button>
+    <button class="tab" role="tab" id="t-buyers" aria-controls="p-buyers" aria-selected="false">3. Handle buyers</button>
+    <button class="tab" role="tab" id="t-services" aria-controls="p-services" aria-selected="false">Offer a service</button>
+    <button class="tab" role="tab" id="t-items" aria-controls="p-items" aria-selected="false">Dashboard</button>
+  </nav>
+
+  <!-- PRICE -->
+  <section class="panel" id="p-price" role="tabpanel" aria-labelledby="t-price">
+    <div class="panel-head">
+      <h2>What is it worth?</h2>
+      <p>Tell us about the item. You'll get a price to list at, a fair price, and a walk-away number so you know your limit before anyone messages you.</p>
+    </div>
+    <div class="grid2">
+      <div class="box">
+        <div class="fields">
+          <label class="f full">Item name
+            <input id="i-name" value="DeWalt 20V cordless drill kit">
+          </label>
+          <label class="f">Brand
+            <input id="i-brand" value="DeWalt">
+          </label>
+          <label class="f">Category
+            <select id="i-cat"></select>
+          </label>
+          <label class="f">What you paid (new)
+            <div class="money"><span>$</span><input id="i-paid" type="number" min="0" step="1" value="179"></div>
+          </label>
+          <label class="f">How old (years)
+            <input id="i-age" type="number" min="0" step="0.5" value="3">
+          </label>
+          <label class="f">Condition
+            <select id="i-cond">
+              <option value="1.15">New, never used</option>
+              <option value="1">Like new</option>
+              <option value="0.85" selected>Good, light wear</option>
+              <option value="0.65">Fair, clearly used</option>
+              <option value="0.35">Needs repair / for parts</option>
+            </select>
+          </label>
+          <label class="f">Brand demand
+            <select id="i-brandd">
+              <option value="1.15" selected>Well-known, people search for it</option>
+              <option value="1">Average brand</option>
+              <option value="0.8">No-name / store brand</option>
+            </select>
+          </label>
+          <label class="f">Size
+            <select id="i-size">
+              <option value="small" selected>Small, fits in a box</option>
+              <option value="medium">Medium, fits in a car</option>
+              <option value="large">Large, needs a truck</option>
+            </select>
+          </label>
+          <label class="f">How soon do you need it gone?
+            <select id="i-urg">
+              <option value="fast">This week, I need cash</option>
+              <option value="normal" selected>A few weeks is fine</option>
+              <option value="wait">No rush, I'll wait for my price</option>
+            </select>
+          </label>
+          <label class="f full">What's included
+            <input id="i-incl" value="2 batteries, charger, carrying case">
+          </label>
+          <label class="f full">Sold prices you've seen <span class="hint">Optional but best. Look up sold listings and type a few prices, like 85, 95, 110.</span>
+            <input id="i-comps" placeholder="85, 95, 110">
+          </label>
+        </div>
+        <div class="links" id="comp-links"></div>
+      </div>
+
+      <div class="stack">
+        <div class="tagwrap">
+          <div class="pricetag" aria-live="polite">
+            <div class="lbl">List it at</div>
+            <div class="big num" id="o-list">$0</div>
+            <div class="rows">
+              <div><small>Fair value</small><b id="o-fair">$0</b></div>
+              <div><small>Quick sale</small><b id="o-quick">$0</b></div>
+              <div><small>Walk away below</small><b id="o-floor">$0</b></div>
+            </div>
+          </div>
+        </div>
+        <p class="why" id="o-why"></p>
+        <div class="btns">
+          <button class="btn primary" id="b-save">Save to dashboard</button>
+          <button class="btn" data-go="t-list">Next: write the listing</button>
+        </div>
+        <div class="reassure">
+          <h3>How to use these numbers</h3>
+          <p><b>List price</b> leaves room for people who like to haggle. <b>Fair value</b> is what it's really worth. <b>Walk away below</b> is your limit. Anything under it, you can say no and feel fine about it.</p>
+          <p class="muted">This is an estimate from age, condition and brand. Real sold prices in your area always win, so add a few if you can.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIST -->
+  <section class="panel" id="p-list" role="tabpanel" aria-labelledby="t-list" hidden>
+    <div class="panel-head">
+      <h2>Write the listing, pick the place</h2>
+      <p>A clear listing that explains the price gets fewer lowballers. It uses the item from step 1.</p>
+    </div>
+    <div class="grid2">
+      <div class="box">
+        <h3>Your listing</h3>
+        <div class="fields">
+          <label class="f">Why you're selling
+            <select id="l-why">
+              <option>Clearing out space</option>
+              <option>Upgraded to a newer one</option>
+              <option>Moving</option>
+              <option>Don't use it anymore</option>
+              <option value="">Leave it out</option>
+            </select>
+          </label>
+          <label class="f">Price terms
+            <select id="l-terms">
+              <option value="obo">Open to reasonable offers</option>
+              <option value="firm">Price is firm</option>
+            </select>
+          </label>
+          <label class="f full">Anything else to mention <span class="hint">Flaws, extras, smoke-free home, etc.</span>
+            <input id="l-extra" value="Works great, small scuffs on the case.">
+          </label>
+        </div>
+        <div class="tpl">
+          <div class="tpl-head"><b>Title</b><button class="btn small" data-copy="l-title">Copy</button></div>
+          <div class="out title" id="l-title"></div>
+        </div>
+        <div class="tpl">
+          <div class="tpl-head"><b>Description</b><button class="btn small" data-copy="l-desc">Copy</button></div>
+          <div class="out" id="l-desc"></div>
+        </div>
+        <ul class="tips">
+          <li>Take photos in daylight, from the front, back and close-up on any wear.</li>
+          <li>Show the brand label or model number. Buyers search for it.</li>
+          <li>Post in the evening or on the weekend, when most people browse.</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>Where to sell it</h3>
+        <p class="muted">Ranked for this item's size, type and price.</p>
+        <div class="plats" id="l-plats"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUYERS -->
+  <section class="panel" id="p-buyers" role="tabpanel" aria-labelledby="t-buyers" hidden>
+    <div class="panel-head">
+      <h2>Handle buyers with confidence</h2>
+      <p>Check an offer, read the buyer, and copy a reply. Saying no to a bad offer is part of selling, not rude.</p>
+    </div>
+    <div class="grid2">
+      <div class="stack">
+        <div class="box">
+          <h3>Check an offer</h3>
+          <div class="fields">
+            <label class="f">Your asking price
+              <div class="money"><span>$</span><input id="b-ask" type="number" min="0"></div>
+            </label>
+            <label class="f">Your walk-away price
+              <div class="money"><span>$</span><input id="b-floor" type="number" min="0"></div>
+            </label>
+            <label class="f full">They offered
+              <div class="money"><span>$</span><input id="b-offer" type="number" min="0" value="60"></div>
+            </label>
+          </div>
+          <button class="btn small" id="b-usemine" style="align-self:flex-start">Use prices from step 1</button>
+          <div class="verdict v-neutral" id="b-verdict">
+            <div class="vt" id="b-vt"></div>
+            <div class="meter"><i id="b-bar"></i></div>
+            <div class="scale"><span>$0</span><span id="b-scale-ask"></span></div>
+            <p id="b-vtext"></p>
+          </div>
+          <div class="tpl">
+            <div class="tpl-head"><b>Reply you can send</b><button class="btn small" data-copy="b-reply">Copy</button></div>
+            <div class="out" id="b-reply"></div>
+          </div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="box">
+          <h3>Read the buyer</h3>
+          <p class="muted">Tick what they've done so far.</p>
+          <div class="checks" id="b-checks"></div>
+          <div class="verdict v-neutral" id="b-read">
+            <div class="vt" id="b-rt"></div>
+            <p id="b-rtext"></p>
+          </div>
+        </div>
+        <div class="box reassure">
+          <h3>It's okay to pass</h3>
+          <p>Some buyers are resellers. They need your item cheap so they can sell it for more. That's their business plan, not your problem.</p>
+          <p>Someone who can't pay what it's worth isn't your buyer. The right one usually shows up within a week or two.</p>
+          <p>A real buyer who's polite, shows up, and asks good questions? Giving them a small discount is a nice way to close the deal.</p>
+        </div>
+        <div class="box">
+          <h3>Stay safe</h3>
+          <ul class="tips">
+            <li>Meet in a busy public spot. Many police stations have a safe exchange zone.</li>
+            <li>Bring someone with you for big or expensive items.</li>
+            <li>Take cash, or confirm the payment arrived before handing over the item.</li>
+            <li>Never share a verification code sent to your phone. That's always a scam.</li>
+            <li>Never accept a check for more than the price, or send money back.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="panel" id="p-services" role="tabpanel" aria-labelledby="t-services" hidden>
+    <div class="panel-head">
+      <h2>Earn with what you already have</h2>
+      <p>Your tools, your car and your know-how can pay. Pick what you have and see services your neighbors pay for. For the full toolkit, with job tracking and every message you'll need, open <a href="../handy/handy.html" style="color:var(--green);font-weight:700">Handy</a>.</p>
+    </div>
+    <div class="stack">
+      <div class="box">
+        <h3>What do you have or know how to do?</h3>
+        <div class="chips" id="s-chips"></div>
+      </div>
+      <div class="box">
+        <h3>Services you could offer</h3>
+        <p class="muted">Rough starting prices. Check what others near you charge and adjust.</p>
+        <div class="svcs" id="s-list"></div>
+      </div>
+      <div class="grid2">
+        <div class="box">
+          <h3>How to price yourself</h3>
+          <div class="fields">
+            <label class="f">Money you need per month
+              <div class="money"><span>$</span><input id="s-goal" type="number" min="0" value="600"></div>
+            </label>
+            <label class="f">Hours you can work per week
+              <input id="s-hours" type="number" min="1" value="8">
+            </label>
+            <label class="f full">Costs per hour of work <span class="hint">Gas, supplies, wear on tools</span>
+              <div class="money"><span>$</span><input id="s-cost" type="number" min="0" value="4"></div>
+            </label>
+          </div>
+          <div class="rate">
+            <span class="big num" id="s-rate">$0/hr</span>
+            <span class="muted" id="s-rate-note"></span>
+          </div>
+          <p id="s-compare"></p>
+        </div>
+        <div class="box">
+          <h3>Look professional</h3>
+          <ul class="tips">
+            <li>Reply within a few hours, even just to say when you'll get back to them.</li>
+            <li>Give the price before you start, in writing, and stick to it.</li>
+            <li>Show up on time. Text if you'll be even 5 minutes late.</li>
+            <li>Take before and after photos. They become your best ads.</li>
+            <li>Ask happy customers for a review or a referral.</li>
+            <li>Keep a simple record of each job and payment, for taxes.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="box">
+        <h3>Messages ready to send</h3>
+        <div class="fields">
+          <label class="f">Your first name
+            <input id="s-name" value="Mack">
+          </label>
+          <label class="f">Your area
+            <input id="s-area" value="our neighborhood">
+          </label>
+          <label class="f full">Service
+            <select id="s-svc"></select>
+          </label>
+        </div>
+        <div class="tpl">
+          <div class="tpl-head"><b>Post for Nextdoor or a Facebook group</b><button class="btn small" data-copy="s-t1">Copy</button></div>
+          <div class="out" id="s-t1"></div>
+        </div>
+        <div class="tpl">
+          <div class="tpl-head"><b>Reply to someone who's interested</b><button class="btn small" data-copy="s-t2">Copy</button></div>
+          <div class="out" id="s-t2"></div>
+        </div>
+        <div class="tpl">
+          <div class="tpl-head"><b>After the job</b><button class="btn small" data-copy="s-t3">Copy</button></div>
+          <div class="out" id="s-t3"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ITEMS -->
+  <section class="panel" id="p-items" role="tabpanel" aria-labelledby="t-items" hidden>
+    <div class="panel-head">
+      <h2>Your dashboard</h2>
+      <p>Check in on each item, celebrate every sale, and figure out what to change when something sits.</p>
+    </div>
+    <div class="stack">
+      <div class="totals four">
+        <div class="tot made"><small>Money made</small><b class="num" id="m-made">$0</b></div>
+        <div class="tot"><small>Items sold</small><b class="num" id="m-sold">0</b></div>
+        <div class="tot"><small>Still to sell</small><b class="num" id="m-pot">$0</b></div>
+        <div class="tot"><small>You get, on average</small><b class="num" id="m-pct">–</b></div>
+      </div>
+
+      <div class="grid2">
+        <div class="box checkin" id="c-box" aria-live="polite"></div>
+        <div class="box">
+          <h3>Where you sell best</h3>
+          <div id="m-plat"></div>
+        </div>
+      </div>
+
+      <div class="box">
+        <div class="tpl-head"><h3>Your wins</h3><span class="muted" id="m-wincount"></span></div>
+        <div id="m-wins"></div>
+      </div>
+
+      <div class="box">
+        <h3>All items</h3>
+        <div id="m-wrap"></div>
+        <div class="btns" id="m-btns"></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+function saveLight(s){const d=document.getElementById('saveDot'),t=document.getElementById('saveText');if(!d)return;
+ d.className='save-dot'+(s==='saved'?'':' '+s);t.textContent={saved:'Saved',saving:'Saving…',error:'Not saved. Check browser settings',example:'Example, not saved'}[s];
+ clearTimeout(saveLight.t);if(s==='saving')saveLight.t=setTimeout(()=>{if(d.classList.contains('saving'))saveLight('saved')},4000);}
+function storeOK(k,v){try{localStorage.setItem(k,v);return localStorage.getItem(k)===v}catch(e){return false}}
+
+(function(){
+const $ = id => document.getElementById(id);
+const money = n => "$" + Math.round(n).toLocaleString();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- categories: share of price kept at year 0, yearly drop ---------- */
+const CATS = {
+  tools:{label:"Tools",base:.62,drop:.06},
+  electronics:{label:"Electronics",base:.55,drop:.22},
+  phones:{label:"Phones & computers",base:.55,drop:.25},
+  furniture:{label:"Furniture",base:.4,drop:.08},
+  appliances:{label:"Appliances",base:.45,drop:.12},
+  outdoor:{label:"Outdoor, garden & sports",base:.5,drop:.09},
+  baby:{label:"Baby & kids",base:.42,drop:.12},
+  toys:{label:"Toys & games",base:.42,drop:.1},
+  clothing:{label:"Clothing, shoes & bags",base:.28,drop:.1},
+  decor:{label:"Home decor & kitchen",base:.32,drop:.07},
+  instruments:{label:"Musical instruments",base:.65,drop:.04},
+  collectibles:{label:"Collectibles & vintage",base:.75,drop:0},
+  auto:{label:"Auto parts & accessories",base:.5,drop:.1}
+};
+const catSel = $("i-cat");
+for (const k in CATS){ const o=document.createElement("option"); o.value=k; o.textContent=CATS[k].label; catSel.appendChild(o); }
+catSel.value="tools";
+
+function friendly(n, up){
+  const step = n < 20 ? 1 : n < 100 ? 5 : n < 1000 ? 10 : 25;
+  return Math.max(1, (up ? Math.ceil(n/step) : Math.round(n/step)) * step);
+}
+function parseComps(s){
+  return (s.match(/\d+(\.\d+)?/g) || []).map(Number).filter(n => n > 0);
+}
+function median(a){ const s=[...a].sort((x,y)=>x-y), m=Math.floor(s.length/2); return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
+
+function item(){
+  return {
+    name:$("i-name").value.trim() || "Item",
+    brand:$("i-brand").value.trim(),
+    cat:catSel.value,
+    paid:+$("i-paid").value || 0,
+    age:Math.max(0, +$("i-age").value || 0),
+    cond:+$("i-cond").value,
+    condText:$("i-cond").selectedOptions[0].textContent,
+    brandd:+$("i-brandd").value,
+    size:$("i-size").value,
+    urg:$("i-urg").value,
+    incl:$("i-incl").value.trim(),
+    comps:parseComps($("i-comps").value)
+  };
+}
+function estimate(it){
+  const c = CATS[it.cat];
+  let model = it.paid * c.base * Math.pow(1 - c.drop, it.age) * it.cond * it.brandd;
+  model = Math.max(model, it.paid * 0.05);
+  let fair = model, why;
+  if (it.comps.length){
+    const med = median(it.comps);
+    fair = model * 0.3 + med * 0.7;
+    why = `Based mostly on the ${it.comps.length} sold price${it.comps.length>1?"s":""} you entered (middle: ${money(med)}), adjusted for condition and age.`;
+  } else {
+    why = `Based on ${money(it.paid)} new, ${it.age} year${it.age==1?"":"s"} old, ${it.condText.toLowerCase()}. ${c.label} usually keep about ${Math.round(c.base*100)}% of their price at first${c.drop?` and lose about ${Math.round(c.drop*100)}% more each year`:" and hold their value well"}.`;
+  }
+  const floorMult = {fast:.7, normal:.8, wait:.9}[it.urg];
+  const listMult = {fast:1.08, normal:1.18, wait:1.25}[it.urg];
+  return {
+    fair:friendly(fair), list:friendly(fair*listMult, true),
+    quick:friendly(fair*.85), floor:friendly(fair*floorMult), why
+  };
+}
+
+/* ---------- platforms ---------- */
+const PLATS = [
+  {id:"fb", name:"Facebook Marketplace", score:(it,e)=>3+(it.size!=="small"?1:0)+(["furniture","appliances","baby","outdoor","decor","tools"].includes(it.cat)?1:0),
+    why:"The most local buyers. Good for almost anything you'd rather hand over in person.",
+    tip:"Answer fast. Buyers message several sellers and go with whoever replies first."},
+  {id:"cl", name:"Craigslist", score:(it,e)=>1+(it.size==="large"?2:0)+(["tools","appliances","auto","outdoor"].includes(it.cat)?1:0),
+    why:"Good for big, heavy and practical things like tools, appliances and car parts.",
+    tip:"Expect more scam messages here. Stick to cash and local pickup."},
+  {id:"nd", name:"Nextdoor", score:(it,e)=>1+(["baby","decor","furniture","toys","outdoor"].includes(it.cat)?2:0)+(e.list<150?1:0),
+    why:"Your actual neighbors. More trust, fewer no-shows, easy pickups down the street.",
+    tip:"Prices run a bit lower, but sales are quick and friendly."},
+  {id:"eb", name:"eBay", score:(it,e)=>(it.size==="small"?3:-3)+(["collectibles","electronics","phones"].includes(it.cat)?2:0)+(it.brandd>1?1:0),
+    why:"Reaches buyers across the country. Great for small, brand-name or collectible items.",
+    tip:"eBay takes a fee and you'll pay shipping, so price that in."},
+  {id:"pm", name:"Poshmark", score:(it)=>it.cat==="clothing"?4:-5,
+    why:"Built for clothing, shoes and bags. Buyers come looking for brands.",
+    tip:"Good photos on a hanger or flat surface make a big difference."},
+  {id:"rv", name:"Reverb", score:(it)=>it.cat==="instruments"?4:-5,
+    why:"Musicians shopping for gear. Instruments sell for more here.",
+    tip:"Include a short sound clip or video if you can."},
+  {id:"ys", name:"Yard sale", score:(it,e)=>e.list<25?3:-2,
+    why:"Lower-priced items sell best in bulk. Bundle them and clear lots at once.",
+    tip:"Price everything with stickers before you start so nobody has to ask."}
+];
+
+/* ---------- render price + listing ---------- */
+let current = null;
+function renderPrice(){
+  const it = item(), e = estimate(it);
+  current = {it, e};
+  $("o-list").textContent = money(e.list);
+  $("o-fair").textContent = money(e.fair);
+  $("o-quick").textContent = money(e.quick);
+  $("o-floor").textContent = money(e.floor);
+  $("o-why").textContent = e.why;
+  const q = encodeURIComponent(it.name);
+  $("comp-links").innerHTML =
+    `<a href="https://www.ebay.com/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1" target="_blank" rel="noopener">eBay sold prices</a>`+
+    `<a href="https://www.facebook.com/marketplace/search/?query=${q}" target="_blank" rel="noopener">Marketplace listings</a>`+
+    `<a href="https://www.craigslist.org/search/sss?query=${q}" target="_blank" rel="noopener">Craigslist listings</a>`;
+  renderListing();
+  syncOffer(false);
+}
+function renderListing(){
+  if(!current) return;
+  const {it, e} = current;
+  const cond = it.condText.split(",")[0];
+  $("l-title").textContent = `${it.name}${it.brand && !it.name.toLowerCase().includes(it.brand.toLowerCase()) ? " – "+it.brand : ""} – ${cond} – ${money(e.list)}`;
+  const why = $("l-why").value, firm = $("l-terms").value === "firm", extra = $("l-extra").value.trim();
+  const pct = it.paid ? Math.round((1 - e.list/it.paid)*100) : 0;
+  let d = `${it.name} in ${it.condText.toLowerCase()} condition.`;
+  if (it.age) d += ` About ${it.age} year${it.age==1?"":"s"} old.`;
+  if (extra) d += ` ${extra}`;
+  if (it.incl) d += `\n\nIncludes: ${it.incl}.`;
+  if (it.paid && pct > 0) d += `\n\nThese sell for about ${money(it.paid)} new. Asking ${money(e.list)}, that's ${pct}% off new.`;
+  else d += `\n\nAsking ${money(e.list)}.`;
+  d += firm ? " Price is firm." : " Open to reasonable offers.";
+  if (why) d += `\n\nWhy I'm selling: ${why.toLowerCase()}.`;
+  d += it.size === "small"
+    ? `\n\nPickup or meet in a public place. Cash or instant payment at pickup.`
+    : `\n\nPickup only, please bring help to load. Cash or instant payment at pickup.`;
+  d += `\nIf this is posted, it's still available.`;
+  $("l-desc").textContent = d;
+
+  const ranked = PLATS.map(p => ({p, s:p.score(it,e)})).sort((a,b)=>b.s-a.s).slice(0,3);
+  current.top = ranked[0].p.name; current.ranked = ranked.map(r=>r.p.name);
+  $("l-plats").innerHTML = ranked.map((r,i)=>`
+    <div class="plat ${i===0?"first":""}">
+      <div class="rank">${i+1}</div>
+      <h3>${r.p.name}${i===0?' <span class="pill p-good">Best fit</span>':""}</h3>
+      <div><p>${r.p.why}</p><p class="tip"><b>Tip:</b> ${r.p.tip}</p></div>
+    </div>`).join("");
+}
+["i-name","i-brand","i-cat","i-paid","i-age","i-cond","i-brandd","i-size","i-urg","i-incl","i-comps"].forEach(id=>{
+  $(id).addEventListener("input", renderPrice);
+});
+["l-why","l-terms","l-extra"].forEach(id=>$(id).addEventListener("input", renderListing));
+
+/* ---------- offers ---------- */
+let offerTouched = false;
+function syncOffer(force){
+  if(!current) return;
+  if(force || !offerTouched){ $("b-ask").value = current.e.list; $("b-floor").value = current.e.floor; }
+  renderOffer();
+}
+$("b-usemine").addEventListener("click", ()=>{ syncOffer(true); toast("Using prices from step 1"); });
+["b-ask","b-floor"].forEach(id=>$(id).addEventListener("input", ()=>{offerTouched=true; renderOffer();}));
+$("b-offer").addEventListener("input", renderOffer);
+
+let buyerType = "unknown";
+function renderOffer(){
+  const ask = +$("b-ask").value || 0, floor = +$("b-floor").value || 0, offer = +$("b-offer").value || 0;
+  const name = current ? current.it.name.toLowerCase() : "item";
+  const v = $("b-verdict"); let cls, title, text, reply;
+  if (!ask){ cls="v-neutral"; title="Enter your asking price"; text=""; reply=""; }
+  else {
+    const r = offer/ask;
+    const genuine = buyerType === "genuine";
+    // genuine buyers can get closer to the floor; resellers get held near asking
+    const counterBase = buyerType==="reseller" ? ask*.95 : genuine ? Math.max(floor, (offer+ask)/2 - ask*.03) : Math.max(floor, (offer+ask)/2);
+    const counter = Math.min(ask, friendly(counterBase, true));
+    if (buyerType === "scam"){
+      cls="v-scam"; title="Stop. This looks like a scam";
+      text="Don't negotiate. Don't send codes, links or money. Block and move on.";
+      reply="Sorry, I'm going to pass. Good luck!";
+    } else if (r >= .95){
+      cls="v-good"; title="Great offer. Take it";
+      text=`That's ${Math.round(r*100)}% of your asking price.`;
+      reply=`Sounds good, ${money(offer)} works for me. When can you pick it up? I'm free [day/time] and can meet at [place].`;
+    } else if (offer >= floor){
+      cls= genuine ? "v-good" : "v-warn";
+      title= genuine ? "Fair offer from a real buyer" : "Fair. Counter or accept";
+      text = genuine
+        ? `It's above your walk-away price and they seem serious. Accepting is fine, or meet at ${money(counter)}.`
+        : `It's above your walk-away price. Try ${money(counter)} first. If they say no, you can still accept ${money(offer)}.`;
+      reply = genuine
+        ? `Thanks for being easy to work with. I can do ${money(counter)}. When works for pickup?`
+        : `Thanks for the offer! I could do ${money(counter)}. It's in ${current?current.it.condText.toLowerCase():"good"} condition and priced below new. Let me know if that works.`;
+    } else if (r >= .6 || offer >= floor*.8){
+      cls="v-bad"; title="Lowball. Counter once, then let it go";
+      text=`${money(offer)} is under your walk-away price of ${money(floor)}. One polite counter, and if they won't come up, pass.`;
+      reply=`Thanks, but that's lower than I can go. The lowest I can do is ${money(Math.max(floor, counter))}. No worries if that doesn't work for you.`;
+    } else {
+      cls="v-bad"; title="Pass on this one";
+      text=`${money(offer)} is only ${Math.round(r*100)}% of your price. This buyer is probably a reseller or can't afford it. That's okay.`;
+      reply=`Thanks for your interest, but I'm going to pass at that price. I'll hold out for my asking price for now.`;
+    }
+    $("b-bar").style.width = Math.min(100, r*100) + "%";
+  }
+  v.className = "verdict " + cls;
+  $("b-vt").textContent = title; $("b-vtext").textContent = text; $("b-reply").textContent = reply;
+  $("b-scale-ask").textContent = ask ? "Asking " + money(ask) : "";
+}
+
+/* ---------- buyer read ---------- */
+const SIGNS = [
+  {g:"Good signs", t:"good", txt:"Asked a specific question about the item"},
+  {g:"Good signs", t:"good", txt:"Suggested a pickup time quickly"},
+  {g:"Good signs", t:"good", txt:"Polite, uses full sentences"},
+  {g:"Good signs", t:"good", txt:"Offered close to your price, or no haggling"},
+  {g:"Warning signs", t:"bad", txt:"Asked “is this available?” then went quiet"},
+  {g:"Warning signs", t:"bad", txt:"Asked for your lowest price before anything else"},
+  {g:"Warning signs", t:"bad", txt:"Wants you to hold it with no set time"},
+  {g:"Warning signs", t:"bad", txt:"Wants free delivery or keeps changing plans"},
+  {g:"Reseller signs", t:"resell", txt:"Asks if you have more items like this"},
+  {g:"Reseller signs", t:"resell", txt:"Offers half or less, “cash right now”"},
+  {g:"Reseller signs", t:"resell", txt:"Mentions flipping, a store, or buying in bulk"},
+  {g:"Scam signs", t:"scam", txt:"Asked you to share a code sent to your phone"},
+  {g:"Scam signs", t:"scam", txt:"Wants to pay by check, or pay extra and get money back"},
+  {g:"Scam signs", t:"scam", txt:"Wants to ship it or send a “shipping agent”, sight unseen"},
+  {g:"Scam signs", t:"scam", txt:"Sent a link to “confirm payment”"}
+];
+const PILL = {good:["p-good","Good"], bad:["p-bad","Warning"], resell:["p-warn","Reseller"], scam:["p-scam","Scam"]};
+let lastG = "";
+$("b-checks").innerHTML = SIGNS.map((s,i)=>{
+  let h = "";
+  if (s.g !== lastG){ h += `<div class="group-lbl">${s.g}</div>`; lastG = s.g; }
+  return h + `<label class="check"><input type="checkbox" id="sig${i}" data-t="${s.t}"><span>${s.txt}</span><span class="pill ${PILL[s.t][0]}">${PILL[s.t][1]}</span></label>`;
+}).join("");
+$("b-checks").addEventListener("change", renderRead);
+function renderRead(){
+  const c = {good:0,bad:0,resell:0,scam:0};
+  document.querySelectorAll("#b-checks input:checked").forEach(x=>c[x.dataset.t]++);
+  let cls, t, txt;
+  if (c.scam){ buyerType="scam"; cls="v-scam"; t="Scam. Stop talking to them";
+    txt="Real local buyers don't need codes, checks, links or shipping agents. Block them and report the account on the site."; }
+  else if (c.resell >= 2 || (c.resell && c.good === 0)){ buyerType="reseller"; cls="v-warn"; t="Likely a reseller";
+    txt="They want it cheap to sell it again. Hold your price or pass. You don't owe them a discount."; }
+  else if (c.bad >= 2 && c.bad > c.good){ buyerType="waster"; cls="v-bad"; t="Probably a time waster";
+    txt="Don't hold the item or make special trips. Tell them it's first come, first served."; }
+  else if (c.good >= 2 && c.bad <= 1){ buyerType="genuine"; cls="v-good"; t="Looks like a genuine buyer";
+    txt="A small discount, around 5 to 10% or rounding down to a friendly number, is a nice way to close. The offer reply now reflects this."; }
+  else { buyerType="unknown"; cls="v-neutral"; t= (c.good+c.bad+c.resell) ? "Not sure yet" : "Tick what you've noticed";
+    txt= (c.good+c.bad+c.resell) ? "Ask a question back, like when they could pick up. Serious buyers answer with a time." : "Your read on the buyer will show here and shape the reply."; }
+  $("b-read").className = "verdict " + cls;
+  $("b-rt").textContent = t; $("b-rtext").textContent = txt;
+  renderOffer();
+}
+
+/* ---------- services ---------- */
+const HAVE = [
+  {id:"mower",l:"Lawn mower"},{id:"truck",l:"Truck or van"},{id:"car",l:"Car"},{id:"washer",l:"Pressure washer"},
+  {id:"tools",l:"Hand & power tools"},{id:"ladder",l:"Ladder"},{id:"shovel",l:"Snow shovel / blower"},{id:"sewing",l:"Sewing machine"},
+  {id:"camera",l:"Good camera / phone"},{id:"computer",l:"Computer skills"},{id:"pets",l:"Love animals"},{id:"clean",l:"Good at cleaning"},
+  {id:"teach",l:"Good at a school subject"},{id:"strong",l:"Can lift heavy things"},{id:"organize",l:"Good at organizing"},{id:"cook",l:"Good cook / baker"}
+];
+const SVCS = [
+  {id:"mow",n:"Lawn mowing",uses:["mower"],r:"$30–60",u:"per yard",lo:30,hi:60,hr:false,d:"Weekly or every two weeks. Regulars are steady income."},
+  {id:"yard",n:"Yard cleanup & leaves",uses:["mower","strong","truck"],r:"$25–45",u:"per hour",lo:25,hi:45,hr:true,d:"Big demand in spring and fall."},
+  {id:"snow",n:"Snow shoveling",uses:["shovel","strong"],r:"$25–60",u:"per driveway",lo:25,hi:60,hr:false,d:"Sign people up before the first storm."},
+  {id:"power",n:"Pressure washing",uses:["washer"],r:"$100–250",u:"per driveway or deck",lo:100,hi:250,hr:false,d:"Before/after photos sell this job for you."},
+  {id:"haul",n:"Junk hauling",uses:["truck","strong"],r:"$75–200",u:"per load",lo:75,hi:200,hr:false,d:"Charge by how full the truck is, plus any dump fees."},
+  {id:"move",n:"Moving help",uses:["strong","truck"],r:"$25–40",u:"per hour, per person",lo:25,hi:40,hr:true,d:"Loading, unloading, furniture moves."},
+  {id:"handy",n:"Handyman jobs",uses:["tools","ladder"],r:"$40–75",u:"per hour",lo:40,hi:75,hr:true,d:"Shelves, TV mounting, furniture assembly, small fixes."},
+  {id:"gutter",n:"Gutter cleaning",uses:["ladder"],r:"$75–175",u:"per house",lo:75,hi:175,hr:false,d:"Be careful on ladders and have someone spot you."},
+  {id:"clean",n:"House cleaning",uses:["clean"],r:"$25–45",u:"per hour",lo:25,hi:45,hr:true,d:"Move-out cleans pay more."},
+  {id:"pet",n:"Dog walking & pet sitting",uses:["pets"],r:"$15–30",u:"per visit",lo:15,hi:30,hr:false,d:"Busy around holidays and summer trips."},
+  {id:"tech",n:"Tech help",uses:["computer"],r:"$30–60",u:"per hour",lo:30,hi:60,hr:true,d:"Setting up phones, printers, Wi‑Fi, TVs. Older neighbors love this."},
+  {id:"tutor",n:"Tutoring",uses:["teach","computer"],r:"$25–50",u:"per hour",lo:25,hi:50,hr:true,d:"Homework help, reading, math, test prep."},
+  {id:"errand",n:"Errands & rides",uses:["car"],r:"$20–30",u:"per hour, plus gas",lo:20,hi:30,hr:true,d:"Groceries, pharmacy pickups, appointments."},
+  {id:"org",n:"Home organizing",uses:["organize","clean"],r:"$30–60",u:"per hour",lo:30,hi:60,hr:true,d:"Garages, closets, help with decluttering. You'll know all about it."},
+  {id:"photo",n:"Photos for sellers & families",uses:["camera"],r:"$75–200",u:"per session",lo:75,hi:200,hr:false,d:"Listing photos, family portraits, small events."},
+  {id:"sew",n:"Alterations & repairs",uses:["sewing"],r:"$10–30",u:"per item",lo:10,hi:30,hr:false,d:"Hems, zippers, patches."},
+  {id:"bake",n:"Baked goods & meals",uses:["cook"],r:"$15–40",u:"per order",lo:15,hi:40,hr:false,d:"Check your state's home-kitchen rules before selling food."}
+];
+const have = new Set(["tools","car","computer"]);
+let selSvc = "handy";
+$("s-chips").innerHTML = HAVE.map(h=>`<button class="chip" data-h="${h.id}" aria-pressed="${have.has(h.id)}">${h.l}</button>`).join("");
+$("s-chips").addEventListener("click", ev=>{
+  const b = ev.target.closest(".chip"); if(!b) return;
+  const id = b.dataset.h; have.has(id) ? have.delete(id) : have.add(id);
+  b.setAttribute("aria-pressed", have.has(id)); renderSvcs();
+});
+function matches(){ return SVCS.filter(s=>s.uses.some(u=>have.has(u))); }
+function renderSvcs(){
+  const m = matches();
+  if (m.length && !m.find(s=>s.id===selSvc)) selSvc = m[0].id;
+  $("s-list").innerHTML = m.length ? m.map(s=>`
+    <div class="svc ${s.id===selSvc?"sel":""}">
+      <h3>${s.n}</h3>
+      <div class="range">${s.r} <span class="muted" style="font-family:var(--f-body);font-size:.8rem;font-weight:400">${s.u}</span></div>
+      <p>${s.d}</p>
+      <button class="btn small ${s.id===selSvc?"primary":""}" data-svc="${s.id}">${s.id===selSvc?"Selected":"Use this one"}</button>
+    </div>`).join("")
+    : `<div class="empty">Pick a few things above and service ideas will show up here.</div>`;
+  const opts = (m.length ? m : SVCS);
+  $("s-svc").innerHTML = opts.map(s=>`<option value="${s.id}">${s.n}</option>`).join("");
+  $("s-svc").value = selSvc;
+  renderRate(); renderTpls();
+}
+$("s-list").addEventListener("click", ev=>{
+  const b = ev.target.closest("[data-svc]"); if(!b) return; selSvc = b.dataset.svc; renderSvcs();
+});
+$("s-svc").addEventListener("input", ()=>{ selSvc=$("s-svc").value; renderSvcs(); });
+["s-goal","s-hours","s-cost"].forEach(id=>$(id).addEventListener("input", renderRate));
+["s-name","s-area"].forEach(id=>$(id).addEventListener("input", renderTpls));
+
+function renderRate(){
+  const goal=+$("s-goal").value||0, hrs=Math.max(1,+$("s-hours").value||1), cost=+$("s-cost").value||0;
+  const rate = goal/(hrs*4.33) + cost;
+  $("s-rate").textContent = money(rate) + "/hr";
+  $("s-rate-note").textContent = `to make ${money(goal)} a month working ${hrs} hours a week`;
+  const s = SVCS.find(x=>x.id===selSvc), out = $("s-compare");
+  if (!s){ out.textContent=""; return; }
+  if (!s.hr){ out.innerHTML = `${esc(s.n)} is usually priced <b>${s.r} ${s.u}</b>. Time a few jobs. If one takes about ${Math.max(1,Math.round(((s.lo+s.hi)/2)/rate*10)/10)} hours or less, the middle of that range meets your goal.`; return; }
+  if (rate < s.lo) out.innerHTML = `Good news: ${esc(s.n.toLowerCase())} usually pays <b>${s.r} ${s.u}</b>, above what you need. Start at ${money(s.lo)} and raise it once you have reviews.`;
+  else if (rate <= s.hi) out.innerHTML = `${money(rate)} fits inside the usual range for ${esc(s.n.toLowerCase())} (<b>${s.r}</b>). That's a fair, confident price.`;
+  else out.innerHTML = `${money(rate)} is above the usual ${s.r} for ${esc(s.n.toLowerCase())}. Add a few more hours a week, or pair it with a second service.`;
+}
+function renderTpls(){
+  const s = SVCS.find(x=>x.id===selSvc) || SVCS[0];
+  const name = $("s-name").value.trim() || "[your name]", area = $("s-area").value.trim() || "the area";
+  const svc = s.n.toLowerCase();
+  $("s-t1").textContent =
+`Hi neighbors! I'm ${name}, and I'm offering ${svc} around ${area}.
+
+${s.d}
+Rates start at ${money(s.lo)} ${s.u}. I'll give you a price up front before any work starts.
+
+Message me here for a quote. Thanks for supporting a local neighbor!`;
+  $("s-t2").textContent =
+`Hi, thanks for reaching out! I'd be glad to help with this.
+
+Could you tell me a little more about the job (size, location, any photos)? Then I'll send you a price.
+
+For most jobs like this I charge ${s.r} ${s.u}. I'm available [days/times]. What works best for you?
+
+– ${name}`;
+  $("s-t3").textContent =
+`Thanks so much for having me out today! The total is ${money(Math.round((s.lo+s.hi)/2))}. You can pay by [cash / Venmo / Zelle].
+
+If you were happy with the work, a quick review or recommendation to a neighbor would mean a lot. I'm happy to come back anytime.
+
+– ${name}`;
+}
+
+/* ---------- dashboard & success log ---------- */
+const KEY = "clearout.items.v2";
+const PLAT_NAMES = ["Facebook Marketplace","Nextdoor","Craigslist","eBay","Poshmark","Reverb","Yard sale","Somewhere else"];
+const DAY = 864e5;
+const iso = d => new Date(d).toISOString().slice(0,10);
+const today = () => iso(Date.now());
+const ago = n => iso(Date.now() - n*DAY);
+const daysBetween = (a,b) => Math.max(0, Math.round((new Date(b) - new Date(a))/DAY));
+const prettyDate = s => new Date(s+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"});
+
+let items = null;
+try { const raw = localStorage.getItem(KEY); items = raw ? JSON.parse(raw) : null; } catch(e){ items = null; }
+if (!Array.isArray(items)) items = [
+  {id:1,name:"Pressure washer, 2000 PSI",list:150,floor:110,quick:125,status:"sold",sold:135,platform:"Facebook Marketplace",listedAt:ago(30),soldAt:ago(24),attempts:[],ex:true},
+  {id:2,name:"Kids bike, 20 inch",list:45,floor:30,quick:35,status:"sold",sold:40,platform:"Nextdoor",listedAt:ago(18),soldAt:ago(15),attempts:[],ex:true},
+  {id:3,name:"Box of LEGO, mixed sets",list:60,floor:45,quick:50,status:"sold",sold:60,platform:"eBay",listedAt:ago(12),soldAt:ago(9),attempts:[],ex:true},
+  {id:4,name:"Wooden dresser, 6 drawers",list:120,floor:85,quick:100,status:"listed",sold:0,platform:"Facebook Marketplace",listedAt:ago(9),attempts:[],alts:["Facebook Marketplace","Nextdoor","Craigslist"],ex:true},
+  {id:5,name:"Box of DVDs (40)",list:20,floor:10,quick:15,status:"todo",sold:0,platform:"",attempts:[],alts:["Yard sale","Facebook Marketplace","Nextdoor"],ex:true}
+];
+function save(){ saveLight('saving'); const ok=storeOK(KEY, JSON.stringify(items)); setTimeout(()=>saveLight(ok?'saved':'error'),350); }
+
+/* check-in state */
+let cId = null, cState = "ask", winInfo = null, whyKey = null, skipped = new Set();
+function queue(){
+  const listed = items.filter(i=>i.status==="listed").sort((a,b)=>(a.listedAt||"").localeCompare(b.listedAt||""));
+  const todo = items.filter(i=>i.status==="todo");
+  return [...listed, ...todo];
+}
+function nextItem(){
+  const q = queue(); let pick = q.find(i=>!skipped.has(i.id));
+  if (!pick && q.length){ skipped.clear(); pick = q[0]; }
+  cId = pick ? pick.id : null; cState = "ask"; whyKey = null;
+}
+const REASONS = {
+  nolook:{t:"Hardly anyone looked", d:"Few views or saves",
+    tips:["Retake photos in daylight: front, back, and close-ups.","Put the brand and model in the title. That's what people search.","Repost in the evening or on a weekend, when most people browse."],
+    acts:["relist","move"]},
+  nomsg:{t:"People looked, nobody messaged", d:"Views but no questions",
+    tips:["That usually means the price feels high for what buyers see.","A small drop often brings messages within a day or two.","Mention what's included and why it's a good deal compared to new."],
+    acts:["lower10","quick"]},
+  lowball:{t:"Only lowball offers", d:"Lots of offers, all too low",
+    tips:["That's normal. Lowballers show up first. Give it another week.","If three or more people offer about the same number, that may be the real market price.","Add “price is firm” to your listing to cut down on haggling."],
+    acts:["wait","quick"]},
+  noshow:{t:"Buyers didn't show up", d:"Flaky or no-show buyers",
+    tips:["Confirm the morning of pickup and ask them to text when they leave.","Say “first person here with cash gets it” instead of holding it.","Keep the listing up until the item is gone."],
+    acts:["relist","wait"]},
+  crowd:{t:"Wrong kind of buyers", d:"Resellers, scammers, odd requests",
+    tips:["A different site can bring different buyers.","Neighbors on Nextdoor tend to be more trustworthy for home items.","Small, brand-name things often do better shipped on eBay."],
+    acts:["move","wait"]},
+  season:{t:"Wrong time of year", d:"Out of season",
+    tips:["Seasonal things sell best just before their season starts.","Store it and set a reminder to relist then.","You could also bundle it with something in season."],
+    acts:["wait","relist"]}
+};
+function altPlatform(it){
+  const order = [...(it.alts||[]), "Facebook Marketplace","Nextdoor","Craigslist","eBay"];
+  return order.find(p=>p && p!==it.platform) || "Nextdoor";
+}
+function actLabel(a, it){
+  if (a==="lower10") return `Lower to ${money(friendly(it.list*.9))}`;
+  if (a==="quick") return `Drop to quick-sale price, ${money(Math.min(it.quick||friendly(it.list*.85), friendly(it.list*.9)))}`;
+  if (a==="move") return `Try ${altPlatform(it)} instead`;
+  if (a==="relist") return "Relist it fresh today";
+  if (a==="wait") return "Keep it up and check back next week";
+}
+function doAct(a, it){
+  let msg;
+  if (a==="lower10"){ it.list = friendly(it.list*.9); msg = `Price lowered to ${money(it.list)}`; }
+  if (a==="quick"){ it.list = Math.min(it.quick||friendly(it.list*.85), friendly(it.list*.9)); msg = `Price set to ${money(it.list)}`; }
+  if (a==="move"){ it.platform = altPlatform(it); it.listedAt = today(); msg = `Moved to ${it.platform}`; }
+  if (a==="relist"){ it.listedAt = today(); msg = "Relisted. Fresh listings show up higher"; }
+  if (a==="wait"){ msg = "Okay, we'll ask again later"; skipped.add(it.id); }
+  if (it.floor > it.list) it.floor = friendly(it.list*.85);
+  it.attempts = it.attempts || [];
+  it.attempts.push({date:today(), reason:REASONS[whyKey].t, action:actLabel(a,it)});
+  save(); toast(msg); nextItem(); renderItems();
+}
+
+function platOptions(sel){ return PLAT_NAMES.map(p=>`<option${p===sel?" selected":""}>${p}</option>`).join(""); }
+
+function renderCheckin(){
+  const box = $("c-box");
+  if (cState === "win" && winInfo){
+    const w = winInfo;
+    const pctTxt = w.pct >= 100 ? "Full asking price. You held your ground." : `You got ${w.pct}% of your asking price.`;
+    box.innerHTML = `
+      <div class="win" id="c-win">
+        <svg class="bell" viewBox="0 0 72 72" aria-hidden="true">
+          <rect x="33" y="3" width="6" height="8" rx="3" fill="var(--warn)"/>
+          <path d="M36 9c-12 0-19 9-19 21v12l-6 9h50l-6-9V30C55 18 48 9 36 9z" fill="var(--tag)" stroke="var(--warn)" stroke-width="2"/>
+          <circle cx="36" cy="58" r="6" fill="var(--warn)"/>
+        </svg>
+        <div class="gj">Good job!</div>
+        <div class="amt">${money(w.sold)} for your ${esc(w.name.toLowerCase())}</div>
+        <p class="muted">${pctTxt} Sold in ${w.days} day${w.days==1?"":"s"} on ${esc(w.platform)}.</p>
+        <p>Total made so far: <b class="num">${money(w.total)}</b></p>
+        <div class="btns"><button class="btn primary" id="c-next">Next item</button></div>
+      </div>`;
+    requestAnimationFrame(()=>$("c-win") && $("c-win").classList.add("go"));
+    return;
+  }
+  const it = items.find(i=>i.id===cId);
+  if (!it){
+    box.innerHTML = `<h3>Check-in</h3><div class="empty">Nothing waiting on you right now. Price something new and it'll show up here.</div>
+      <button class="btn primary" data-go="t-price" style="align-self:flex-start">Price an item</button>`;
+    return;
+  }
+  const left = queue().length;
+  const head = `<div class="tpl-head"><h3>Check-in</h3><span class="muted">${left} item${left==1?"":"s"} to go</span></div>`;
+  if (it.status === "todo"){
+    if (cState === "list"){
+      box.innerHTML = head + `<div class="q">Where did you list it?</div>
+        <label class="f">Site<select id="c-plat">${platOptions((it.alts&&it.alts[0])||"Facebook Marketplace")}</select></label>
+        <div class="btns"><button class="btn primary" id="c-listed">Save</button><button class="btn" id="c-back">Back</button></div>`;
+      return;
+    }
+    box.innerHTML = head + `<div class="q">Have you listed your ${esc(it.name.toLowerCase())} yet?</div>
+      <p class="sub">Priced at ${money(it.list)}${it.alts?`. Best fit: ${esc(it.alts[0])}`:""}.</p>
+      <div class="yn"><button class="btn yes" id="c-yes-list">Yes, it's up</button><button class="btn no" id="c-skip">Not yet</button></div>`;
+    return;
+  }
+  const days = it.listedAt ? daysBetween(it.listedAt, today()) : 0;
+  const tried = (it.attempts||[]).length ? `<p class="attempts">Tried so far: ${it.attempts.map(a=>esc(a.action.toLowerCase())).join(", ")}.</p>` : "";
+  if (cState === "amount"){
+    box.innerHTML = head + `<div class="q">Nice! How much did you get?</div>
+      <div class="fields">
+        <label class="f">Sold for<div class="money"><span>$</span><input id="c-amt" type="number" min="0" value="${it.list}"></div></label>
+        <label class="f">Where<select id="c-where">${platOptions(it.platform)}</select></label>
+      </div>
+      <div class="btns"><button class="btn yes" id="c-record">Record my sale</button><button class="btn" id="c-back">Back</button></div>`;
+    $("c-amt").focus(); $("c-amt").select();
+    return;
+  }
+  if (cState === "why"){
+    box.innerHTML = head + `<div class="q">No worries. What happened?</div>
+      <p class="sub">Most items don't sell on the first try. Let's figure out the fix.</p>
+      <div class="reasons">${Object.entries(REASONS).map(([k,r])=>`<button class="btn" data-why="${k}"><b>${r.t}</b><span class="muted">${r.d}</span></button>`).join("")}</div>
+      <button class="btn small" id="c-back" style="align-self:flex-start">Back</button>`;
+    return;
+  }
+  if (cState === "advice"){
+    const r = REASONS[whyKey];
+    box.innerHTML = head + `<div class="q">${r.t}</div>
+      <div class="advice"><ul>${r.tips.map(t=>`<li>${t}</li>`).join("")}</ul></div>
+      <b>What do you want to do?</b>
+      <div class="btns">${r.acts.map((a,i)=>`<button class="btn ${i===0?"primary":""}" data-act="${a}">${actLabel(a,it)}</button>`).join("")}</div>
+      <button class="btn small" id="c-back" style="align-self:flex-start">Pick a different reason</button>`;
+    return;
+  }
+  box.innerHTML = head + `<div class="q">Did your ${esc(it.name.toLowerCase())} sell?</div>
+    <p class="sub">Listed on ${esc(it.platform||"a site")} ${days===0?"today":days+" day"+(days==1?"":"s")+" ago"} at ${money(it.list)}.</p>
+    ${tried}
+    <div class="yn"><button class="btn yes" id="c-yes">Yes!</button><button class="btn no" id="c-no">Not yet</button></div>
+    <button class="btn small" id="c-skip" style="align-self:flex-start">Ask me later</button>`;
+}
+$("c-box").addEventListener("click", ev=>{
+  const t = ev.target.closest("button"); if(!t) return;
+  const it = items.find(i=>i.id===cId);
+  if (t.id==="c-next"){ winInfo=null; nextItem(); renderCheckin(); return; }
+  if (!it) return;
+  if (t.id==="c-skip"){ skipped.add(it.id); nextItem(); renderCheckin(); return; }
+  if (t.id==="c-yes-list"){ cState="list"; }
+  else if (t.id==="c-listed"){ it.status="listed"; it.platform=$("c-plat").value; it.listedAt=today(); save(); toast("Marked as listed. Good luck!"); nextItem(); renderItems(); return; }
+  else if (t.id==="c-yes"){ cState="amount"; }
+  else if (t.id==="c-no"){ cState="why"; }
+  else if (t.id==="c-back"){ cState = cState==="advice" ? "why" : cState==="list" ? "ask" : "ask"; }
+  else if (t.dataset.why){ whyKey=t.dataset.why; cState="advice"; }
+  else if (t.dataset.act){ doAct(t.dataset.act, it); return; }
+  else if (t.id==="c-record"){
+    const amt = +$("c-amt").value || 0;
+    it.status="sold"; it.sold=amt; it.platform=$("c-where").value; it.soldAt=today();
+    if(!it.listedAt) it.listedAt=today();
+    save();
+    const total = items.filter(i=>i.status==="sold").reduce((a,i)=>a+(+i.sold||0),0);
+    winInfo = {name:it.name, sold:amt, pct:Math.round(amt/it.list*100), days:daysBetween(it.listedAt,it.soldAt), platform:it.platform, total};
+    cState="win"; bell(); confetti(); renderItems(); return;
+  }
+  renderCheckin();
+});
+
+function bell(){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+    const ctx = new AC(), now = ctx.currentTime;
+    [[1046.5,0],[1318.5,.14],[1568,.28],[2093,.42]].forEach(([f,t])=>{
+      [[f,.3],[f*2.76,.07]].forEach(([fq,vol])=>{
+        const o=ctx.createOscillator(), g=ctx.createGain();
+        o.type="sine"; o.frequency.value=fq;
+        g.gain.setValueAtTime(.0001,now+t);
+        g.gain.exponentialRampToValueAtTime(vol,now+t+.01);
+        g.gain.exponentialRampToValueAtTime(.0001,now+t+1.8);
+        o.connect(g); g.connect(ctx.destination); o.start(now+t); o.stop(now+t+1.9);
+      });
+    });
+    setTimeout(()=>ctx.close&&ctx.close(), 2600);
+  }catch(e){}
+}
+function confetti(){
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const cv = document.createElement("canvas"); cv.className="confetti"; document.body.appendChild(cv);
+  const dpr = window.devicePixelRatio||1; cv.width=innerWidth*dpr; cv.height=innerHeight*dpr;
+  const c = cv.getContext("2d"); c.scale(dpr,dpr);
+  const cs = getComputedStyle(document.documentElement);
+  const cols = ["--tag","--good","--green","--warn"].map(k=>cs.getPropertyValue(k).trim()||"#f6c744");
+  const P = Array.from({length:140},()=>({x:innerWidth/2+(Math.random()-.5)*120,y:innerHeight*.35,vx:(Math.random()-.5)*12,vy:-Math.random()*12-4,r:Math.random()*Math.PI,vr:(Math.random()-.5)*.3,w:6+Math.random()*6,h:4+Math.random()*4,col:cols[Math.floor(Math.random()*cols.length)]}));
+  const start = performance.now();
+  (function frame(t){
+    const el = t-start; c.clearRect(0,0,innerWidth,innerHeight);
+    P.forEach(p=>{ p.vy+=.35; p.vx*=.99; p.x+=p.vx; p.y+=p.vy; p.r+=p.vr;
+      c.save(); c.globalAlpha=Math.max(0,1-el/2200); c.translate(p.x,p.y); c.rotate(p.r); c.fillStyle=p.col; c.fillRect(-p.w/2,-p.h/2,p.w,p.h); c.restore(); });
+    el<2200 ? requestAnimationFrame(frame) : cv.remove();
+  })(start);
+}
+
+function renderItems(){
+  const sold = items.filter(i=>i.status==="sold"), left = items.filter(i=>i.status!=="sold");
+  const made = sold.reduce((a,i)=>a+(+i.sold||0),0);
+  $("m-made").textContent = money(made);
+  $("m-sold").textContent = sold.length;
+  $("m-pot").textContent = money(left.reduce((a,i)=>a+(+i.list||0),0));
+  $("m-pct").textContent = sold.length ? Math.round(sold.reduce((a,i)=>a+(i.sold/i.list),0)/sold.length*100)+"% of asking" : "–";
+
+  // wins
+  const wins = [...sold].sort((a,b)=>(b.soldAt||"").localeCompare(a.soldAt||""));
+  $("m-wincount").textContent = wins.length ? `${wins.length} sale${wins.length==1?"":"s"}` : "";
+  $("m-wins").innerHTML = wins.length ? `<div class="tablebox"><table>
+    <thead><tr><th>Date</th><th>Item</th><th class="r">Sold for</th><th class="r">Of asking</th><th>Where</th><th class="r">Days to sell</th></tr></thead>
+    <tbody>${wins.map(i=>`<tr><td>${i.soldAt?prettyDate(i.soldAt):"–"}</td><td>${esc(i.name)}${i.ex?'<span class="ex">Example</span>':""}</td>
+      <td class="r num">${money(i.sold)}</td><td class="r num">${Math.round(i.sold/i.list*100)}%</td>
+      <td>${esc(i.platform||"–")}</td><td class="r num">${i.listedAt&&i.soldAt?daysBetween(i.listedAt,i.soldAt):"–"}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="empty">Your first sale will show up here. Every win gets recorded.</div>`;
+
+  // platforms
+  const by = {};
+  sold.forEach(i=>{ const p=i.platform||"Somewhere else"; by[p]=by[p]||{m:0,n:0,d:0}; by[p].m+=+i.sold||0; by[p].n++; by[p].d+= (i.listedAt&&i.soldAt)?daysBetween(i.listedAt,i.soldAt):0; });
+  const rows = Object.entries(by).sort((a,b)=>b[1].m-a[1].m), max = rows.length ? rows[0][1].m : 1;
+  $("m-plat").innerHTML = rows.length ? `<div class="bars">${rows.map(([p,v])=>`
+    <div class="bar-row"><span>${esc(p)}</span><div class="bar-track"><i style="width:${Math.max(4,v.m/max*100)}%"></i></div><b class="num">${money(v.m)}</b></div>
+    <div class="attempts" style="margin-top:-8px">${v.n} sale${v.n==1?"":"s"}, about ${Math.round(v.d/v.n)} day${Math.round(v.d/v.n)==1?"":"s"} each</div>`).join("")}</div>
+    <p class="why" style="margin-top:12px">${esc(rows[0][0])} has made you the most so far. List your next items there first.</p>`
+    : `<div class="empty">Once you sell a few things, you'll see which site works best for you.</div>`;
+
+  // all items
+  if (!items.length){
+    $("m-wrap").innerHTML = `<div class="empty">No items yet. Price something in step 1 and tap <b>Save to dashboard</b>.</div>`;
+  } else {
+    const order = {listed:0,todo:1,sold:2};
+    const all = [...items].sort((a,b)=>order[a.status]-order[b.status]);
+    $("m-wrap").innerHTML = `<div class="tablebox"><table>
+      <thead><tr><th>Item</th><th>Status</th><th class="r">Price</th><th>Where</th><th class="r">Sold for</th><th></th></tr></thead>
+      <tbody>${all.map(i=>`<tr data-id="${i.id}">
+        <td>${esc(i.name)}${i.ex?'<span class="ex">Example</span>':""}${(i.attempts||[]).length?`<div class="attempts">${i.attempts.length} fix${i.attempts.length==1?"":"es"} tried</div>`:""}</td>
+        <td><select id="st-${i.id}" data-f="status" aria-label="Status for ${esc(i.name)}">
+          <option value="todo"${i.status==="todo"?" selected":""}>To list</option>
+          <option value="listed"${i.status==="listed"?" selected":""}>Listed</option>
+          <option value="sold"${i.status==="sold"?" selected":""}>Sold</option></select></td>
+        <td class="r num">${money(i.list)}</td>
+        <td><select id="pl-${i.id}" data-f="platform" aria-label="Where ${esc(i.name)} is listed"><option value="">–</option>${platOptions(i.platform)}</select></td>
+        <td class="r"><input id="sd-${i.id}" data-f="sold" type="number" min="0" value="${i.sold||""}" placeholder="$" aria-label="Sold price for ${esc(i.name)}"></td>
+        <td class="r"><button class="btn small" data-del="${i.id}">Remove</button></td>
+      </tr>`).join("")}</tbody></table></div>`;
+  }
+  $("m-btns").innerHTML = items.some(i=>i.ex) ? `<button class="btn small" id="m-clear">Remove examples</button>` : "";
+  if (cId !== null && !items.find(i=>i.id===cId && i.status!=="sold") && cState!=="win") nextItem();
+  if (cId === null && cState!=="win") nextItem();
+  renderCheckin();
+}
+$("m-wrap").addEventListener("change", ev=>{
+  const tr = ev.target.closest("tr"); if(!tr) return;
+  const it = items.find(i=>i.id==tr.dataset.id); const f = ev.target.dataset.f;
+  if (f==="status"){
+    it.status = ev.target.value;
+    if (it.status==="listed" && !it.listedAt) it.listedAt = today();
+    if (it.status==="sold"){ if(!it.sold) it.sold = it.list; it.soldAt = it.soldAt || today(); if(!it.listedAt) it.listedAt = today(); }
+  }
+  if (f==="platform"){ it.platform = ev.target.value; if(it.status==="todo" && it.platform){ it.status="listed"; it.listedAt=today(); } }
+  if (f==="sold"){ it.sold = +ev.target.value||0; if(it.sold){ it.status="sold"; it.soldAt = it.soldAt || today(); if(!it.listedAt) it.listedAt=today(); } }
+  save(); renderItems();
+});
+$("m-wrap").addEventListener("click", ev=>{
+  const b = ev.target.closest("[data-del]"); if(!b) return;
+  items = items.filter(i=>i.id!=b.dataset.del); save(); renderItems();
+});
+$("m-btns").addEventListener("click", ev=>{
+  if (ev.target.id==="m-clear"){ items = items.filter(i=>!i.ex); save(); winInfo=null; cState="ask"; nextItem(); renderItems(); }
+});
+$("b-save").addEventListener("click", ()=>{
+  if(!current) return;
+  items.unshift({id:Date.now(), name:current.it.name, list:current.e.list, floor:current.e.floor, quick:current.e.quick, status:"todo", sold:0, platform:"", alts:current.ranked||[], attempts:[]});
+  save(); renderItems(); toast("Saved. It's on your dashboard");
+});
+
+/* ---------- tabs, copy, toast ---------- */
+const tabs = [...document.querySelectorAll(".tab")];
+function show(tabId){
+  tabs.forEach(t=>{ const on = t.id===tabId; t.setAttribute("aria-selected", on); $(t.getAttribute("aria-controls")).hidden = !on; });
+  try{ localStorage.setItem("clearout.tab", tabId); }catch(e){}
+  window.scrollTo({top:0});
+}
+tabs.forEach(t=>t.addEventListener("click", ()=>show(t.id)));
+document.addEventListener("click", ev=>{
+  const g = ev.target.closest("[data-go]"); if(g) show(g.dataset.go);
+  const c = ev.target.closest("[data-copy]"); if(c) copy($(c.dataset.copy));
+});
+function copy(el){
+  const text = el.textContent;
+  const fallback = ()=>{ const r=document.createRange(); r.selectNodeContents(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected. Press copy on your device"); };
+  try{ navigator.clipboard.writeText(text).then(()=>toast("Copied"), fallback); }catch(e){ fallback(); }
+}
+let tt;
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("show"),1800); }
+
+renderPrice(); renderRead(); renderSvcs(); renderItems();
+try{ const last = localStorage.getItem("clearout.tab"); if(last && $(last)) show(last); }catch(e){}
+})();
+</script>
+
+</body></html>

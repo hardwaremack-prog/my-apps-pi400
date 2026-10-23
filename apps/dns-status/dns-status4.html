@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>World Internet Health</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #090c10;
+    --bg-panel: #10151b;
+    --bg-tile: #131a21;
+    --bg-tile-hover: #161e26;
+    --border: #202932;
+    --border-soft: #1a222a;
+    --text-primary: #e7edf2;
+    --text-muted: #64717e;
+    --text-dim: #3d4650;
+    --cyan: #4fd8c4;
+    --cyan-dim: rgba(79,216,196,0.12);
+    --amber: #e8a23d;
+    --amber-dim: rgba(232,162,61,0.12);
+    --red: #e8546b;
+    --red-dim: rgba(232,84,107,0.12);
+    --grid-line: rgba(79,216,196,0.045);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100%;
+  }
+
+  body {
+    background-image:
+      repeating-linear-gradient(0deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 64px),
+      repeating-linear-gradient(90deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 64px);
+    padding: 28px 20px 60px;
+  }
+
+  .wrap { max-width: 1260px; margin: 0 auto; }
+
+  /* ---------- Header ---------- */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .eyebrow .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 0 0 rgba(79,216,196,0.6);
+    animation: livepulse 2s infinite;
+  }
+
+  @keyframes livepulse {
+    0% { box-shadow: 0 0 0 0 rgba(79,216,196,0.55); }
+    70% { box-shadow: 0 0 0 7px rgba(79,216,196,0); }
+    100% { box-shadow: 0 0 0 0 rgba(79,216,196,0); }
+  }
+
+  h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .subline {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    max-width: 580px;
+    line-height: 1.5;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+
+  .clock-block { text-align: right; }
+  .clock {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+  .clock-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  button.refresh-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    background: var(--bg-tile);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  button.refresh-btn:hover { border-color: var(--cyan); background: var(--bg-tile-hover); }
+  button.refresh-btn:active { transform: translateY(1px); }
+  button.refresh-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .refresh-icon {
+    width: 12px; height: 12px;
+    border: 2px solid var(--cyan);
+    border-top-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .refresh-icon.spinning { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Ticker ---------- */
+  .ticker {
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    height: 34px;
+  }
+  .ticker-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--cyan);
+    padding: 0 12px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .ticker-viewport {
+    overflow: hidden;
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    mask-image: linear-gradient(90deg, transparent, black 24px, black calc(100% - 24px), transparent);
+  }
+  .ticker-track {
+    display: flex;
+    white-space: nowrap;
+    animation: tickerScroll 32s linear infinite;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .ticker-track span.item { padding: 0 22px; position: relative; }
+  .ticker-track span.item::after {
+    content: '•';
+    position: absolute;
+    right: 0;
+    color: var(--text-dim);
+  }
+  @keyframes tickerScroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* ---------- Health hero ---------- */
+  .hero {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 0;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 18px;
+  }
+  .hero-score {
+    padding: 20px 24px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .hero-score .label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .score-row { display: flex; align-items: flex-end; gap: 10px; }
+  .hero-score .value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 46px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .trend-arrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+  .hero-score .status-word {
+    margin-top: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .hero-score .value.ok, .hero-score .status-word.ok, .trend-arrow.ok { color: var(--cyan); }
+  .hero-score .value.degraded, .hero-score .status-word.degraded, .trend-arrow.degraded { color: var(--amber); }
+  .hero-score .value.down, .hero-score .status-word.down, .trend-arrow.down { color: var(--red); }
+  .hero-score .value.pending, .hero-score .status-word.pending { color: var(--text-dim); }
+
+  .score-history {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 20px;
+    margin-top: 12px;
+  }
+  .score-bar { flex: 1; min-width: 3px; border-radius: 1px 1px 0 0; background: var(--text-dim); }
+  .score-bar.ok { background: var(--cyan); opacity: .8; }
+  .score-bar.degraded { background: var(--amber); opacity: .8; }
+  .score-bar.down { background: var(--red); opacity: .8; }
+
+  .hero-wave {
+    position: relative;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+  .wave-track {
+    display: flex;
+    width: 200%;
+    animation: waveScroll 6s linear infinite;
+  }
+  @keyframes waveScroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .hero-wave-caption {
+    position: absolute;
+    bottom: 10px;
+    left: 24px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* ---------- Summary strip ---------- */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  .summary-cell {
+    background: var(--bg-panel);
+    padding: 16px 18px;
+  }
+  .summary-cell .label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .summary-cell .value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 23px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary-cell .value.cyan { color: var(--cyan); }
+  .summary-cell .value.amber { color: var(--amber); }
+  .summary-cell .value.red { color: var(--red); }
+  .summary-cell .sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  /* ---------- Section headers ---------- */
+  .section { margin-bottom: 34px; }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .section-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .idx { color: var(--text-dim); font-weight: 400; }
+  .section-sub { font-size: 11px; color: var(--text-dim); }
+
+  /* ---------- Tile grid ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+
+  .tile {
+    background: var(--bg-tile);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 16px 16px 14px;
+    position: relative;
+    transition: border-color .2s, transform .2s;
+    overflow: hidden;
+  }
+  .tile::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--text-dim);
+    transition: background .3s;
+  }
+  .tile.ok::before { background: var(--cyan); }
+  .tile.degraded::before { background: var(--amber); }
+  .tile.down::before { background: var(--red); }
+  .tile.pending::before { background: var(--text-dim); }
+  .tile.neutral::before { background: var(--border); }
+
+  .tile-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .tile-name { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .tile-loc { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .tile-ip { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  .status-pill {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .status-pill.ok { background: var(--cyan-dim); color: var(--cyan); }
+  .status-pill.ok .dot { background: var(--cyan); }
+  .status-pill.degraded { background: var(--amber-dim); color: var(--amber); }
+  .status-pill.degraded .dot { background: var(--amber); }
+  .status-pill.down { background: var(--red-dim); color: var(--red); }
+  .status-pill.down .dot { background: var(--red); }
+  .status-pill.pending { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+  .status-pill.pending .dot { background: var(--text-dim); animation: livepulse 1.2s infinite; }
+  .status-pill.neutral { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+  .status-pill.neutral .dot { background: var(--text-dim); }
+
+  .latency-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 12px; }
+  .latency-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 30px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .latency-value.ok { color: var(--cyan); }
+  .latency-value.degraded { color: var(--amber); }
+  .latency-value.down { color: var(--red); }
+  .latency-value.pending { color: var(--text-dim); }
+  .latency-unit { font-size: 12px; color: var(--text-muted); }
+
+  .sparkline { display: flex; align-items: flex-end; gap: 2px; height: 28px; margin-bottom: 10px; }
+  .spark-bar { flex: 1; min-width: 3px; border-radius: 1px 1px 0 0; background: var(--text-dim); transition: height .3s ease, background .3s; }
+  .spark-bar.ok { background: var(--cyan); opacity: 0.85; }
+  .spark-bar.degraded { background: var(--amber); opacity: 0.85; }
+  .spark-bar.down { background: var(--red); opacity: 0.85; }
+
+  .tile-footer {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    border-top: 1px solid var(--border-soft);
+    padding-top: 9px;
+  }
+
+  .infra-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px; min-height: 32px; }
+  .infra-incidents { font-family: 'IBM Plex Mono', monospace; font-size: 11px; margin-bottom: 10px; }
+  .infra-incidents.has-incidents { color: var(--amber); }
+  .infra-incidents.none { color: var(--text-dim); }
+
+  /* ---------- World clock tiles ---------- */
+  .clock-tile-time {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 10px;
+  }
+  .peak-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .peak-badge.peak { background: var(--cyan-dim); color: var(--cyan); }
+  .peak-badge.quiet { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+
+  /* ---------- Bottom panels: log + facts ---------- */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 14px;
+  }
+  .panel {
+    background: var(--bg-tile);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .panel-head {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .log-list {
+    height: 260px;
+    overflow-y: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.9;
+  }
+  .log-list::-webkit-scrollbar { width: 6px; }
+  .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .log-line { display: flex; gap: 10px; }
+  .log-time { color: var(--text-dim); flex-shrink: 0; }
+  .log-text.ok { color: var(--cyan); }
+  .log-text.warn { color: var(--amber); }
+  .log-text.error { color: var(--red); }
+  .log-text.info { color: var(--text-muted); }
+
+  .fact-box {
+    height: 260px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .fact-text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    transition: opacity .4s ease;
+  }
+  .fact-index {
+    margin-top: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  footer.note {
+    margin-top: 30px;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.65;
+    max-width: 820px;
+  }
+  footer.note b { color: var(--text-muted); }
+  footer.note p { margin: 0 0 10px; }
+
+  @media (max-width: 900px) {
+    .bottom-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    .hero { grid-template-columns: 1fr; }
+    .hero-score { border-right: none; border-bottom: 1px solid var(--border); }
+    .header { align-items: flex-start; }
+    .header-right { width: 100%; justify-content: space-between; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <p class="eyebrow"><span class="live-dot"></span>Live Sweep</p>
+      <h1>World Internet Health</h1>
+      <p class="subline">Real-time signal across four layers: core infrastructure, worldwide DNS resolvers, regional edge reachability, and global traffic-hour context — measured live from your connection.</p>
+    </div>
+    <div class="header-right">
+      <div class="clock-block">
+        <div class="clock" id="clock">--:--:--</div>
+        <div class="clock-label" id="clock-date">-- --- ----</div>
+      </div>
+      <button class="refresh-btn" id="refreshBtn" onclick="runAllChecks()">
+        <span class="refresh-icon" id="refreshIcon"></span>
+        <span id="refreshLabel">Run full sweep</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="ticker">
+    <div class="ticker-label">Now</div>
+    <div class="ticker-viewport">
+      <div class="ticker-track" id="tickerTrack">
+        <span class="item">Calibrating sensors…</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-score">
+      <div class="label">Internet Health Index</div>
+      <div class="score-row">
+        <div class="value pending" id="healthScore">–</div>
+        <div class="trend-arrow" id="healthTrend"></div>
+      </div>
+      <div class="status-word pending" id="healthWord">Calibrating</div>
+      <div class="score-history" id="scoreHistory"></div>
+    </div>
+    <div class="hero-wave">
+      <div class="wave-track" id="waveTrack"></div>
+      <div class="hero-wave-caption">aggregate signal · next sweep in <span id="sumNext">15s</span> · sweep #<span id="sweepCount">0</span></div>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="summary-cell">
+      <div class="label">Infrastructure OK</div>
+      <div class="value cyan" id="sumInfra">–</div>
+      <div class="sub" id="sumInfraSub">of providers watched</div>
+    </div>
+    <div class="summary-cell">
+      <div class="label">DNS Resolvers OK</div>
+      <div class="value cyan" id="sumDns">–</div>
+      <div class="sub" id="sumDnsSub">of resolvers watched</div>
+    </div>
+    <div class="summary-cell">
+      <div class="label">Regions Reachable</div>
+      <div class="value cyan" id="sumRegion">–</div>
+      <div class="sub" id="sumRegionSub">of regions watched</div>
+    </div>
+    <div class="summary-cell">
+      <div class="label">Active Incidents</div>
+      <div class="value cyan" id="sumIncidents">–</div>
+      <div class="sub">across infrastructure</div>
+    </div>
+    <div class="summary-cell">
+      <div class="label">Avg Latency</div>
+      <div class="value" id="sumAvg">–</div>
+      <div class="sub">DNS + regional, combined</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title"><span class="idx">01 /</span> Core Infrastructure</div>
+      <div class="section-sub">Live status from each provider's own public status API</div>
+    </div>
+    <div class="grid" id="gridInfra"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title"><span class="idx">02 /</span> DNS Resolvers Worldwide</div>
+      <div class="section-sub">Live DNS-over-HTTPS round-trip latency</div>
+    </div>
+    <div class="grid" id="gridDns"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title"><span class="idx">03 /</span> Regional Edge Reachability</div>
+      <div class="section-sub">Timed from your connection to major regional endpoints</div>
+    </div>
+    <div class="grid" id="gridRegion"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title"><span class="idx">04 /</span> Global Traffic-Hour Context</div>
+      <div class="section-sub">Local time and typical peak-usage window per region</div>
+    </div>
+    <div class="grid" id="gridClocks"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title"><span class="idx">05 /</span> Live Feed &amp; Notes</div>
+      <div class="section-sub">Running check log and background on how the internet's plumbing works</div>
+    </div>
+    <div class="bottom-row">
+      <div class="panel">
+        <div class="panel-head"><span>Live Activity Log</span><span id="logCount">0 events</span></div>
+        <div class="log-list" id="logList"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span>Did You Know</span><span>reference</span></div>
+        <div class="fact-box">
+          <div class="fact-text" id="factText"></div>
+          <div class="fact-index" id="factIndex"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="note">
+    <p><b>What this measures:</b> "Core Infrastructure" polls the public status APIs that Cloudflare, GitHub, Google Cloud and other providers publish about their own systems — real incident data, not a simulation. "DNS Resolvers" and "Regional Edge Reachability" time live requests sent directly from your browser, so they describe internet health <i>as experienced from your current connection</i>, not a globally distributed probe network. "Global Traffic-Hour Context" is computed from real local time in each region using a simple 7am–11pm heuristic for "peak," meant as context, not a traffic measurement.</p>
+    <p><b>Limits:</b> browsers can't send raw ICMP pings or run probes from other continents, so a "down" regional tile can mean the endpoint is actually down, or that something on your local path (firewall, ISP routing, CORS policy) is blocking the request — both are real signals, just different ones. The "Did You Know" panel is static reference trivia about internet infrastructure, not a live measurement. Auto-sweeps every 15s.</p>
+  </footer>
+
+</div>
+
+<script>
+/* ============================== DATA SOURCES ============================== */
+
+const DNS_RESOLVERS = [
+  { id: 'google', name: 'Google Public DNS', flag: '🇺🇸', location: 'Mountain View, US', ip: '8.8.8.8',
+    check: () => timedFetch(`https://dns.google/resolve?name=example.com&type=A&_=${Date.now()}`) },
+  { id: 'cloudflare', name: 'Cloudflare', flag: '🌐', location: 'Global anycast', ip: '1.1.1.1',
+    check: () => timedFetch(`https://cloudflare-dns.com/dns-query?name=example.com&type=A&_=${Date.now()}`, { headers: { 'Accept': 'application/dns-json' } }) },
+  { id: 'quad9', name: 'Quad9', flag: '🇨🇭', location: 'Zurich, CH', ip: '9.9.9.9',
+    check: () => timedFetch(`https://dns.quad9.net:5053/dns-query?name=example.com&type=A&ct=application/dns-json&_=${Date.now()}`) },
+  { id: 'adguard', name: 'AdGuard DNS', flag: '🇨🇾', location: 'Limassol, CY', ip: '94.140.14.14',
+    check: () => timedFetch(`https://dns.adguard-dns.com/resolve?name=example.com&type=A&_=${Date.now()}`) },
+  { id: 'cleanbrowsing', name: 'CleanBrowsing', flag: '🇺🇸', location: 'Los Angeles, US', ip: '185.228.168.9',
+    check: () => timedFetch(`https://doh.cleanbrowsing.org/doh/family-filter/?name=example.com&type=A&ct=application/dns-json&_=${Date.now()}`) },
+  { id: 'dnssb', name: 'DNS.SB', flag: '🇩🇪', location: 'Frankfurt, DE', ip: '185.222.222.222',
+    check: () => timedFetch(`https://doh.dns.sb/dns-query?name=example.com&type=A&ct=application/dns-json&_=${Date.now()}`) },
+  { id: 'opendns', name: 'OpenDNS', flag: '🇺🇸', location: 'San Francisco, US', ip: '208.67.222.222',
+    check: () => timedFetch(`https://doh.opendns.com/dns-query?name=example.com&type=A&_=${Date.now()}`, { headers: { 'Accept': 'application/dns-json' } }) },
+  { id: 'mullvad', name: 'Mullvad DNS', flag: '🇸🇪', location: 'Gothenburg, SE', ip: '194.242.2.2',
+    check: () => timedFetch(`https://doh.mullvad.net/dns-query?name=example.com&type=A&_=${Date.now()}`, { headers: { 'Accept': 'application/dns-json' } }) }
+];
+
+const INFRA_PROVIDERS = [
+  { id: 'cloudflare-net', name: 'Cloudflare Network', flag: '🌐', category: 'CDN / Network', url: 'https://www.cloudflarestatus.com/api/v2/summary.json' },
+  { id: 'github', name: 'GitHub', flag: '🐙', category: 'Code hosting', url: 'https://www.githubstatus.com/api/v2/summary.json' },
+  { id: 'fastly', name: 'Fastly', flag: '⚡', category: 'CDN', url: 'https://status.fastly.com/api/v2/summary.json' },
+  { id: 'gcp', name: 'Google Cloud', flag: '☁️', category: 'Cloud platform', url: 'https://status.cloud.google.com/incidents.json', parser: 'gcp' },
+  { id: 'zoom', name: 'Zoom', flag: '🎥', category: 'Comms', url: 'https://status.zoom.us/api/v2/summary.json' },
+  { id: 'slack', name: 'Slack', flag: '💬', category: 'Comms', url: 'https://slack-status.com/api/v2.0.0/current', parser: 'slack' },
+  { id: 'openai', name: 'OpenAI', flag: '🤖', category: 'AI platform', url: 'https://status.openai.com/api/v2/summary.json' },
+  { id: 'digitalocean', name: 'DigitalOcean', flag: '💧', category: 'Cloud platform', url: 'https://status.digitalocean.com/api/v2/summary.json' },
+  { id: 'npm', name: 'npm Registry', flag: '📦', category: 'Package registry', url: 'https://status.npmjs.org/api/v2/summary.json' },
+  { id: 'pagerduty', name: 'PagerDuty', flag: '🚨', category: 'Incident mgmt', url: 'https://status.pagerduty.com/api/v2/summary.json' },
+  { id: 'discord', name: 'Discord', flag: '🎮', category: 'Comms', url: 'https://discordstatus.com/api/v2/summary.json' },
+  { id: 'reddit', name: 'Reddit', flag: '👽', category: 'Social', url: 'https://www.redditstatus.com/api/v2/summary.json' },
+  { id: 'twilio', name: 'Twilio', flag: '📞', category: 'Messaging / Comms', url: 'https://status.twilio.com/api/v2/summary.json' },
+  { id: 'atlassian', name: 'Atlassian', flag: '🧩', category: 'Dev tools', url: 'https://status.atlassian.com/api/v2/summary.json' },
+  { id: 'dropbox', name: 'Dropbox', flag: '📁', category: 'Cloud storage', url: 'https://status.dropbox.com/api/v2/summary.json' },
+  { id: 'zendesk', name: 'Zendesk', flag: '🎧', category: 'Customer support', url: 'https://status.zendesk.com/api/v2/summary.json' }
+];
+
+const REGIONAL_ENDPOINTS = [
+  { id: 'na', name: 'North America', flag: '🇺🇸', domain: 'amazon.com' },
+  { id: 'sa', name: 'South America', flag: '🇧🇷', domain: 'mercadolivre.com.br' },
+  { id: 'eu', name: 'Europe', flag: '🇬🇧', domain: 'bbc.co.uk' },
+  { id: 'af', name: 'Africa', flag: '🇿🇦', domain: 'news24.com' },
+  { id: 'me', name: 'Middle East', flag: '🇶🇦', domain: 'aljazeera.com' },
+  { id: 'ea', name: 'East Asia', flag: '🇯🇵', domain: 'rakuten.co.jp' },
+  { id: 'sas', name: 'South Asia', flag: '🇮🇳', domain: 'flipkart.com' },
+  { id: 'oc', name: 'Oceania', flag: '🇦🇺', domain: 'abc.net.au' }
+];
+
+const CITIES = [
+  { id: 'nyc', name: 'New York', flag: '🇺🇸', tz: 'America/New_York' },
+  { id: 'sao', name: 'São Paulo', flag: '🇧🇷', tz: 'America/Sao_Paulo' },
+  { id: 'lon', name: 'London', flag: '🇬🇧', tz: 'Europe/London' },
+  { id: 'lag', name: 'Lagos', flag: '🇳🇬', tz: 'Africa/Lagos' },
+  { id: 'dxb', name: 'Dubai', flag: '🇦🇪', tz: 'Asia/Dubai' },
+  { id: 'bom', name: 'Mumbai', flag: '🇮🇳', tz: 'Asia/Kolkata' },
+  { id: 'sin', name: 'Singapore', flag: '🇸🇬', tz: 'Asia/Singapore' },
+  { id: 'tyo', name: 'Tokyo', flag: '🇯🇵', tz: 'Asia/Tokyo' },
+  { id: 'syd', name: 'Sydney', flag: '🇦🇺', tz: 'Australia/Sydney' }
+];
+
+const FACTS = [
+  "The root of the DNS system is served by 13 logically named servers (A through M) — but anycast routing means there are well over a thousand physical instances of them worldwide.",
+  "More than 95% of intercontinental internet traffic travels through undersea fiber-optic cables, not satellites — the ocean floor is the internet's real backbone.",
+  "There are several hundred active and planned submarine cables in service today, together spanning well over a million kilometers of ocean floor.",
+  "BGP, the protocol that lets independent networks agree on how to route traffic to each other, is often described as the 'postal system of the internet' — and it still runs on mutual trust between operators.",
+  "Anycast lets a single IP address, like 1.1.1.1 or 8.8.8.8, be announced from hundreds of locations at once, so your request is automatically routed to whichever is closest to you.",
+  "IPv4 has about 4.3 billion possible addresses, which the internet exhausted years ago — IPv6 has room for roughly 340 undecillion, a number expected to outlast the need for more.",
+  "A typical DNS lookup completes in well under 100 milliseconds, yet it's a required step before almost every single thing you load online.",
+  "Most 'internet outages' are not the internet itself failing — they're a single influential provider, like a DNS resolver or CDN, having a bad day, which cascades into thousands of unrelated-looking outages."
+];
+
+const HISTORY_LEN = 16;
+const SCORE_HISTORY_LEN = 24;
+const REFRESH_SECONDS = 15;
+
+/* ============================== STATE ============================== */
+
+const dnsState = {};
+DNS_RESOLVERS.forEach(r => { dnsState[r.id] = { history: [], status: 'pending', latency: null, lastChecked: null }; });
+
+const infraState = {};
+INFRA_PROVIDERS.forEach(p => { infraState[p.id] = { status: 'pending', description: 'Checking…', incidentCount: 0, latency: null, lastChecked: null }; });
+
+const regionState = {};
+REGIONAL_ENDPOINTS.forEach(r => { regionState[r.id] = { history: [], status: 'pending', latency: null, lastChecked: null }; });
+
+const logEntries = [];
+const scoreHistory = [];
+let sweepCount = 0;
+let factIndex = 0;
+
+/* ============================== NETWORK HELPERS ============================== */
+
+async function timedFetch(url, opts = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
+  const t0 = performance.now();
+  try {
+    const res = await fetch(url, { ...opts, signal: controller.signal, cache: 'no-store', mode: opts.mode || 'cors' });
+    const t1 = performance.now();
+    clearTimeout(timeout);
+    if (opts.mode !== 'no-cors' && !res.ok) throw new Error('bad status ' + res.status);
+    return { ms: Math.round(t1 - t0), res };
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+}
+
+function classify(latency) {
+  if (latency == null) return 'down';
+  if (latency < 100) return 'ok';
+  if (latency < 300) return 'degraded';
+  return 'down';
+}
+
+function classifyScore(score) {
+  if (score >= 70) return 'ok';
+  if (score >= 45) return 'degraded';
+  return 'down';
+}
+
+function timeAgo(ts) {
+  if (!ts) return 'never';
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 2) return 'just now';
+  if (s < 60) return s + 's ago';
+  return Math.round(s / 60) + 'm ago';
+}
+
+function buildSparkline(history) {
+  const slots = [...history];
+  while (slots.length < HISTORY_LEN) slots.unshift(null);
+  const maxVal = Math.max(50, ...slots.filter(v => v && v.latency != null).map(v => v.latency));
+  return slots.map(v => {
+    if (!v) return `<div class="spark-bar" style="height:3px;"></div>`;
+    if (v.latency == null) return `<div class="spark-bar down" style="height:6px;"></div>`;
+    const h = Math.max(4, Math.round((v.latency / maxVal) * 28));
+    return `<div class="spark-bar ${v.status}" style="height:${h}px;"></div>`;
+  }).join('');
+}
+
+function pushLog(level, text) {
+  logEntries.unshift({ time: Date.now(), level, text });
+  if (logEntries.length > 60) logEntries.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const el = document.getElementById('logList');
+  document.getElementById('logCount').textContent = logEntries.length + ' events';
+  el.innerHTML = logEntries.slice(0, 40).map(e => {
+    const t = new Date(e.time).toLocaleTimeString('en-US', { hour12: false });
+    return `<div class="log-line"><span class="log-time">${t}</span><span class="log-text ${e.level}">${e.text}</span></div>`;
+  }).join('');
+}
+
+/* ============================== DNS SECTION ============================== */
+
+async function checkDns(r) {
+  dnsState[r.id].status = 'pending';
+  renderDns();
+  try {
+    const { ms } = await r.check();
+    const status = classify(ms);
+    dnsState[r.id].latency = ms;
+    dnsState[r.id].status = status;
+    dnsState[r.id].lastChecked = Date.now();
+    dnsState[r.id].history.push({ latency: ms, status });
+    pushLog(status === 'ok' ? 'ok' : status === 'degraded' ? 'warn' : 'error', `${r.name} DNS responded in ${ms}ms`);
+  } catch (e) {
+    dnsState[r.id].latency = null;
+    dnsState[r.id].status = 'down';
+    dnsState[r.id].lastChecked = Date.now();
+    dnsState[r.id].history.push({ latency: null, status: 'down' });
+    pushLog('error', `${r.name} DNS unreachable (timeout or blocked)`);
+  }
+  if (dnsState[r.id].history.length > HISTORY_LEN) dnsState[r.id].history.shift();
+  renderDns();
+}
+
+function renderDns() {
+  const el = document.getElementById('gridDns');
+  el.innerHTML = DNS_RESOLVERS.map(r => {
+    const s = dnsState[r.id];
+    const cls = s.status;
+    const latDisplay = s.status === 'pending' ? '–' : (s.latency != null ? s.latency : 'ERR');
+    const pillLabel = { ok: 'Operational', degraded: 'Degraded', down: 'Unreachable', pending: 'Checking' }[cls];
+    return `
+      <div class="tile ${cls}">
+        <div class="tile-top">
+          <div>
+            <div class="tile-name">${r.flag} ${r.name}</div>
+            <div class="tile-loc">${r.location}</div>
+            <div class="tile-ip">${r.ip}</div>
+          </div>
+          <div class="status-pill ${cls}"><span class="dot"></span>${pillLabel}</div>
+        </div>
+        <div class="latency-row">
+          <div class="latency-value ${cls}">${latDisplay}</div>
+          <div class="latency-unit">${s.status === 'pending' ? '' : 'ms'}</div>
+        </div>
+        <div class="sparkline">${buildSparkline(s.history)}</div>
+        <div class="tile-footer"><span>last check</span><span>${timeAgo(s.lastChecked)}</span></div>
+      </div>`;
+  }).join('');
+}
+
+/* ============================== INFRA SECTION ============================== */
+
+function parseIndicator(raw) {
+  if (!raw) return 'ok';
+  const v = raw.toLowerCase();
+  if (v === 'none' || v === 'ok' || v === 'good' || v === 'normal' || v === 'active') return 'ok';
+  if (v === 'minor' || v === 'degraded' || v === 'degraded_performance' || v === 'warning') return 'degraded';
+  return 'down';
+}
+
+async function checkInfra(p) {
+  infraState[p.id].status = 'pending';
+  renderInfra();
+  try {
+    const { ms, res } = await timedFetch(p.url + (p.url.includes('?') ? '&' : '?') + `_=${Date.now()}`);
+    const data = await res.json();
+    let indicator, description, incidentCount;
+
+    if (p.parser === 'gcp') {
+      const openIncidents = Array.isArray(data) ? data.filter(i => !i.end) : [];
+      incidentCount = openIncidents.length;
+      const sev = openIncidents.some(i => /high/i.test(i.severity || '')) ? 'major' : (openIncidents.length ? 'minor' : 'none');
+      indicator = parseIndicator(sev);
+      description = openIncidents.length ? `${openIncidents.length} active incident(s)` : 'All services normal';
+    } else if (p.parser === 'slack') {
+      const active = (data.active_incidents || []);
+      incidentCount = active.length;
+      indicator = parseIndicator(active.length ? 'minor' : 'none');
+      description = active.length ? active[0].title : 'All systems operational';
+    } else {
+      incidentCount = (data.incidents || []).length;
+      indicator = parseIndicator(data.status && data.status.indicator);
+      description = (data.status && data.status.description) || 'Status unavailable';
+    }
+
+    infraState[p.id] = { status: indicator, description, incidentCount, latency: ms, lastChecked: Date.now() };
+    pushLog(indicator === 'ok' ? 'ok' : indicator === 'degraded' ? 'warn' : 'error', `${p.name}: ${description}`);
+  } catch (e) {
+    infraState[p.id] = { status: 'down', description: 'Could not reach status API (network or CORS block)', incidentCount: 0, latency: null, lastChecked: Date.now() };
+    pushLog('error', `${p.name}: status API unreachable`);
+  }
+  renderInfra();
+}
+
+function renderInfra() {
+  const el = document.getElementById('gridInfra');
+  el.innerHTML = INFRA_PROVIDERS.map(p => {
+    const s = infraState[p.id];
+    const cls = s.status;
+    const pillLabel = { ok: 'Operational', degraded: 'Degraded', down: 'Outage', pending: 'Checking' }[cls];
+    const incidentLine = s.incidentCount > 0
+      ? `<div class="infra-incidents has-incidents">⚠ ${s.incidentCount} active incident${s.incidentCount > 1 ? 's' : ''}</div>`
+      : `<div class="infra-incidents none">No active incidents</div>`;
+    return `
+      <div class="tile ${cls}">
+        <div class="tile-top">
+          <div>
+            <div class="tile-name">${p.flag} ${p.name}</div>
+            <div class="tile-loc">${p.category}</div>
+          </div>
+          <div class="status-pill ${cls}"><span class="dot"></span>${pillLabel}</div>
+        </div>
+        <div class="infra-desc">${s.description}</div>
+        ${incidentLine}
+        <div class="tile-footer"><span>${s.latency != null ? s.latency + 'ms response' : ''}</span><span>${timeAgo(s.lastChecked)}</span></div>
+      </div>`;
+  }).join('');
+}
+
+/* ============================== REGIONAL SECTION ============================== */
+
+async function checkRegion(r) {
+  regionState[r.id].status = 'pending';
+  renderRegion();
+  try {
+    const { ms } = await timedFetch(`https://${r.domain}/?_=${Date.now()}`, { mode: 'no-cors' });
+    const status = classify(ms);
+    regionState[r.id].latency = ms;
+    regionState[r.id].status = status;
+    regionState[r.id].lastChecked = Date.now();
+    regionState[r.id].history.push({ latency: ms, status });
+    pushLog(status === 'ok' ? 'ok' : status === 'degraded' ? 'warn' : 'error', `${r.name} reachable in ${ms}ms via ${r.domain}`);
+  } catch (e) {
+    regionState[r.id].latency = null;
+    regionState[r.id].status = 'down';
+    regionState[r.id].lastChecked = Date.now();
+    regionState[r.id].history.push({ latency: null, status: 'down' });
+    pushLog('error', `${r.name} unreachable via ${r.domain}`);
+  }
+  if (regionState[r.id].history.length > HISTORY_LEN) regionState[r.id].history.shift();
+  renderRegion();
+}
+
+function renderRegion() {
+  const el = document.getElementById('gridRegion');
+  el.innerHTML = REGIONAL_ENDPOINTS.map(r => {
+    const s = regionState[r.id];
+    const cls = s.status;
+    const latDisplay = s.status === 'pending' ? '–' : (s.latency != null ? s.latency : 'ERR');
+    const pillLabel = { ok: 'Reachable', degraded: 'Slow', down: 'Unreachable', pending: 'Checking' }[cls];
+    return `
+      <div class="tile ${cls}">
+        <div class="tile-top">
+          <div>
+            <div class="tile-name">${r.flag} ${r.name}</div>
+            <div class="tile-loc">via ${r.domain}</div>
+          </div>
+          <div class="status-pill ${cls}"><span class="dot"></span>${pillLabel}</div>
+        </div>
+        <div class="latency-row">
+          <div class="latency-value ${cls}">${latDisplay}</div>
+          <div class="latency-unit">${s.status === 'pending' ? '' : 'ms'}</div>
+        </div>
+        <div class="sparkline">${buildSparkline(s.history)}</div>
+        <div class="tile-footer"><span>last check</span><span>${timeAgo(s.lastChecked)}</span></div>
+      </div>`;
+  }).join('');
+}
+
+/* ============================== WORLD CLOCK SECTION ============================== */
+
+function renderClocks() {
+  const el = document.getElementById('gridClocks');
+  el.innerHTML = CITIES.map(c => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { timeZone: c.tz, hour12: false });
+    const hour = parseInt(now.toLocaleString('en-US', { timeZone: c.tz, hour: '2-digit', hour12: false }), 10);
+    const isPeak = hour >= 7 && hour < 23;
+    return `
+      <div class="tile neutral">
+        <div class="tile-top">
+          <div>
+            <div class="tile-name">${c.flag} ${c.name}</div>
+            <div class="tile-loc">${c.tz.replace('_', ' ')}</div>
+          </div>
+          <div class="peak-badge ${isPeak ? 'peak' : 'quiet'}">${isPeak ? '☀ Peak' : '🌙 Quiet'}</div>
+        </div>
+        <div class="clock-tile-time">${timeStr}</div>
+        <div class="tile-footer"><span>local time</span><span>${isPeak ? 'typical usage hours' : 'off-peak hours'}</span></div>
+      </div>`;
+  }).join('');
+}
+
+/* ============================== FACTS ============================== */
+
+function renderFact() {
+  const el = document.getElementById('factText');
+  const idxEl = document.getElementById('factIndex');
+  el.style.opacity = 0;
+  setTimeout(() => {
+    el.textContent = FACTS[factIndex];
+    idxEl.textContent = `${factIndex + 1} / ${FACTS.length}`;
+    el.style.opacity = 1;
+  }, 250);
+}
+
+function rotateFact() {
+  factIndex = (factIndex + 1) % FACTS.length;
+  renderFact();
+}
+
+/* ============================== SUMMARY + HEALTH INDEX + TICKER ============================== */
+
+function updateSummary() {
+  const dnsVals = DNS_RESOLVERS.map(r => ({ ...dnsState[r.id], name: r.name })).filter(s => s.status !== 'pending');
+  const infraVals = INFRA_PROVIDERS.map(p => ({ ...infraState[p.id], name: p.name })).filter(s => s.status !== 'pending');
+  const regionVals = REGIONAL_ENDPOINTS.map(r => ({ ...regionState[r.id], name: r.name })).filter(s => s.status !== 'pending');
+
+  const dnsOk = dnsVals.filter(s => s.status === 'ok' || s.status === 'degraded').length;
+  const infraOk = infraVals.filter(s => s.status === 'ok').length;
+  const regionOk = regionVals.filter(s => s.status === 'ok' || s.status === 'degraded').length;
+  const totalIncidents = infraVals.reduce((a, s) => a + (s.incidentCount || 0), 0);
+
+  document.getElementById('sumInfra').textContent = infraVals.length ? infraOk : '–';
+  document.getElementById('sumInfraSub').textContent = `of ${INFRA_PROVIDERS.length} providers watched`;
+  document.getElementById('sumDns').textContent = dnsVals.length ? dnsOk : '–';
+  document.getElementById('sumDnsSub').textContent = `of ${DNS_RESOLVERS.length} resolvers watched`;
+  document.getElementById('sumRegion').textContent = regionVals.length ? regionOk : '–';
+  document.getElementById('sumRegionSub').textContent = `of ${REGIONAL_ENDPOINTS.length} regions watched`;
+
+  const incEl = document.getElementById('sumIncidents');
+  incEl.textContent = infraVals.length ? totalIncidents : '–';
+  incEl.className = 'value ' + (totalIncidents === 0 ? 'cyan' : totalIncidents <= 2 ? 'amber' : 'red');
+
+  const latencies = [...dnsVals, ...regionVals].filter(s => s.latency != null).map(s => s.latency);
+  const avgEl = document.getElementById('sumAvg');
+  if (latencies.length) {
+    const avg = Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length);
+    avgEl.textContent = avg + 'ms';
+    avgEl.className = 'value ' + classify(avg);
+  } else {
+    avgEl.textContent = '–';
+    avgEl.className = 'value';
+  }
+
+  let score = null;
+  if (infraVals.length || dnsVals.length || regionVals.length) {
+    const infraScore = infraVals.length ? (infraOk / infraVals.length) * 100 : 100;
+    const dnsScore = dnsVals.length ? (dnsOk / dnsVals.length) * 100 : 100;
+    const regionScore = regionVals.length ? (regionOk / regionVals.length) * 100 : 100;
+    score = Math.round(infraScore * 0.5 + dnsScore * 0.3 + regionScore * 0.2);
+  }
+
+  const scoreEl = document.getElementById('healthScore');
+  const wordEl = document.getElementById('healthWord');
+  const trendEl = document.getElementById('healthTrend');
+
+  if (score == null) {
+    scoreEl.textContent = '–';
+    scoreEl.className = 'value pending';
+    wordEl.textContent = 'Calibrating';
+    wordEl.className = 'status-word pending';
+    trendEl.textContent = '';
+  } else {
+    const cls = classifyScore(score);
+    const word = score >= 90 ? 'Excellent' : score >= 70 ? 'Good' : score >= 45 ? 'Degraded' : 'Critical';
+    scoreEl.textContent = score;
+    scoreEl.className = 'value ' + cls;
+    wordEl.textContent = word;
+    wordEl.className = 'status-word ' + cls;
+    updateWave(cls);
+
+    const prev = scoreHistory.length ? scoreHistory[scoreHistory.length - 1] : null;
+    scoreHistory.push(score);
+    if (scoreHistory.length > SCORE_HISTORY_LEN) scoreHistory.shift();
+    renderScoreHistory();
+
+    if (prev != null) {
+      if (score > prev) { trendEl.textContent = '▲ +' + (score - prev); trendEl.className = 'trend-arrow ok'; }
+      else if (score < prev) { trendEl.textContent = '▼ -' + (prev - score); trendEl.className = 'trend-arrow down'; }
+      else { trendEl.textContent = '→ steady'; trendEl.className = 'trend-arrow'; }
+    } else {
+      trendEl.textContent = 'first sweep';
+      trendEl.className = 'trend-arrow';
+    }
+  }
+
+  buildTicker(dnsVals, infraVals, regionVals, score);
+}
+
+function renderScoreHistory() {
+  const el = document.getElementById('scoreHistory');
+  const slots = [...scoreHistory];
+  while (slots.length < SCORE_HISTORY_LEN) slots.unshift(null);
+  el.innerHTML = slots.map(v => {
+    if (v == null) return `<div class="score-bar" style="height:3px;"></div>`;
+    const h = Math.max(4, Math.round((v / 100) * 20));
+    return `<div class="score-bar ${classifyScore(v)}" style="height:${h}px;"></div>`;
+  }).join('');
+}
+
+function buildTicker(dnsVals, infraVals, regionVals, score) {
+  const items = [];
+
+  const reachableDns = dnsVals.filter(s => s.latency != null);
+  if (reachableDns.length) {
+    const fastest = reachableDns.reduce((a, b) => a.latency < b.latency ? a : b);
+    items.push(`Fastest DNS resolver right now: ${fastest.name} (${fastest.latency}ms)`);
+    const slowest = reachableDns.reduce((a, b) => a.latency > b.latency ? a : b);
+    if (slowest.id !== fastest.id) items.push(`Slowest reachable resolver: ${slowest.name} (${slowest.latency}ms)`);
+  }
+  const downDns = dnsVals.filter(s => s.status === 'down');
+  if (downDns.length) items.push(`${downDns.length} DNS resolver${downDns.length > 1 ? 's' : ''} unreachable from here: ${downDns.map(s => s.name).join(', ')}`);
+
+  const troubled = infraVals.filter(s => s.status !== 'ok');
+  if (troubled.length) {
+    troubled.forEach(s => items.push(`⚠ ${s.name} is reporting ${s.status === 'degraded' ? 'degraded performance' : 'an outage'}`));
+  } else if (infraVals.length) {
+    items.push(`All ${infraVals.length} watched infrastructure providers report normal operations`);
+  }
+
+  const downRegions = regionVals.filter(s => s.status === 'down');
+  if (downRegions.length) items.push(`Regions currently unreachable from your connection: ${downRegions.map(s => s.name).join(', ')}`);
+  const reachableRegions = regionVals.filter(s => s.latency != null);
+  if (reachableRegions.length) {
+    const closest = reachableRegions.reduce((a, b) => a.latency < b.latency ? a : b);
+    items.push(`Closest-feeling region from your connection: ${closest.name} (${closest.latency}ms)`);
+  }
+
+  if (score != null) items.push(`Internet Health Index: ${score} / 100`);
+  items.push(`Sweep #${sweepCount} completed at ${new Date().toLocaleTimeString('en-US', { hour12: false })}`);
+
+  const track = document.getElementById('tickerTrack');
+  const html = items.map(t => `<span class="item">${t}</span>`).join('');
+  track.innerHTML = html + html;
+}
+
+/* ============================== EKG WAVE ============================== */
+
+function buildWaveSvg(color) {
+  const unit = `
+    <svg width="240" height="48" viewBox="0 0 240 48" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="0,24 40,24 52,24 60,8 68,40 76,14 84,24 100,24 240,24"
+        fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+    </svg>`;
+  return unit + unit + unit + unit + unit + unit;
+}
+
+function updateWave(cls) {
+  const resolved = cls === 'ok' ? '#4fd8c4' : cls === 'degraded' ? '#e8a23d' : '#e8546b';
+  document.getElementById('waveTrack').innerHTML = buildWaveSvg(resolved);
+}
+
+/* ============================== ORCHESTRATION ============================== */
+
+let checking = false;
+let secondsUntilNext = REFRESH_SECONDS;
+
+async function runAllChecks() {
+  if (checking) return;
+  checking = true;
+  const btn = document.getElementById('refreshBtn');
+  const icon = document.getElementById('refreshIcon');
+  const label = document.getElementById('refreshLabel');
+  btn.disabled = true;
+  icon.classList.add('spinning');
+  label.textContent = 'Sweeping…';
+  pushLog('info', '— sweep started —');
+
+  await Promise.all([
+    ...DNS_RESOLVERS.map(r => checkDns(r)),
+    ...INFRA_PROVIDERS.map(p => checkInfra(p)),
+    ...REGIONAL_ENDPOINTS.map(r => checkRegion(r))
+  ]);
+
+  sweepCount += 1;
+  document.getElementById('sweepCount').textContent = sweepCount;
+  updateSummary();
+  pushLog('info', `— sweep #${sweepCount} complete —`);
+
+  btn.disabled = false;
+  icon.classList.remove('spinning');
+  label.textContent = 'Run full sweep';
+  checking = false;
+  secondsUntilNext = REFRESH_SECONDS;
+}
+
+function tickCountdown() {
+  secondsUntilNext -= 1;
+  if (secondsUntilNext <= 0) {
+    runAllChecks();
+    secondsUntilNext = REFRESH_SECONDS;
+  }
+  document.getElementById('sumNext').textContent = secondsUntilNext + 's';
+}
+
+function tickClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+  document.getElementById('clock-date').textContent = now.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  renderClocks();
+}
+
+renderDns();
+renderInfra();
+renderRegion();
+renderClocks();
+renderLog();
+renderFact();
+document.getElementById('waveTrack').innerHTML = buildWaveSvg('#3d4650');
+tickClock();
+setInterval(tickClock, 1000);
+setInterval(tickCountdown, 1000);
+setInterval(rotateFact, 9000);
+runAllChecks();
+</script>
+
+</body>
+</html>

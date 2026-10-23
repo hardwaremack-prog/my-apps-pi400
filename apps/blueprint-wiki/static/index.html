@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blueprint</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+<script>try{var t=localStorage.getItem('bp-theme');if(t&&t!=='auto')document.documentElement.dataset.theme=t;}catch(e){}</script>
+</head>
+<body>
+<div id="app">
+  <nav id="rail" aria-label="Sections"></nav>
+  <aside id="list"></aside>
+  <main id="main"></main>
+</div>
+<div id="dgm" class="dgm" hidden></div>
+<div id="modalRoot"></div>
+<div id="toast"></div>
+<input type="file" id="filePick" hidden>
+<script src="/static/shapes.js"></script>
+<script src="/static/diagram.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

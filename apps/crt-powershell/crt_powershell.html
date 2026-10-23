@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PS CRT</title>
+<style>
+  :root{
+    --phosphor: #33ff66;
+    --phosphor-dim: #1b8a3a;
+    --phosphor-bright: #9dffb8;
+    --bg: #01120a;
+    --bg2: #010a06;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    height:100%;
+    margin:0;
+    background:#000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family: "Courier New", ui-monospace, monospace;
+  }
+
+  .bezel{
+    width:min(920px, 94vw);
+    aspect-ratio: 4 / 3;
+    background:
+      radial-gradient(120% 140% at 30% 10%, #2a2a2a 0%, #131313 55%, #050505 100%);
+    border-radius: 34px;
+    padding: 26px;
+    box-shadow:
+      0 0 0 2px #000,
+      0 30px 60px -20px rgba(0,0,0,0.9),
+      inset 0 0 20px rgba(0,0,0,0.8);
+    position: relative;
+  }
+  .bezel::before{
+    content:"";
+    position:absolute;
+    left:50%; bottom:8px;
+    transform: translateX(-50%);
+    width: 90px; height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #444, #777, #444);
+    box-shadow: 0 0 6px rgba(150,255,180,0.4);
+  }
+
+  .screen-wrap{
+    position:relative;
+    width:100%; height:100%;
+    border-radius: 18px;
+    overflow:hidden;
+    background: radial-gradient(120% 120% at 50% 40%, var(--bg) 0%, var(--bg2) 70%, #000 100%);
+    box-shadow:
+      inset 0 0 60px 10px rgba(0,0,0,0.9),
+      inset 0 0 12px 2px #000;
+  }
+
+  #term{
+    position:absolute; inset:0;
+    padding: 26px 30px;
+    color: var(--phosphor);
+    font-size: 15px;
+    line-height: 1.5;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-shadow:
+      0 0 2px var(--phosphor),
+      0 0 6px rgba(51,255,102,0.6),
+      0 0 14px rgba(51,255,102,0.35);
+    animation: flicker 3.2s infinite;
+  }
+  #term::-webkit-scrollbar{ width:0; }
+
+  #term b{ color: var(--phosphor-bright); }
+  #term .dim{ color: var(--phosphor-dim); }
+  #term .err{ color: #ff5c5c; text-shadow: 0 0 6px rgba(255,80,80,0.6); }
+
+  .cursor{
+    display:inline-block;
+    width: 9px; height: 15px;
+    background: var(--phosphor);
+    box-shadow: 0 0 6px var(--phosphor), 0 0 12px rgba(51,255,102,0.6);
+    vertical-align: text-bottom;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  /* scanlines */
+  .scanlines{
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0.35) 0px,
+      rgba(0,0,0,0.35) 1px,
+      transparent 2px,
+      transparent 3px
+    );
+    pointer-events:none;
+    mix-blend-mode: multiply;
+  }
+  /* moving scan glow */
+  .sweep{
+    position:absolute; left:0; right:0; height: 120px;
+    background: linear-gradient(to bottom, rgba(160,255,190,0.08), transparent);
+    animation: sweep 6s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes sweep{
+    0%{ top:-120px; }
+    100%{ top:100%; }
+  }
+  /* vignette + curvature illusion */
+  .vignette{
+    position:absolute; inset:0;
+    background: radial-gradient(120% 120% at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%);
+    pointer-events:none;
+  }
+  .glass{
+    position:absolute; inset:0;
+    background: linear-gradient(115deg, rgba(255,255,255,0.05) 0%, transparent 18%, transparent 82%, rgba(255,255,255,0.03) 100%);
+    pointer-events:none;
+  }
+
+  @keyframes flicker{
+    0%, 96%, 100% { opacity: 1; }
+    97% { opacity: 0.85; }
+    98% { opacity: 1; }
+    99% { opacity: 0.92; }
+  }
+
+  .label-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 0 6px 12px 6px;
+  }
+  .brand{
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #888;
+  }
+  .led{
+    width:7px; height:7px; border-radius:50%;
+    background: var(--phosphor);
+    box-shadow: 0 0 6px var(--phosphor), 0 0 12px var(--phosphor);
+    display:inline-block;
+    margin-left:6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="bezel">
+  <div class="label-row">
+    <span class="brand">TERMINAL // MONO-CHROME DISPLAY</span>
+    <span class="brand">PWR <span class="led"></span></span>
+  </div>
+  <div class="screen-wrap">
+    <div id="term" tabindex="0"></div>
+    <div class="sweep"></div>
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+    <div class="glass"></div>
+  </div>
+</div>
+
+<script>
+const term = document.getElementById('term');
+const prompt = () => `PS C:\\Users\\Operator&gt; `;
+
+let history = [];
+let historyIdx = -1;
+let cwd = "C:\\Users\\Operator";
+let lineBuffer = "";
+let cursorLine;
+
+const files = ["Desktop", "Documents", "Downloads", "notes.txt", "project_glasswing.md", "readme.md"];
+
+function render(){
+  term.innerHTML = history.join("\n") +
+    `\n${promptText()}<span id="inputSpan">${escapeHtml(lineBuffer)}</span><span class="cursor"></span>`;
+  term.scrollTop = term.scrollHeight;
+}
+
+function promptText(){
+  return `<b>PS ${cwd}&gt;</b> `;
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function typeOut(text, cb){
+  // instant append, no fake delay needed for output blocks
+  history.push(text);
+  render();
+  if(cb) cb();
+}
+
+function bootSequence(){
+  const lines = [
+    "Windows PowerShell",
+    "Copyright (C) Microsoft Corporation. All rights reserved.",
+    "",
+    "Try the new cross-platform PowerShell https://aka.ms/pscore6",
+    ""
+  ];
+  history = lines;
+  render();
+}
+
+function runCommand(raw){
+  const cmd = raw.trim();
+  history.push(`${promptText()}${escapeHtml(raw)}`);
+
+  if(cmd.length === 0){
+    render();
+    return;
+  }
+
+  const [base, ...args] = cmd.split(/\s+/);
+  const lower = base.toLowerCase();
+
+  switch(lower){
+    case "help":
+      history.push(
+`<b>Available commands</b>
+  help          show this list
+  dir / ls      list files in current directory
+  cls / clear   clear the screen
+  echo <text>   print text
+  whoami        show current user
+  date          show current date/time
+  color <name>  set phosphor color: green, amber, blue, white
+  history       show command history
+  exit          close session (just for show)`
+      );
+      break;
+
+    case "dir":
+    case "ls":
+      history.push(
+        files.map(f => (f.includes(".") ? f : `${f}<span class="dim">\\</span>`)).join("   ")
+      );
+      break;
+
+    case "cls":
+    case "clear":
+      history = [];
+      break;
+
+    case "echo":
+      history.push(escapeHtml(args.join(" ")));
+      break;
+
+    case "whoami":
+      history.push(`operator`);
+      break;
+
+    case "date":
+      history.push(new Date().toString());
+      break;
+
+    case "history":
+      history.push(history.filter((h,i)=>i%1===0).join("\n"));
+      break;
+
+    case "color": {
+      const name = (args[0] || "").toLowerCase();
+      const map = {
+        green:  ["#33ff66","#9dffb8","#1b8a3a"],
+        amber:  ["#ffb000","#ffe08a","#8a5a00"],
+        blue:   ["#33bbff","#bfe9ff","#155a8a"],
+        white:  ["#e8e8e8","#ffffff","#888888"]
+      };
+      if(map[name]){
+        const [main, bright, dim] = map[name];
+        document.documentElement.style.setProperty('--phosphor', main);
+        document.documentElement.style.setProperty('--phosphor-bright', bright);
+        document.documentElement.style.setProperty('--phosphor-dim', dim);
+        history.push(`Color set to ${name}.`);
+      } else {
+        history.push(`<span class="err">Unknown color '${escapeHtml(args[0]||"")}'. Try: green, amber, blue, white</span>`);
+      }
+      break;
+    }
+
+    case "exit":
+      history.push("Session cannot be terminated from within the artifact. Nice try.");
+      break;
+
+    default:
+      history.push(`<span class="err">${escapeHtml(base)} : The term '${escapeHtml(base)}' is not recognized as the name of a cmdlet, function, script file, or operable program.</span>
+<span class="dim">Type 'help' to see available commands.</span>`);
+  }
+
+  render();
+}
+
+document.addEventListener('keydown', (e) => {
+  if(e.key === "Enter"){
+    const cmdText = lineBuffer;
+    runCommand(cmdText);
+    if(cmdText.trim().length){
+      history_cmds().push(cmdText);
+    }
+    lineBuffer = "";
+    historyIdx = -1;
+  } else if(e.key === "Backspace"){
+    lineBuffer = lineBuffer.slice(0, -1);
+    render();
+  } else if(e.key === "ArrowUp"){
+    const cmds = history_cmds();
+    if(cmds.length){
+      historyIdx = historyIdx === -1 ? cmds.length - 1 : Math.max(0, historyIdx - 1);
+      lineBuffer = cmds[historyIdx] || "";
+      render();
+    }
+    e.preventDefault();
+  } else if(e.key === "ArrowDown"){
+    const cmds = history_cmds();
+    if(cmds.length){
+      historyIdx = historyIdx === -1 ? -1 : Math.min(cmds.length - 1, historyIdx + 1);
+      lineBuffer = historyIdx === -1 ? "" : cmds[historyIdx];
+      render();
+    }
+    e.preventDefault();
+  } else if(e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey){
+    lineBuffer += e.key;
+    render();
+  }
+});
+
+let cmdHistoryStore = [];
+function history_cmds(){ return cmdHistoryStore; }
+document.addEventListener('keydown', (e) => {
+  if(e.key === "Enter"){
+    const t = lineBuffer;
+  }
+});
+
+// patch: proper history storage (overrides simplistic call above)
+(function(){
+  cmdHistoryStore = [];
+})();
+
+term.addEventListener('click', () => term.focus());
+window.addEventListener('load', () => {
+  bootSequence();
+  term.focus();
+});
+</script>
+</body>
+</html>

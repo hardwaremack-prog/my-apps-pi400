@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RPi400 Performance</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#14111f;color:#f4efe6;font:16px/1.5 "DejaVu Sans",system-ui,sans-serif;padding:16px;box-sizing:border-box}
+.box{max-width:560px;background:#1f1a30;border-radius:18px;padding:28px}
+h1{margin:0 0 4px;font-size:24px;display:flex;align-items:center;gap:12px} img{width:52px;height:52px;border-radius:12px}
+p{color:#a79fbd} code{background:#14111f;border-radius:6px;padding:2px 6px;color:#ff5d73;font-size:14px}
+ol{padding-left:20px} li{margin:8px 0} #st{color:#ffb224}
+</style></head><body><div class="box">
+<h1><img src="icon.png" alt="">RPi400 Performance</h1>
+<p id="st">Starting RPi400 Performance…</p>
+<div id="help" hidden>
+<p>It's a small program, so it has to be running first.</p>
+<ol>
+<li>Double-click the <b>RPi400 Performance</b> icon on the Desktop (added by <b>Set Up My Apps.sh</b>), or find it in the Raspberry Pi menu under <b>Preferences</b>.</li>
+<li>It opens in its own window.</li>
+</ol>
+<p>No icon? Open a Terminal and type:<br><code>python3 ~/Desktop/"My Apps"/apps/rpi400-performance/rpi400perf.py</code></p>
+<p>This page keeps checking and jumps to it as soon as it's running.</p>
+</div></div>
+<script src="../../status/token.js"></script>
+<script>
+const PORT=8420; let tries=0, asked=false;
+function probe(){window.__rpi400perf=0;const sc=document.createElement('script');sc.src='http://127.0.0.1:'+PORT+'/probe.js?'+Date.now();
+  sc.onload=sc.onerror=()=>{sc.remove();done()};document.head.appendChild(sc)}
+async function askStart(){ // the My Apps server-lights helper can start it for us
+  asked=true;const S=window.MYAPPS_STATUS;if(!S||!S.token)return;
+  try{await fetch('http://127.0.0.1:'+(S.port||8399)+'/start',{method:'POST',headers:{'Content-Type':'application/json','X-MyApps-Key':S.token},body:JSON.stringify({id:'rpi400perf'})})}catch(e){}
+}
+function done(){
+  if(window.__rpi400perf){location.replace('http://127.0.0.1:'+PORT+'/');return}
+  if(!asked)askStart();
+  if(++tries>3){document.getElementById('st').textContent='RPi400 Performance isn\'t running yet.';document.getElementById('help').hidden=false}
+  setTimeout(probe,1500)}
+probe();
+</script></body></html>

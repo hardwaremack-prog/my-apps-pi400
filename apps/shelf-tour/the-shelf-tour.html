@@ -1,0 +1,511 @@
+<title>The Shelf Tour</title>
+<style>
+/* ---------- design plan ----------
+   Color: recreates The Shelf's own dark plum/ink palette (--ink, --surface,
+   --accent) rather than a generic theme — this page is a faithful skin of
+   a real, already-designed dark app, so it stays single-theme like the app
+   itself, and category colors are the app's own (amber/mint/pink/blue/coral/lilac).
+   Type: Georgia-style serif for the wordmark/headings (matches the app's
+   --serif use in its own logo/headings), a clean system sans for UI text.
+   Layout: the app's real shell — fixed dark sidebar (shelves + tools nav,
+   each item a hoverable "balloon" callout) beside a live-swapping content
+   pane that mocks each section well enough to explain what it does.
+------------------------------------ */
+:root{
+  --ink:#241B2F; --ink-deep:#1B1424; --surface:#322542; --surface-hi:#3D2D53;
+  --text:#F0E9E3; --text-muted:#B7ABBA; --accent:#F2B441; --accent-ink:#2A1D0E;
+  --mint:#6FCF97; --coral:#E2725B; --divider:#4A3B5C;
+  --cat-pictures:#F2B441; --cat-music:#6FCF97; --cat-videos:#E091B3;
+  --cat-games:#7AA8F2; --cat-programs:#E2725B; --cat-books:#B98FE8;
+  --serif:Georgia,'Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box;}
+body{
+  background:var(--ink); color:var(--text); font-family:var(--sans);
+  margin:0; padding-inline:0; min-height:100%;
+}
+h1,h2,h3{font-family:var(--serif); text-wrap:balance; margin:0;}
+
+.app{display:flex; min-height:100vh; max-width:1400px; margin:0 auto;}
+
+/* ---------- sidebar ---------- */
+.sidebar{
+  width:270px; flex-shrink:0; background:var(--ink-deep);
+  border-right:1px solid var(--divider); padding:26px 16px;
+  display:flex; flex-direction:column; gap:18px;
+}
+.brand{display:flex; align-items:center; gap:12px; padding:0 6px;}
+.brand-mark{font-size:22px; color:var(--accent); line-height:1;}
+.brand h1{font-size:21px;}
+.brand p{margin:2px 0 0; font-size:11.5px; color:var(--text-muted);}
+
+.toggle-group{display:flex; flex-direction:column; gap:2px;}
+.toggle-row{display:flex; align-items:center; gap:10px; padding:4px 6px; border-radius:6px;}
+.switch{width:34px; height:19px; border-radius:20px; background:var(--divider); position:relative; flex-shrink:0;}
+.switch.on{background:var(--mint);}
+.switch::after{content:""; position:absolute; width:14px; height:14px; border-radius:50%; background:#fff; top:2.5px; left:3px; transition:transform .15s ease;}
+.switch.on::after{transform:translateX(15px);}
+.toggle-row span.lbl{font-size:12.5px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+.nav-label{font-size:10.5px; color:var(--text-muted); letter-spacing:.08em; text-transform:uppercase; padding:6px 6px 0;}
+
+.shelf-nav, .tool-nav{display:flex; flex-direction:column; gap:2px;}
+.shelf-item{
+  display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:7px;
+  cursor:pointer; font-size:13.5px;
+}
+.shelf-item:hover, .shelf-item.active{background:var(--surface);}
+.swatch{width:9px; height:9px; border-radius:50%; background:var(--cat-color,var(--accent)); flex-shrink:0;}
+
+.sidebar-foot{margin-top:auto; font-size:11px; color:var(--text-muted); padding:8px 6px 0; border-top:1px solid var(--divider);}
+
+/* ---------- balloon tooltips ---------- */
+.hot{position:relative; cursor:help;}
+.hot.underline{border-bottom:1px dotted var(--accent);}
+.hot::after{
+  content:attr(data-tip); position:absolute; z-index:40;
+  background:var(--surface-hi); color:var(--text); border:1px solid var(--divider);
+  border-radius:10px; padding:10px 12px; font-size:12.5px; line-height:1.4;
+  width:max-content; max-width:230px; box-shadow:0 8px 24px rgba(0,0,0,.45);
+  opacity:0; transform:translateY(4px) scale(.97); pointer-events:none;
+  transition:opacity .14s ease, transform .14s ease;
+}
+.hot::before{
+  content:""; position:absolute; z-index:41; width:10px; height:10px;
+  background:var(--surface-hi); border:1px solid var(--divider); border-right:none; border-top:none;
+  opacity:0; transition:opacity .14s ease; pointer-events:none;
+}
+.hot:hover::after, .hot:hover::before, .hot:focus-visible::after, .hot:focus-visible::before,
+.hot.show::after, .hot.show::before{opacity:1;}
+
+/* pop to the right (sidebar items near the left edge) */
+.tip-r::after{left:calc(100% + 14px); top:50%; transform:translateY(-50%);}
+.tip-r.hot:hover::after, .tip-r.hot:focus-visible::after, .tip-r.hot.show::after{transform:translateY(-50%);}
+.tip-r::before{left:calc(100% + 6px); top:50%; transform:translateY(-50%) rotate(135deg);}
+
+/* pop above (content-area items) */
+.tip-t::after{left:50%; bottom:calc(100% + 12px); transform:translate(-50%,4px);}
+.tip-t.hot:hover::after, .tip-t.hot:focus-visible::after, .tip-t.hot.show::after{transform:translate(-50%,0);}
+.tip-t::before{left:50%; bottom:calc(100% + 5px); transform:translateX(-50%) rotate(-45deg);}
+
+/* pop below */
+.tip-b::after{left:50%; top:calc(100% + 12px); transform:translate(-50%,-4px);}
+.tip-b.hot:hover::after, .tip-b.hot:focus-visible::after, .tip-b.hot.show::after{transform:translate(-50%,0);}
+.tip-b::before{left:50%; top:calc(100% + 5px); transform:translateX(-50%) rotate(135deg);}
+
+/* ---------- main / content ---------- */
+main{flex:1; min-width:0; display:flex; flex-direction:column;}
+header.topbar{
+  padding:22px 28px 16px; border-bottom:1px solid var(--divider);
+  display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap;
+}
+header.topbar h2{font-size:22px;}
+header.topbar p{margin:3px 0 0; font-size:13px; color:var(--text-muted);}
+.content{padding:24px 28px 60px; min-width:0;}
+
+.empty-note{color:var(--text-muted); font-size:13.5px; max-width:60ch; line-height:1.5;}
+
+/* generic building blocks reused across mocked sections */
+.grid-cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px;}
+.card{background:var(--surface); border:1px solid var(--divider); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px;}
+.thumb{aspect-ratio:4/3; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--accent-ink); font-weight:700;}
+.card .name{font-size:13.5px; font-weight:600;}
+.card .meta{font-size:11.5px; color:var(--text-muted);}
+.pill-btn{background:var(--accent); color:var(--accent-ink); border:none; border-radius:6px; padding:6px 11px; font-size:12.5px; font-weight:600; cursor:default;}
+.pill-btn.ghost{background:none; border:1px solid var(--divider); color:var(--text-muted);}
+
+.row-list{display:flex; flex-direction:column; gap:6px;}
+.row{display:flex; align-items:center; gap:12px; background:var(--surface); border-radius:8px; padding:10px 12px; font-size:13px;}
+.row .meta{color:var(--text-muted); font-size:11.5px; margin-left:auto;}
+
+.dashboard-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px;}
+.tile{background:var(--surface); border:1px solid var(--divider); border-radius:12px; padding:16px;}
+.tile h3{font-size:14px; margin-bottom:8px;}
+.sticky{border-radius:8px; padding:12px; font-size:12px; color:#2a1d0e; line-height:1.35;}
+
+.toolbar{display:flex; gap:8px; flex-wrap:wrap; padding:10px; background:var(--surface); border-radius:10px; margin-bottom:14px;}
+.toolbar .t{background:var(--ink-deep); border:1px solid var(--divider); border-radius:6px; padding:6px 10px; font-size:12px; color:var(--text-muted);}
+
+.mock-page{background:#fff; color:#2a2530; border-radius:8px; padding:22px; min-height:160px; font-size:13px; line-height:1.6;}
+.mock-sheet{display:grid; grid-template-columns:34px repeat(5,1fr); gap:1px; background:var(--divider); border-radius:6px; overflow:hidden; font-size:12px;}
+.mock-sheet > div{background:var(--ink-deep); padding:6px 8px;}
+.mock-sheet .head{background:var(--surface); color:var(--text-muted); text-align:center;}
+
+.chat-log{display:flex; flex-direction:column; gap:10px; margin-bottom:12px;}
+.bubble{max-width:70%; padding:9px 13px; border-radius:12px; font-size:13px; line-height:1.4;}
+.bubble.me{background:var(--accent); color:var(--accent-ink); align-self:flex-end; border-bottom-right-radius:2px;}
+.bubble.them{background:var(--surface); align-self:flex-start; border-bottom-left-radius:2px;}
+
+.progress-shell{background:var(--surface); border:1px solid var(--divider); border-radius:8px; height:24px; position:relative; overflow:hidden;}
+.progress-fill{position:absolute; inset:0 auto 0 0; width:62%; background:var(--mint); opacity:.3;}
+.progress-shell span{position:relative; z-index:1; display:flex; align-items:center; height:100%; padding:0 10px; font-size:12px;}
+
+@media (max-width:820px){
+  .app{flex-direction:column;}
+  .sidebar{width:auto; flex-direction:row; flex-wrap:wrap; align-items:flex-start;}
+  .brand{width:100%;}
+  .toggle-group, .shelf-nav, .tool-nav{flex:1; min-width:160px;}
+  .sidebar-foot{width:100%; margin-top:6px;}
+}
+</style>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">&#9724;&#9723;</div>
+      <div>
+        <h1>The Shelf</h1>
+        <p>your network's stuff, in one place</p>
+      </div>
+    </div>
+
+    <div class="toggle-group">
+      <div class="toggle-row hot tip-r underline" data-tip="The master switch. Off, and everyone on the network sees a simple 'turned off' page instead of your shelves &mdash; the app itself keeps running quietly, so switching it back on is instant.">
+        <div class="switch on"></div><span class="lbl">The Shelf is on</span>
+      </div>
+      <div class="toggle-row hot tip-r underline" data-tip="On, and nothing but this exact computer can reach The Shelf at all &mdash; a hard network-level lockout, separate from the read/write settings below it.">
+        <div class="switch"></div><span class="lbl">Local computer only</span>
+      </div>
+      <div class="toggle-row hot tip-r underline" data-tip="Off (the default): anyone on the network can browse, but only this machine can make changes. On ('Secured visitors'): even browsing needs a login. Either way, only this computer can flip this switch.">
+        <div class="switch"></div><span class="lbl">Anonymous read only</span>
+      </div>
+      <div class="toggle-row hot tip-r underline" data-tip="A quick-allow switch: on, and anyone on the network can add, edit, or delete things &mdash; and use the AI tab &mdash; without logging in at all.">
+        <div class="switch"></div><span class="lbl">Anyone can edit + AI</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="shelf-item hot tip-r underline active" id="homeNav" data-tip="A quick dashboard &mdash; recently added files across every shelf, plus who's currently connected.">
+        <span>&#8962;&nbsp; Home</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="nav-label">Shelves</div>
+      <div class="shelf-nav" id="shelfNav"></div>
+    </div>
+
+    <div>
+      <div class="nav-label">Tools</div>
+      <div class="tool-nav" id="toolNav"></div>
+    </div>
+
+    <div class="sidebar-foot hot tip-r" data-tip="The address anyone else on your Wi-Fi types in to reach this same Shelf from their own phone or laptop &mdash; shown live once the real app is running.">
+      On your network: 192.168.1.42:8080
+    </div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div>
+        <h2 id="secTitle">Home</h2>
+        <p id="secSub">A quick dashboard for whoever's running this Shelf</p>
+      </div>
+    </header>
+    <section class="content" id="content"></section>
+  </main>
+</div>
+
+<script>
+const SHELVES = [
+  {key:'Pictures', color:'var(--cat-pictures)', tip:"Photos, shown as a grid. Click one for a full-screen view, or start a slideshow with a slow Ken Burns pan &mdash; there's also a built-in editor for rotate/flip/brightness right from the grid."},
+  {key:'Music', color:'var(--cat-music)', tip:"A mini player with a live visualizer follows you around the app. 'Get album art' looks up real cover art automatically and saves it straight into the file's own tag, not just The Shelf's cache."},
+  {key:'Videos', color:'var(--cat-videos)', tip:"Click to play in a small floating player that keeps going while you browse elsewhere. 'Get thumbnails' grabs a real frame from each video, done entirely in your browser."},
+  {key:'Games', color:'var(--cat-games)', tip:"Single-file or zipped HTML5 games get a Play button &mdash; runs right in a browser tab, no download or install needed."},
+  {key:'Programs', color:'var(--cat-programs)', tip:"Anything downloadable, tracked by download count instead of plays &mdash; the closest signal The Shelf has for 'did anyone actually use this.'"},
+  {key:'Books / PDFs', color:'var(--cat-books)', tip:"Manuals, ebooks, scanned docs &mdash; opens in the browser's own built-in PDF viewer, no extra software needed."},
+];
+const TOOLS = [
+  {key:'Notes', tip:"A simple list of notes with a title and body. Paste an image (Ctrl+V) straight into one and it's attached as a thumbnail."},
+  {key:'Draw', tip:"A tabbed drawing pad &mdash; pen, shapes, text, an eraser, and a Copy button that puts your drawing straight on the clipboard to paste anywhere else."},
+  {key:'Docs', tip:"A basic word processor: bold/italic/underline, headings, lists &mdash; saves automatically as you type."},
+  {key:'Sheets', tip:"A mini spreadsheet with real formulas (=SUM, =AVERAGE, plain math) and CSV/Excel import."},
+  {key:'Slides', tip:"Build a quick heading + body deck, then Present it full-screen with arrow-key navigation."},
+  {key:'Messages', tip:"Finds other computers running The Shelf on the same Wi-Fi automatically &mdash; no accounts, no setup &mdash; and lets you chat directly, computer to computer."},
+  {key:'Visitors', tip:"A plain log of every device that's opened this Shelf &mdash; name or IP, first seen, last seen."},
+  {key:'Big Transfer', tip:"A dedicated spot for genuinely large files &mdash; 15 to 25GB and up. Uploads go in chunks, so a dropped connection only costs the current chunk, and dropping the same file back in later resumes instead of restarting."},
+  {key:'AI', tip:"A small language model that runs entirely on this computer &mdash; no account, no API key, no internet needed once it's downloaded once."},
+];
+
+const homeNav = document.getElementById('homeNav');
+homeNav.addEventListener('click', ()=>{
+  document.querySelectorAll('.shelf-item.active').forEach(x=>x.classList.remove('active'));
+  homeNav.classList.add('active');
+  render('Home');
+});
+
+const shelfNav = document.getElementById('shelfNav');
+SHELVES.forEach((s,i)=>{
+  const d = document.createElement('div');
+  d.className = 'shelf-item hot tip-r underline' + (i===0?'':'');
+  d.dataset.tip = s.tip;
+  d.innerHTML = `<span class="swatch" style="--cat-color:${s.color}"></span><span>${s.key}</span>`;
+  d.addEventListener('click', ()=>selectSection(s.key, d, shelfNav));
+  shelfNav.appendChild(d);
+});
+const toolNav = document.getElementById('toolNav');
+TOOLS.forEach(t=>{
+  const d = document.createElement('div');
+  d.className = 'shelf-item hot tip-r underline';
+  d.dataset.tip = t.tip;
+  d.innerHTML = `<span>${t.key}</span>`;
+  d.addEventListener('click', ()=>selectSection(t.key, d, toolNav));
+  toolNav.appendChild(d);
+});
+
+function selectSection(key, el, group){
+  document.querySelectorAll('.shelf-item.active').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  render(key);
+}
+
+const SECTIONS = {
+  'Home': {
+    sub: "A quick dashboard for whoever's running this Shelf",
+    html: `
+      <div class="dashboard-grid">
+        <div class="tile hot tip-t" data-tip="A new one picked automatically every day from a set of about 110 &mdash; nothing to write or maintain.">
+          <h3>Today's affirmation</h3>
+          <p style="margin:0; font-size:13px; color:var(--text-muted);">"Small, steady progress still counts as progress."</p>
+        </div>
+        <div class="tile hot tip-t" data-tip="Cycles daily along with what the color means &mdash; purely decorative, but a nice bit of daily texture.">
+          <h3>Color of the day</h3>
+          <div style="display:flex; align-items:center; gap:10px;"><div style="width:28px;height:28px;border-radius:6px;background:#7AA8F2;"></div><span style="font-size:13px; color:var(--text-muted);">Denim &mdash; calm and dependable</span></div>
+        </div>
+        <div class="tile hot tip-t" data-tip="The one part of The Shelf that ever needs internet &mdash; a quick, no-account lookup for wherever you're browsing from. Skip it and everything else works exactly the same.">
+          <h3>Weather</h3>
+          <p style="margin:0; font-size:22px;">64&deg;F <span style="font-size:13px; color:var(--text-muted);">Partly cloudy</span></p>
+        </div>
+        <div class="tile hot tip-t" data-tip="A single .zip with everything &mdash; files, notes, drawings, sheets, messages. Import it on a fresh install to bring it all back.">
+          <h3>Backup &amp; restore</h3>
+          <div style="display:flex; gap:8px;"><button class="pill-btn">Export a backup</button><button class="pill-btn ghost">Import a backup</button></div>
+        </div>
+      </div>
+      <div class="tile hot tip-t" style="margin-top:16px;" data-tip="Paste an image or a short clip (Ctrl+V) anywhere on this tab and it pins straight to the board as its own note.">
+        <h3>Bulletin board</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="sticky" style="background:#F2B441; width:120px;">Pick up more filament for the printer</div>
+          <div class="sticky" style="background:#6FCF97; width:120px;">Router admin: 192.168.1.1</div>
+          <div class="sticky" style="background:#E091B3; width:120px;">Grandma's recipe box &mdash; scan this weekend</div>
+        </div>
+      </div>`
+  },
+  'Pictures': {
+    sub: 'A photo grid with a built-in slideshow and editor',
+    html: `
+      <div style="margin-bottom:12px;"><button class="pill-btn hot tip-b" data-tip="Auto-advances through the grid with a slow Ken Burns pan/zoom; arrow keys skip, Esc closes. If Music has anything in it, the slideshow quietly starts it as background audio too.">Start slideshow</button></div>
+      <div class="grid-cards">
+        ${['#F2B441','#E091B3','#7AA8F2','#B98FE8','#6FCF97','#E2725B'].map((c,i)=>`
+          <div class="card">
+            <div class="thumb" style="background:${c};">IMG</div>
+            <div class="name">beach_trip_0${i+1}.jpg</div>
+            <div class="meta hot tip-t" data-tip="The pencil icon opens a real editor: rotate, flip, and brightness/contrast/saturation &mdash; Save overwrites the original, Save as copy keeps it untouched.">&#9998; edit</div>
+          </div>
+        `).join('')}
+      </div>`
+  },
+  'Music': {
+    sub: 'Plays right in the browser, with real cover art',
+    html: `
+      <div class="row-list">
+        ${[['Night Drive','The Analog Kids','3:42'],['Coastline','Reverie','4:05'],['Paper Boats','The Analog Kids','2:58']].map(([t,a,d])=>`
+          <div class="row"><span>&#9654;</span><div><div style="font-weight:600;">${t}</div><div class="meta" style="margin:0;">${a}</div></div><span class="meta">${d}</span></div>
+        `).join('')}
+      </div>
+      <div class="tile hot tip-t" style="margin-top:14px;" data-tip="Searches Apple's iTunes catalog by artist/title (or filename if a track has no tags) and embeds real cover art directly into the file &mdash; MP3, WAV, OGG, FLAC, M4A, AAC all supported.">
+        <button class="pill-btn">Get album art</button>
+      </div>
+      <div class="tile" style="margin-top:14px; display:flex; align-items:center; gap:14px;">
+        <div style="width:44px;height:44px;border-radius:6px;background:#6FCF97;"></div>
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:13px;">Night Drive &mdash; The Analog Kids</div>
+          <div class="hot tip-t" data-tip="Double-click the visualizer for a fullscreen view with six different styles &mdash; bars, waveform, radial burst, kaleidoscope, particles, or a classic oscilloscope trace." style="height:20px; background:linear-gradient(90deg,#6FCF97 30%,var(--divider) 30%); border-radius:3px; margin-top:6px;"></div>
+        </div>
+      </div>`
+  },
+  'Videos': {
+    sub: 'A floating player that follows you around the app',
+    html: `
+      <div class="grid-cards">
+        ${['#E091B3','#7AA8F2','#F2B441'].map((c,i)=>`
+          <div class="card">
+            <div class="thumb hot tip-t" style="background:${c};" data-tip="Real frame grabs, generated entirely in your browser the first time &mdash; no server-side video processing needed.">FRAME</div>
+            <div class="name">trip_clip_0${i+1}.mp4</div>
+            <div class="meta">214 plays</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="tile hot tip-b" style="margin-top:14px; display:flex; align-items:center; gap:10px;" data-tip="Stays put and keeps playing even while you switch tabs or scroll around browsing other shelves.">
+        <span>&#9654;</span><span style="font-size:13px;">trip_clip_01.mp4 &mdash; playing</span>
+      </div>`
+  },
+  'Games': {
+    sub: "Single-file or zipped HTML5 games play right in the browser",
+    html: `
+      <div class="grid-cards">
+        ${[['Pixel Runner','var(--cat-games)'],['Block Puzzle','var(--cat-games)'],['Space Drift','var(--cat-games)']].map(([n,c])=>`
+          <div class="card">
+            <div class="thumb" style="background:${c}; color:#12203a;">GAME</div>
+            <div class="name">${n}</div>
+            <div class="card-actions"><button class="pill-btn hot tip-t" data-tip="Runs in a new browser tab, no download needed &mdash; a zipped game unpacks on the server the first time, instantly after that.">Play</button></div>
+          </div>
+        `).join('')}
+      </div>`
+  },
+  'Programs': {
+    sub: 'Downloadable software, tracked by download count',
+    html: `
+      <div class="grid-cards">
+        ${[['Backup Utility v2.1'],['Photo Batch Renamer'],['Old Family Recipes.exe']].map(([n])=>`
+          <div class="card">
+            <div class="thumb" style="background:var(--cat-programs); color:#3a170f;">EXE</div>
+            <div class="name">${n}</div>
+            <div class="meta hot tip-t" data-tip="Programs can't report back whether they were actually run, so downloads are the closest useful stand-in for 'plays'.">12 downloads</div>
+          </div>
+        `).join('')}
+      </div>`
+  },
+  'Books / PDFs': {
+    sub: "Manuals and ebooks, read right in the browser",
+    html: `
+      <div class="grid-cards">
+        ${[['Camera Manual.pdf'],['Sourdough Notes.pdf'],["1972 Owner's Manual.pdf"]].map(([n])=>`
+          <div class="card">
+            <div class="thumb" style="background:var(--cat-books); color:#2c1a3d;">PDF</div>
+            <div class="name">${n}</div>
+            <div class="card-actions"><button class="pill-btn hot tip-t" data-tip="Opens in the browser's own built-in PDF viewer &mdash; nothing extra to install, no forced download.">Read</button></div>
+          </div>
+        `).join('')}
+      </div>`
+  },
+  'Notes': {
+    sub: 'Quick notes that save themselves',
+    html: `
+      <div class="row-list" style="margin-bottom:14px;">
+        <div class="row"><span>&#128221;</span><span>Grocery list</span></div>
+        <div class="row"><span>&#128221;</span><span>Trip planning</span><span class="meta">has a photo</span></div>
+      </div>
+      <div class="mock-page hot tip-t" data-tip="Everything here saves automatically as you type &mdash; no save button to remember. Paste an image (Ctrl+V) mid-note and it attaches as a thumbnail.">
+        <strong>Trip planning</strong><br><br>
+        Pack the tent, check tire pressure, print the reservation... <span style="opacity:.4;">|</span>
+      </div>`
+  },
+  'Draw': {
+    sub: 'A tabbed drawing pad',
+    html: `
+      <div class="toolbar">
+        <span class="t hot tip-b" data-tip="Freehand drawing, the default tool.">Pen</span>
+        <span class="t">Eraser</span>
+        <span class="t hot tip-b" data-tip="Click, then drag a handle to reposition before pressing Enter to stamp it onto the drawing.">Text</span>
+        <span class="t">Rect</span><span class="t">Circle</span><span class="t">Line</span>
+        <span class="t hot tip-b" data-tip="Copies the drawing straight to your clipboard as an image, ready to paste anywhere else on your computer.">Copy</span>
+      </div>
+      <div class="mock-page" style="min-height:180px; display:flex; align-items:center; justify-content:center; color:#9992; font-style:italic;">canvas</div>`
+  },
+  'Docs': {
+    sub: 'A basic word processor',
+    html: `
+      <div class="toolbar">
+        <span class="t"><b>B</b></span><span class="t"><i>I</i></span><span class="t"><u>U</u></span>
+        <span class="t">H1</span><span class="t">&bull; List</span>
+      </div>
+      <div class="mock-page hot tip-t" data-tip="Paste an image (Ctrl+V) and it drops in right where your cursor is.">
+        <h3 style="margin:0 0 8px;">Meeting notes &mdash; Sept 29</h3>
+        Discussed the new shed layout. Need to order <b>2x4s</b> and confirm delivery window.
+      </div>`
+  },
+  'Sheets': {
+    sub: 'A mini spreadsheet with real formulas',
+    html: `
+      <div class="mock-sheet">
+        <div class="head"></div><div class="head">A</div><div class="head">B</div><div class="head">C</div><div class="head">D</div><div class="head">E</div>
+        <div class="head">1</div><div>Item</div><div>Qty</div><div>Price</div><div>Total</div><div></div>
+        <div class="head">2</div><div>Lumber</div><div>12</div><div>$6.50</div><div class="hot tip-t" data-tip="Type a formula starting with = &mdash; supports =SUM(), =AVERAGE(), and plain math like =A1+A2.">=B2*C2</div><div></div>
+        <div class="head">3</div><div>Screws</div><div>4</div><div>$3.00</div><div>=B3*C3</div><div></div>
+      </div>`
+  },
+  'Slides': {
+    sub: 'Build a quick deck, then present it full-screen',
+    html: `
+      <div class="grid-cards">
+        ${['Welcome','Q3 Numbers','Next Steps'].map(t=>`
+          <div class="card" style="aspect-ratio:16/9; justify-content:center; align-items:center; background:var(--ink-deep);"><div class="name">${t}</div></div>
+        `).join('')}
+      </div>
+      <button class="pill-btn hot tip-t" style="margin-top:14px;" data-tip="Shows the deck full-screen &mdash; arrow keys move between slides, Esc exits.">Present</button>`
+  },
+  'Messages': {
+    sub: 'Chat with other Shelf installs on the same Wi-Fi',
+    html: `
+      <div class="chat-log">
+        <div class="bubble them">Hey, did the backup finish?</div>
+        <div class="bubble me">Yep, just exported it &mdash; 4.2GB</div>
+      </div>
+      <div class="row hot tip-t" data-tip="Found automatically over the local network &mdash; no accounts, no adding contacts. Only works while both computers are on and running The Shelf.">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--mint);"></span> Kitchen-PC &mdash; online now
+      </div>`
+  },
+  'Visitors': {
+    sub: "Everyone who's opened this Shelf",
+    html: `
+      <div class="row-list">
+        <div class="row hot tip-t" data-tip="Shows a hostname when one can be resolved, otherwise just the raw IP address.">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--mint);"></span>
+          <div><div>Kitchen-PC</div><div class="meta" style="margin:0;">first seen Sep 12 &middot; last seen just now</div></div>
+        </div>
+        <div class="row">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--text-muted);"></span>
+          <div><div>192.168.1.57</div><div class="meta" style="margin:0;">first seen Sep 3 &middot; last seen 2 days ago</div></div>
+        </div>
+      </div>`
+  },
+  'Big Transfer': {
+    sub: 'A spot for genuinely large files &mdash; 15 to 25GB and up',
+    html: `
+      <div class="mock-page" style="background:var(--surface); border:1.5px dashed var(--divider); text-align:center; color:var(--text-muted); font-size:13px;">
+        <strong style="color:var(--text);">Drop a file here, or click to choose one</strong><br>
+        No size limit &mdash; built for the 15-25GB range.
+      </div>
+      <div class="progress-shell hot tip-t" style="margin-top:14px;" data-tip="Uploads go out in 16MB pieces instead of one giant request &mdash; a dropped connection only costs the current chunk. Drop the same file back in later and it resumes instead of restarting.">
+        <div class="progress-fill"></div><span>project_archive.zip &mdash; 12.4GB of 20GB (62%)</span>
+      </div>`
+  },
+  'AI': {
+    sub: 'A small assistant that runs entirely on this computer',
+    html: `
+      <div class="chat-log">
+        <div class="bubble me">What's in the Games shelf?</div>
+        <div class="bubble them">You've got Pixel Runner, Block Puzzle, and Space Drift on there right now.</div>
+      </div>
+      <div class="empty-note hot tip-t" data-tip="No account, no API key, and no internet access needed once the model file is downloaded once &mdash; the whole conversation stays on this machine.">
+        Ask about anything &mdash; or ask what's on your shelves.
+      </div>`
+  },
+};
+
+function render(key){
+  const s = SECTIONS[key];
+  document.getElementById('secTitle').textContent = key;
+  document.getElementById('secSub').innerHTML = s.sub;
+  document.getElementById('content').innerHTML = s.html;
+  wireTooltips(document.getElementById('content'));
+}
+
+function wireTooltips(scope){
+  scope.querySelectorAll('.hot').forEach(elm=>{
+    if(!elm.hasAttribute('tabindex')) elm.setAttribute('tabindex','0');
+    elm.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const wasOpen = elm.classList.contains('show');
+      document.querySelectorAll('.hot.show').forEach(x=>x.classList.remove('show'));
+      if(!wasOpen) elm.classList.add('show');
+    });
+  });
+}
+document.addEventListener('click', ()=>document.querySelectorAll('.hot.show').forEach(x=>x.classList.remove('show')));
+
+wireTooltips(document);
+render('Home');
+</script>

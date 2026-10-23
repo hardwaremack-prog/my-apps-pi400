@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AFS Field Dispatch</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root{
+  --bg:#F3F5F4;
+  --panel:#FFFFFF;
+  --ink:#1C2321;
+  --muted:#5B6664;
+  --line:#DDE3E1;
+  --navy:#1F3A44;
+  --navy-ink:#132831;
+  --amber:#E2711D;
+  --amber-soft:#FBE6D3;
+  --green:#2F855A;
+  --green-soft:#E1F0E7;
+  --red:#C1442E;
+  --red-soft:#FBE4DF;
+  --blue:#2C6E8E;
+  --blue-soft:#DEEEF4;
+  --grey-chip:#EEF1F0;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size:14px;
+}
+.headline, .tech-name, .section-title, .brand-name, .stat-num{
+  font-family:'Barlow Semi Condensed','IBM Plex Sans',sans-serif;
+}
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+/* ---------- LAYOUT ---------- */
+#app{
+  display:grid;
+  grid-template-rows:auto 1fr;
+  height:100vh;
+  min-height:600px;
+}
+header{
+  background:var(--navy);
+  color:#F3F5F4;
+  padding:14px 20px;
+  display:flex;
+  align-items:center;
+  gap:20px;
+  flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:34px;height:34px;flex:none;}
+.brand-name{font-weight:700;font-size:20px;letter-spacing:0.2px;line-height:1.1;}
+.brand-sub{font-size:11.5px;color:#B9C6C9;letter-spacing:0.3px;}
+.stats{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap;}
+.stat{
+  background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.14);
+  border-radius:8px;
+  padding:6px 14px;
+  min-width:76px;
+  text-align:center;
+}
+.stat-num{font-size:19px;font-weight:700;line-height:1.1;}
+.stat-label{font-size:10.5px;color:#B9C6C9;margin-top:2px;}
+
+.layout{
+  display:grid;
+  grid-template-columns:260px 1fr 340px;
+  gap:1px;
+  background:var(--line);
+  overflow:hidden;
+}
+.pane{background:var(--panel);overflow-y:auto;display:flex;flex-direction:column;min-width:0;}
+.pane-head{
+  padding:14px 16px 10px;
+  border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:var(--panel);z-index:2;
+}
+.section-title{font-weight:600;font-size:16px;}
+.section-hint{color:var(--muted);font-size:12px;margin-top:2px;}
+
+/* ---------- CREW LIST ---------- */
+.tech-card{
+  padding:12px 16px;
+  border-bottom:1px solid var(--line);
+  cursor:default;
+  display:flex;
+  gap:10px;
+}
+.tech-card.dim{opacity:0.55;}
+.avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--grey-chip);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:600;font-size:13px;color:var(--navy);flex:none;
+}
+.tech-body{min-width:0;flex:1;}
+.tech-top{display:flex;justify-content:space-between;align-items:baseline;gap:6px;}
+.tech-name{font-weight:600;font-size:14.5px;}
+.status-pill{
+  font-size:10.5px;padding:2px 7px;border-radius:20px;font-weight:600;
+  white-space:nowrap;letter-spacing:0.2px;
+}
+.st-available{background:var(--green-soft);color:var(--green);}
+.st-enroute{background:var(--blue-soft);color:var(--blue);}
+.st-onjob{background:var(--amber-soft);color:var(--amber);}
+.st-offduty{background:var(--grey-chip);color:var(--muted);}
+.tech-skills{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.skill-tag{
+  font-size:10px;padding:2px 6px;border-radius:5px;
+  background:var(--grey-chip);color:var(--muted);
+}
+.tech-meta{font-size:11.5px;color:var(--muted);margin-top:6px;}
+.tech-action{
+  margin-top:8px;font-size:12px;font-weight:600;color:var(--amber);
+  background:none;border:none;cursor:pointer;padding:0;text-align:left;
+}
+.tech-action:hover{text-decoration:underline;}
+
+/* ---------- TICKET LIST ---------- */
+.filters{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.filter-btn{
+  border:1px solid var(--line);background:var(--panel);
+  padding:5px 11px;border-radius:20px;font-size:12px;cursor:pointer;color:var(--muted);
+}
+.filter-btn.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+.ticket-row{
+  padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer;
+  display:flex;flex-direction:column;gap:5px;
+}
+.ticket-row:hover{background:#FAFBFA;}
+.ticket-row.selected{background:var(--amber-soft);}
+.ticket-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;}
+.ticket-id{font-size:11px;color:var(--muted);}
+.ticket-title{font-weight:600;font-size:13.8px;margin-top:1px;}
+.priority-tag{
+  font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.3px;white-space:nowrap;
+}
+.p-urgent{background:var(--red-soft);color:var(--red);}
+.p-high{background:var(--amber-soft);color:var(--amber);}
+.p-normal{background:var(--grey-chip);color:var(--muted);}
+.ticket-meta{display:flex;gap:12px;font-size:11.5px;color:var(--muted);flex-wrap:wrap;}
+.ticket-status{font-size:11px;font-weight:600;}
+.s-open{color:var(--red);}
+.s-progress{color:var(--blue);}
+.s-done{color:var(--green);}
+
+/* ---------- MAP / DETAIL ---------- */
+#mapwrap{padding:14px 16px;}
+svg#map{width:100%;height:auto;display:block;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--muted);}
+.legend span{display:inline-flex;align-items:center;gap:5px;}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+.detail{padding:14px 16px;border-top:1px solid var(--line);}
+.detail-empty{color:var(--muted);font-size:13px;line-height:1.5;}
+.detail h3{margin:0 0 4px;font-family:'Barlow Semi Condensed';font-size:18px;}
+.detail .addr{color:var(--muted);font-size:12.5px;margin-bottom:10px;}
+.suggest-box{
+  background:var(--blue-soft);border-radius:8px;padding:10px 12px;margin:10px 0;
+  font-size:12.5px;color:var(--navy-ink);
+}
+.suggest-box b{color:var(--navy);}
+.candidate-list{display:flex;flex-direction:column;gap:6px;margin:8px 0 12px;}
+.candidate{
+  display:flex;justify-content:space-between;align-items:center;
+  border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px;cursor:pointer;
+}
+.candidate.picked{border-color:var(--amber);background:var(--amber-soft);}
+.candidate .cright{color:var(--muted);font-size:11.5px;}
+.assign-btn{
+  width:100%;background:var(--amber);color:#fff;border:none;border-radius:8px;
+  padding:10px;font-weight:600;font-size:13.5px;cursor:pointer;margin-top:4px;
+}
+.assign-btn:disabled{background:#CBBBAF;cursor:not-allowed;}
+.assign-btn:hover:not(:disabled){background:#C55E12;}
+.mini-actions{display:flex;gap:8px;margin-top:10px;}
+.mini-btn{
+  flex:1;border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px;
+  font-size:12.5px;cursor:pointer;font-weight:600;color:var(--navy);
+}
+.mini-btn:hover{background:var(--grey-chip);}
+
+/* toast */
+#toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--navy);color:#fff;padding:12px 20px;border-radius:10px;
+  font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,0.18);
+  opacity:0;transition:opacity .25s ease, transform .25s ease;pointer-events:none;
+  max-width:360px;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+::-webkit-scrollbar{width:8px;}
+::-webkit-scrollbar-thumb{background:#D3D9D7;border-radius:4px;}
+
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 34 34" fill="none">
+        <circle cx="17" cy="17" r="16" stroke="#E2711D" stroke-width="2"/>
+        <path d="M17 8 L17 17 L23 21" stroke="#F3F5F4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="17" cy="17" r="2.4" fill="#E2711D"/>
+      </svg>
+      <div>
+        <div class="brand-name">AFS Field Dispatch</div>
+        <div class="brand-sub">AMI crew routing · live queue</div>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="layout">
+    <div class="pane" id="crewPane">
+      <div class="pane-head">
+        <div class="section-title">Crew</div>
+        <div class="section-hint">Who's on and where</div>
+      </div>
+      <div id="crewList"></div>
+    </div>
+
+    <div class="pane" id="ticketPane">
+      <div class="pane-head">
+        <div class="section-title">Tickets</div>
+        <div class="section-hint">Pulled in from ServiceNow</div>
+        <div class="filters" id="filters"></div>
+      </div>
+      <div id="ticketList"></div>
+    </div>
+
+    <div class="pane" id="mapPane">
+      <div class="pane-head">
+        <div class="section-title">Service area</div>
+        <div class="section-hint">Tap a ticket to see the routing</div>
+      </div>
+      <div id="mapwrap"></div>
+      <div id="detail"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============ MOCK DATA ============ */
+
+const SKILLS = {
+  EXC: "Meter exchange",
+  CONN: "Connect / disconnect",
+  HV: "High voltage",
+  GAS: "Gas AMI",
+  COMM: "Comms / RF repair",
+  INSTALL: "New install"
+};
+
+let techs = [
+  {id:"t1", name:"Jordan Reyes", x:120, y:90,  status:"available", skills:["EXC","COMM"], jobsToday:3, job:null},
+  {id:"t2", name:"Alicia Byrne", x:340, y:60,  status:"available", skills:["HV","EXC"],   jobsToday:2, job:null},
+  {id:"t3", name:"Marcus Odom",  x:460, y:230, status:"onjob",     skills:["GAS","CONN"], jobsToday:4, job:"j4"},
+  {id:"t4", name:"Priya Nair",   x:90,  y:280, status:"available", skills:["COMM","INSTALL"], jobsToday:1, job:null},
+  {id:"t5", name:"Devon Clarke", x:260, y:320, status:"enroute",   skills:["EXC","CONN"], jobsToday:5, job:"j6"},
+  {id:"t6", name:"Sam Okafor",   x:400, y:130, status:"offduty",  skills:["HV","GAS","EXC"], jobsToday:2, job:null},
+];
+
+let tickets = [
+  {id:"j1", num:"INC0041823", title:"No comms — meter dark 72 hrs", addr:"214 Larkspur Ct", area:"Northgate", x:150,y:130, priority:"high", status:"open", skill:"COMM", sla:"1h 20m"},
+  {id:"j2", num:"INC0041830", title:"Suspected tamper / bypass", addr:"88 Redwood Ave", area:"Eastdale", x:410, y:90, priority:"urgent", status:"open", skill:"CONN", sla:"32m"},
+  {id:"j3", num:"INC0041834", title:"High consumption — verify install", addr:"5 Cobalt Way", area:"Millbrook", x:60, y:200, priority:"normal", status:"open", skill:"EXC", sla:"4h 05m"},
+  {id:"j4", num:"INC0041801", title:"Gas AMI safety inspection", addr:"732 Hartline Rd", area:"South Fork", x:470, y:250, priority:"high", status:"progress", skill:"GAS", sla:"18m", assigned:"t3"},
+  {id:"j5", num:"INC0041840", title:"End-of-life meter swap", addr:"19 Quarry St", area:"Millbrook", x:110, y:250, priority:"normal", status:"open", skill:"EXC", sla:"6h 40m"},
+  {id:"j6", num:"INC0041796", title:"New commercial install", addr:"1200 Foundry Blvd", area:"South Fork", x:300, y:300, priority:"high", status:"progress", skill:"INSTALL", sla:"40m", assigned:"t5"},
+  {id:"j7", num:"INC0041845", title:"RF repeater offline — cluster of 6", addr:"44 Birchwood Ln", area:"Northgate", x:190, y:70, priority:"urgent", status:"open", skill:"COMM", sla:"25m"},
+  {id:"j8", num:"INC0041775", title:"Billing dispute — re-read requested", addr:"9 Alder Pl", area:"Eastdale", x:450, y:150, priority:"normal", status:"done", skill:"EXC", sla:"—"},
+];
+
+let state = { filter:"all", selected:null };
+
+/* ============ HELPERS ============ */
+
+const priorityLabel = {urgent:"Urgent", high:"High", normal:"Normal"};
+const statusLabel = {open:"Unassigned", progress:"In progress", done:"Completed"};
+const techStatusLabel = {available:"Available", onjob:"On job", enroute:"En route", offduty:"Off duty"};
+
+function initials(name){
+  return name.split(" ").map(p=>p[0]).join("").slice(0,2).toUpperCase();
+}
+function dist(a,b){
+  return Math.sqrt(Math.pow(a.x-b.x,2)+Math.pow(a.y-b.y,2));
+}
+function distMiles(px){ return (px/95).toFixed(1); }
+function etaMinutes(px){ return Math.max(4, Math.round(px/95*13)); }
+
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>el.classList.remove("show"), 3200);
+}
+
+/* ============ RENDER: STATS ============ */
+
+function renderStats(){
+  const open = tickets.filter(t=>t.status==="open").length;
+  const prog = tickets.filter(t=>t.status==="progress").length;
+  const done = tickets.filter(t=>t.status==="done").length;
+  const urgent = tickets.filter(t=>t.status!=="done" && t.priority==="urgent").length;
+  const stats = [
+    {n:open, l:"Unassigned"},
+    {n:prog, l:"In progress"},
+    {n:done, l:"Done today"},
+    {n:urgent, l:"Urgent open"},
+  ];
+  document.getElementById("stats").innerHTML = stats.map(s=>`
+    <div class="stat"><div class="stat-num">${s.n}</div><div class="stat-label">${s.l}</div></div>
+  `).join("");
+}
+
+/* ============ RENDER: CREW ============ */
+
+function renderCrew(){
+  const order = {available:0, enroute:1, onjob:2, offduty:3};
+  const sorted = [...techs].sort((a,b)=>order[a.status]-order[b.status]);
+  document.getElementById("crewList").innerHTML = sorted.map(t=>{
+    const dim = t.status==="offduty" ? "dim" : "";
+    const job = t.job ? tickets.find(x=>x.id===t.job) : null;
+    return `
+    <div class="tech-card ${dim}">
+      <div class="avatar">${initials(t.name)}</div>
+      <div class="tech-body">
+        <div class="tech-top">
+          <div class="tech-name">${t.name}</div>
+          <div class="status-pill st-${t.status}">${techStatusLabel[t.status]}</div>
+        </div>
+        <div class="tech-skills">${t.skills.map(s=>`<span class="skill-tag">${SKILLS[s]}</span>`).join("")}</div>
+        <div class="tech-meta">${job ? "Working "+job.num : t.status==="offduty" ? "Back tomorrow 7a" : "Ready for dispatch"} · ${t.jobsToday} jobs today</div>
+        ${job ? `<button class="tech-action" onclick="completeJob('${t.id}')">Mark job complete</button>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ============ RENDER: TICKETS ============ */
+
+const FILTERS = [
+  {key:"all", label:"All"},
+  {key:"open", label:"Unassigned"},
+  {key:"urgent", label:"Urgent"},
+  {key:"progress", label:"In progress"},
+  {key:"done", label:"Completed"},
+];
+
+function renderFilters(){
+  document.getElementById("filters").innerHTML = FILTERS.map(f=>`
+    <button class="filter-btn ${state.filter===f.key?'active':''}" onclick="setFilter('${f.key}')">${f.label}</button>
+  `).join("");
+}
+function setFilter(k){ state.filter = k; renderFilters(); renderTickets(); }
+
+function visibleTickets(){
+  return tickets.filter(t=>{
+    if(state.filter==="all") return true;
+    if(state.filter==="urgent") return t.priority==="urgent" && t.status!=="done";
+    return t.status===state.filter;
+  });
+}
+
+function renderTickets(){
+  const list = visibleTickets();
+  document.getElementById("ticketList").innerHTML = list.length ? list.map(t=>`
+    <div class="ticket-row ${state.selected===t.id?'selected':''}" onclick="selectTicket('${t.id}')">
+      <div class="ticket-top">
+        <div>
+          <div class="ticket-id mono">${t.num}</div>
+          <div class="ticket-title">${t.title}</div>
+        </div>
+        <div class="priority-tag p-${t.priority}">${priorityLabel[t.priority]}</div>
+      </div>
+      <div class="ticket-meta">
+        <span>${t.addr}, ${t.area}</span>
+        <span class="ticket-status s-${t.status==='open'?'open':t.status==='progress'?'progress':'done'}">${statusLabel[t.status]}</span>
+        ${t.status!=="done" ? `<span>SLA ${t.sla}</span>` : ""}
+      </div>
+    </div>
+  `).join("") : `<div class="detail-empty" style="padding:20px 16px;">Nothing here right now — nice and clear.</div>`;
+}
+
+/* ============ MAP ============ */
+
+function renderMap(){
+  const ticket = state.selected ? tickets.find(t=>t.id===state.selected) : null;
+  let routeLine = "";
+  let suggested = null;
+
+  if(ticket && ticket.status==="open"){
+    const candidates = techs.filter(t=>t.status==="available" && t.skills.includes(ticket.skill));
+    if(candidates.length){
+      suggested = candidates.map(t=>({t, d:dist(t,ticket)})).sort((a,b)=>a.d-b.d)[0].t;
+      routeLine = `<line x1="${suggested.x}" y1="${suggested.y}" x2="${ticket.x}" y2="${ticket.y}"
+        stroke="#E2711D" stroke-width="2" stroke-dasharray="5,5"/>`;
+    }
+  }
+
+  const techPins = techs.map(t=>{
+    const color = t.status==="available" ? "#2F855A" : t.status==="enroute" ? "#2C6E8E" : t.status==="onjob" ? "#E2711D" : "#9AA5A3";
+    const ring = (ticket && suggested && t.id===suggested.id) ? `<circle cx="${t.x}" cy="${t.y}" r="12" fill="none" stroke="#E2711D" stroke-width="2"/>` : "";
+    return `${ring}<circle cx="${t.x}" cy="${t.y}" r="7" fill="${color}" stroke="#fff" stroke-width="1.5"/>`;
+  }).join("");
+
+  const jobPins = tickets.filter(t=>t.status!=="done").map(t=>{
+    const sel = state.selected===t.id;
+    const color = t.priority==="urgent" ? "#C1442E" : t.priority==="high" ? "#E2711D" : "#5B6664";
+    return `<path d="M${t.x} ${t.y-11} l5 9 h-10 z" fill="${color}" stroke="#fff" stroke-width="${sel?2:1}"
+      transform="translate(0,3)"/>`;
+  }).join("");
+
+  document.getElementById("mapwrap").innerHTML = `
+    <svg id="map" viewBox="0 0 520 360">
+      <rect x="0" y="0" width="520" height="360" rx="10" fill="#EEF2F0"/>
+      <path d="M0 200 C120 170, 260 230, 380 190 S520 150, 520 150" stroke="#C7DCE2" stroke-width="18" fill="none" opacity="0.6"/>
+      <g stroke="#D9E1DE" stroke-width="1">
+        <line x1="0" y1="60" x2="520" y2="60"/><line x1="0" y1="140" x2="520" y2="140"/>
+        <line x1="0" y1="220" x2="520" y2="220"/><line x1="0" y1="300" x2="520" y2="300"/>
+        <line x1="90" y1="0" x2="90" y2="360"/><line x1="220" y1="0" x2="220" y2="360"/>
+        <line x1="350" y1="0" x2="350" y2="360"/><line x1="450" y1="0" x2="450" y2="360"/>
+      </g>
+      <text x="14" y="30" fill="#9AA5A3" font-size="11" font-family="IBM Plex Sans">Northgate</text>
+      <text x="330" y="30" fill="#9AA5A3" font-size="11" font-family="IBM Plex Sans">Eastdale</text>
+      <text x="14" y="345" fill="#9AA5A3" font-size="11" font-family="IBM Plex Sans">Millbrook</text>
+      <text x="330" y="345" fill="#9AA5A3" font-size="11" font-family="IBM Plex Sans">South Fork</text>
+      ${routeLine}
+      ${jobPins}
+      ${techPins}
+    </svg>
+    <div class="legend">
+      <span><span class="dot" style="background:#2F855A"></span>Available crew</span>
+      <span><span class="dot" style="background:#2C6E8E"></span>En route</span>
+      <span><span class="dot" style="background:#E2711D"></span>On job</span>
+      <span>▲ Ticket (color = priority)</span>
+    </div>
+  `;
+}
+
+/* ============ DETAIL / ASSIGN ============ */
+
+let pickedTech = null;
+
+function selectTicket(id){
+  state.selected = id;
+  pickedTech = null;
+  renderTickets();
+  renderMap();
+  renderDetail();
+}
+
+function renderDetail(){
+  const el = document.getElementById("detail");
+  const ticket = state.selected ? tickets.find(t=>t.id===state.selected) : null;
+  if(!ticket){
+    el.innerHTML = `<div class="detail"><div class="detail-empty">Pick a ticket on the left to see suggested routing and assign a tech.</div></div>`;
+    return;
+  }
+
+  if(ticket.status==="done"){
+    el.innerHTML = `<div class="detail">
+      <h3>${ticket.title}</h3>
+      <div class="addr">${ticket.addr}, ${ticket.area} · ${ticket.num}</div>
+      <div class="suggest-box" style="background:var(--green-soft);color:var(--green);">This one's wrapped up. Nice work.</div>
+    </div>`;
+    return;
+  }
+
+  if(ticket.status==="progress"){
+    const tech = techs.find(t=>t.id===ticket.assigned);
+    el.innerHTML = `<div class="detail">
+      <h3>${ticket.title}</h3>
+      <div class="addr">${ticket.addr}, ${ticket.area} · ${ticket.num}</div>
+      <div class="suggest-box"><b>${tech.name}</b> is on this one — ${techStatusLabel[tech.status].toLowerCase()}.</div>
+      <button class="mini-btn" style="width:100%;" onclick="completeJob('${tech.id}')">Mark job complete</button>
+    </div>`;
+    return;
+  }
+
+  // status === open
+  const candidates = techs
+    .filter(t=>t.status==="available" && t.skills.includes(ticket.skill))
+    .map(t=>({t, d:dist(t,ticket)}))
+    .sort((a,b)=>a.d-b.d);
+
+  const backups = techs
+    .filter(t=>t.status==="available" && !t.skills.includes(ticket.skill))
+    .map(t=>({t, d:dist(t,ticket)}))
+    .sort((a,b)=>a.d-b.d);
+
+  const all = [...candidates, ...backups];
+  if(!pickedTech && candidates.length) pickedTech = candidates[0].t.id;
+
+  const rows = all.slice(0,4).map(({t,d})=>{
+    const qualified = t.skills.includes(ticket.skill);
+    return `
+    <div class="candidate ${pickedTech===t.id?'picked':''}" onclick="pickTech('${t.id}')">
+      <span>${t.name}${qualified?"":" ⚠"}</span>
+      <span class="cright">${distMiles(d)} mi · ~${etaMinutes(d)} min</span>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `<div class="detail">
+    <h3>${ticket.title}</h3>
+    <div class="addr">${ticket.addr}, ${ticket.area} · ${ticket.num} · SLA ${ticket.sla}</div>
+    ${candidates.length ? `
+      <div class="suggest-box"><b>${candidates[0].t.name}</b> is the closest qualified tech for ${SKILLS[ticket.skill].toLowerCase()} — about ${distMiles(candidates[0].d)} mi away.</div>
+    ` : `<div class="suggest-box" style="background:var(--red-soft);color:var(--red);">No available tech is certified for ${SKILLS[ticket.skill].toLowerCase()} right now. Showing closest options anyway.</div>`}
+    <div class="candidate-list">${rows}</div>
+    <button class="assign-btn" ${!pickedTech?"disabled":""} onclick="assignTicket()">Assign to ${pickedTech ? techs.find(t=>t.id===pickedTech).name.split(" ")[0] : "—"}</button>
+  </div>`;
+}
+
+function pickTech(id){ pickedTech = id; renderDetail(); }
+
+function assignTicket(){
+  if(!state.selected || !pickedTech) return;
+  const ticket = tickets.find(t=>t.id===state.selected);
+  const tech = techs.find(t=>t.id===pickedTech);
+  ticket.status = "progress";
+  ticket.assigned = tech.id;
+  tech.status = "enroute";
+  tech.job = ticket.id;
+  const d = dist(tech, ticket);
+  toast(`${tech.name} is on the way to ${ticket.addr} — ETA ${etaMinutes(d)} min.`);
+  renderAll();
+}
+
+function completeJob(techId){
+  const tech = techs.find(t=>t.id===techId);
+  const ticket = tickets.find(t=>t.id===tech.job);
+  if(ticket) ticket.status = "done";
+  tech.status = "available";
+  tech.job = null;
+  tech.jobsToday += 1;
+  toast(`${tech.name} closed out ${ticket ? ticket.num : "the job"}. Back in the pool.`);
+  if(state.selected === (ticket && ticket.id)) { /* keep viewing the completed ticket */ }
+  renderAll();
+}
+
+/* ============ INIT ============ */
+
+function renderAll(){
+  renderStats();
+  renderCrew();
+  renderFilters();
+  renderTickets();
+  renderMap();
+  renderDetail();
+}
+renderAll();
+</script>
+</body>
+</html>

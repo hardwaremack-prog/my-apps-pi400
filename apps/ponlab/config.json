@@ -1,0 +1,177 @@
+{
+  "_board": "Generic 4-channel 5V opto-isolated relay module (active-low), IN1-IN4 on GPIO 17/27/22/23.",
+  "port": 8080,
+  "wiring": "NC",
+  "relay_active_high": false,
+  "max_outage_seconds": 3600,
+  "channels": [
+    {
+      "id": "A",
+      "name": "Position A",
+      "meter": "Riva meter #1",
+      "gpio": 17,
+      "sense_gpio": null
+    },
+    {
+      "id": "B",
+      "name": "Position B",
+      "meter": "Riva meter #2",
+      "gpio": 27,
+      "sense_gpio": null
+    },
+    {
+      "id": "C",
+      "name": "Position C",
+      "meter": "Riva meter #3",
+      "gpio": 22,
+      "sense_gpio": null
+    },
+    {
+      "id": "D",
+      "name": "Position D",
+      "meter": "Relay/Collector",
+      "gpio": 23,
+      "sense_gpio": null
+    }
+  ],
+  "mark_types": [
+    {
+      "key": "pon_rx",
+      "label": "PON received",
+      "hint": "Head-end / collector shows last-gasp outage notice"
+    },
+    {
+      "key": "mesh_lost",
+      "label": "Dropped from mesh",
+      "hint": "Meter no longer seen / no longer routing for neighbours"
+    },
+    {
+      "key": "radio_dark",
+      "label": "Radio dark (caps out)",
+      "hint": "Last sign of RF activity from the meter"
+    },
+    {
+      "key": "restore_rx",
+      "label": "Restore notice",
+      "hint": "Power-restoration notice received"
+    },
+    {
+      "key": "rejoined",
+      "label": "Rejoined mesh",
+      "hint": "Meter back on the network"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Momentary blip (1 s)",
+      "steps": [
+        {
+          "off": 1,
+          "on": 60
+        }
+      ]
+    },
+    {
+      "name": "Sustained 5 min",
+      "steps": [
+        {
+          "off": 300,
+          "on": 120
+        }
+      ]
+    },
+    {
+      "name": "Cap holdup ladder",
+      "steps": [
+        {
+          "off": 5,
+          "on": 120
+        },
+        {
+          "off": 15,
+          "on": 120
+        },
+        {
+          "off": 30,
+          "on": 180
+        },
+        {
+          "off": 60,
+          "on": 300
+        },
+        {
+          "off": 120,
+          "on": 300
+        },
+        {
+          "off": 300,
+          "on": 600
+        }
+      ]
+    },
+    {
+      "name": "Recloser (3 shots)",
+      "steps": [
+        {
+          "off": 2,
+          "on": 3
+        },
+        {
+          "off": 5,
+          "on": 3
+        },
+        {
+          "off": 15,
+          "on": 120
+        }
+      ]
+    },
+    {
+      "name": "Flicker x10",
+      "steps": [
+        {
+          "off": 0.5,
+          "on": 2
+        },
+        {
+          "off": 0.5,
+          "on": 2
+        },
+        {
+          "off": 0.5,
+          "on": 2
+        },
+        {
+          "off": 0.5,
+          "on": 2
+        },
+        {
+          "off": 0.5,
+          "on": 2
+        },
+        {
+          "off": 0.5,
+          "on": 2
+        },
+        {
+          "off": 0.5,
+          "on": 2
+        },
+        {
+          "off": 0.5,
+          "on": 2
+        },
+        {
+          "off": 0.5,
+          "on": 2
+        },
+        {
+          "off": 0.5,
+          "on": 60
+        }
+      ]
+    }
+  ],
+  "node_name": "",
+  "api_token": ""
+}

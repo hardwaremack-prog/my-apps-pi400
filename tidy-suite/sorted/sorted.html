@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en"><head><script src="../suite-users.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sorted</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: repair-ticket workspace — project tickets on the left, one ticket open on the right, one "next step" at a time */
+:root{
+  --bg:#E5E8EB; --surface:#F7F8F9; --surface2:#EEF1F3; --ink:#18212C; --muted:#586472; --line:#C8CED5;
+  --accent:#F0B323; --accent-ink:#1E1600; --accent-soft:#F7E2A6;
+  --good:#2C8A57; --good-soft:#D6EFE0; --bad:#BF4237; --bad-soft:#F6DAD6; --warn:#B86E0C; --warn-soft:#F7E6CC;
+  --display:"Barlow Condensed","Arial Narrow",Impact,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151A; --surface:#1A2027; --surface2:#222932; --ink:#E5E9ED; --muted:#97A2AE; --line:#2E3742;
+  --accent:#F2BE3A; --accent-ink:#1E1600; --accent-soft:#3D3214;
+  --good:#4FB37C; --good-soft:#18342A; --bad:#E36B5F; --bad-soft:#3C1F1C; --warn:#E3A145; --warn-soft:#3B2B14; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151A; --surface:#1A2027; --surface2:#222932; --ink:#E5E9ED; --muted:#97A2AE; --line:#2E3742;
+  --accent:#F2BE3A; --accent-ink:#1E1600; --accent-soft:#3D3214;
+  --good:#4FB37C; --good-soft:#18342A; --bad:#E36B5F; --bad-soft:#3C1F1C; --warn:#E3A145; --warn-soft:#3B2B14; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);text-transform:uppercase;letter-spacing:.02em;margin:0;line-height:1.05;text-wrap:balance}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.label{font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:6px 18px}
+.logo{display:flex;align-items:baseline;gap:10px}
+.logo h1{font-size:34px;font-weight:800;letter-spacing:.04em}
+.logo h1 span{background:var(--accent);color:var(--accent-ink);padding:0 6px;margin-left:2px}
+.logo p{margin:0;color:var(--muted);font-size:13.5px}
+.top .sp{flex:1}
+
+.btn{border:1.5px solid var(--line);background:var(--surface);border-radius:6px;padding:8px 14px;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(.96);border-color:var(--accent-ink)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--ink);border-color:var(--line)}
+
+.grid{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+
+/* ticket list */
+.tickets{display:flex;flex-direction:column;gap:8px}
+.ticket{all:unset;display:block;cursor:pointer;background:var(--surface);border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;position:relative}
+.ticket:focus-visible{outline:3px solid var(--accent)}
+.ticket.on{border-color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.ticket b{display:block;font-weight:600;font-size:14.5px;line-height:1.3}
+.ticket small{color:var(--muted);font-size:12.5px}
+.ticket .bar{height:4px;background:var(--surface2);border-radius:2px;margin-top:8px;overflow:hidden}
+.ticket .bar i{display:block;height:100%;background:var(--accent)}
+.punch{position:absolute;right:10px;top:10px;width:9px;height:9px;border-radius:50%;background:var(--bg);border:1.5px solid var(--line)}
+
+/* workspace */
+.sheet{background:var(--surface);border:1.5px solid var(--line);border-radius:8px;min-width:0}
+.head{padding:18px 20px 0;display:flex;flex-direction:column;gap:10px}
+.head h2{font-size:32px;font-weight:800}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--surface2);border:1px solid var(--line)}
+.chip.goal{background:var(--accent-soft);border-color:transparent}
+.chip.ex{background:transparent;border-style:dashed;color:var(--muted)}
+.tabs{display:flex;gap:2px;border-bottom:1.5px solid var(--line);margin-top:8px;overflow-x:auto;padding:0 12px}
+.tab{all:unset;cursor:pointer;padding:10px 12px;font-family:var(--display);font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1.5px;white-space:nowrap}
+.tab.on{color:var(--ink);border-color:var(--accent)}
+.tab:focus-visible{outline:3px solid var(--accent)}
+.body{padding:20px;display:flex;flex-direction:column;gap:20px}
+
+/* next step */
+.next{border:2px solid var(--ink);border-radius:8px;overflow:hidden}
+.next .strip{background:var(--accent);color:var(--accent-ink);padding:6px 14px;display:flex;justify-content:space-between;gap:10px;font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:15px}
+.next .in{padding:16px;display:flex;flex-direction:column;gap:10px}
+.next h3{font-size:26px}
+.kv{display:grid;grid-template-columns:88px 1fr;gap:4px 12px;font-size:14.5px}
+.kv dt{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
+.kv dd{margin:0;min-width:0}
+.tip{background:var(--surface2);border-left:3px solid var(--accent);padding:8px 12px;font-size:14px;border-radius:0 4px 4px 0}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn.ok{border-color:var(--good);color:var(--good)}
+.btn.bad{border-color:var(--bad);color:var(--bad)}
+.btn.ok:hover{background:var(--good-soft)} .btn.bad:hover{background:var(--bad-soft)}
+
+.steps{display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.step{display:grid;grid-template-columns:30px 1fr auto;gap:10px;padding:10px 12px;border-top:1px solid var(--line);align-items:start}
+.step:first-child{border-top:0}
+.step .n{font-family:var(--mono);font-size:13px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);color:var(--muted)}
+.step.ok .n{background:var(--good);border-color:var(--good);color:#fff}
+.step.bad .n{background:var(--bad);border-color:var(--bad);color:#fff}
+.step.skip .n{border-style:dashed}
+.step.cur{background:var(--accent-soft)}
+.step b{font-weight:600}
+.step p{margin:2px 0 0;color:var(--muted);font-size:13.5px}
+.step .cost{font-size:12.5px;color:var(--muted);white-space:nowrap;text-align:right}
+.step .note{color:var(--ink);font-style:italic}
+.step .found{color:var(--bad);font-weight:600;font-size:13px}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:640px){.cols{grid-template-columns:1fr}}
+.box{border:1.5px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.box h3{font-size:19px}
+.box p{margin:0}
+.muted{color:var(--muted)}
+.rule{font-size:14px;display:flex;gap:8px}
+.rule b{font-family:var(--mono);color:var(--muted);font-size:12.5px;padding-top:2px}
+
+/* forms */
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:12.5px;font-weight:600;color:var(--muted)}
+input[type=text],input[type=number],select,textarea{background:var(--bg);border:1.5px solid var(--line);border-radius:5px;padding:7px 9px;width:100%;min-width:0}
+input:focus,select:focus,textarea:focus{border-color:var(--ink);outline:none}
+textarea{resize:vertical;min-height:70px}
+.frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.pre{position:relative}
+.pre span{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none}
+.pre input{padding-left:20px}
+
+/* wizard */
+.wiz{padding:22px 20px;display:flex;flex-direction:column;gap:18px}
+.wiz h2{font-size:30px}
+.picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.pick{all:unset;cursor:pointer;border:1.5px solid var(--line);border-radius:6px;padding:12px;background:var(--bg);display:flex;flex-direction:column;gap:2px}
+.pick:hover{border-color:var(--ink)}
+.pick.on{border-color:var(--ink);background:var(--accent-soft);box-shadow:3px 3px 0 var(--ink)}
+.pick:focus-visible{outline:3px solid var(--accent)}
+.pick b{font-weight:600}
+.pick small{color:var(--muted);font-size:12.5px;line-height:1.35}
+.wsteps{display:flex;gap:6px}
+.wsteps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.wsteps i.on{background:var(--accent)}
+
+/* parts table */
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:6px 8px;border-bottom:1.5px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td input,td select{padding:5px 7px}
+.warnrow td{padding-top:0;border-bottom:1px solid var(--line)}
+.warnmsg{font-size:12.5px;color:var(--warn);background:var(--warn-soft);padding:4px 8px;border-radius:4px;display:inline-block}
+
+/* money */
+.seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--surface2);padding:4px;border-radius:7px;align-self:flex-start}
+.seg button{all:unset;cursor:pointer;padding:6px 12px;border-radius:5px;font-weight:600;font-size:13.5px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.seg button:focus-visible{outline:3px solid var(--accent)}
+.result{border:2px solid var(--ink);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.big{font-family:var(--display);font-weight:800;font-size:44px;line-height:1}
+.lines{display:flex;flex-direction:column;font-size:14px}
+.lines div{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.lines div:last-child{border-bottom:0}
+.lines .tot{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:0}
+.verdict{padding:8px 12px;border-radius:5px;font-size:14px;font-weight:500}
+.verdict.good{background:var(--good-soft);color:var(--good)}
+.verdict.warn{background:var(--warn-soft);color:var(--warn)}
+.verdict.bad{background:var(--bad-soft);color:var(--bad)}
+.quote{font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;background:var(--bg);border:1.5px solid var(--line);border-radius:5px;padding:10px;margin:0;overflow-x:auto}
+
+.log{display:flex;flex-direction:column;gap:6px}
+.log div{font-size:14px;display:grid;grid-template-columns:110px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.log time{color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+.foot{color:var(--muted);font-size:12.5px;padding-block:18px 8px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:6px;font-size:14px;font-weight:500;z-index:9}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.next{animation:pop .25s ease-out}@keyframes pop{from{transform:translateY(4px);opacity:.6}to{transform:none;opacity:1}}}
+
+/* saved light */
+.save-status{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted,#667);white-space:nowrap;padding:3px 10px;border:1px solid var(--line,#ccd);border-radius:99px;background:var(--surface,transparent)}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--good,#2C8A57);flex:none}
+.save-dot.saving{background:var(--warn,#E39A00);animation:svpulse .9s infinite ease-in-out}
+.save-dot.error{background:var(--bad,#C2453A)}
+.save-dot.example{background:var(--muted,#889)}
+@keyframes svpulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.save-dot.saving{animation:none}}
+</style>
+
+</head><body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo"><h1>Sort<span>ed</span></h1><p>Fix it the smart way. One step at a time.</p></div>
+    <div class="sp"></div>
+    <div class="save-status" aria-live="polite" title="Your work saves automatically in this browser"><span class="save-dot" id="saveDot"></span><span id="saveText">Saved</span></div>
+    <button class="btn primary" id="newBtn">+ New project</button>
+  </header>
+  <div class="grid">
+    <aside>
+      <div class="label" style="margin-bottom:8px">Your projects</div>
+      <div class="tickets" id="tickets"></div>
+    </aside>
+    <main class="sheet" id="main"></main>
+  </div>
+  <div class="foot">
+    <span>Projects are saved in this browser.</span>
+    <button class="btn small ghost" id="backupBtn">Back up / restore</button>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+function saveLight(s){const d=document.getElementById('saveDot'),t=document.getElementById('saveText');if(!d)return;
+ d.className='save-dot'+(s==='saved'?'':' '+s);t.textContent={saved:'Saved',saving:'Saving…',error:'Not saved. Check browser settings',example:'Example, not saved'}[s];
+ clearTimeout(saveLight.t);if(s==='saving')saveLight.t=setTimeout(()=>{if(d.classList.contains('saving'))saveLight('saved')},4000);}
+function storeOK(k,v){try{localStorage.setItem(k,v);return localStorage.getItem(k)===v}catch(e){return false}}
+
+// ---------- data ----------
+const MACHINES=[
+ {id:'jetski',label:'Jet ski / PWC',sub:'Sea-Doo, Yamaha, Kawasaki'},
+ {id:'car',label:'Car / truck',sub:'Fuel injected, OBD-II'},
+ {id:'atv',label:'4-wheeler / ATV',sub:'Also UTVs, side-by-sides'},
+ {id:'mower',label:'Lawn mower',sub:'Push or riding'},
+ {id:'moto',label:'Motorcycle / dirt bike',sub:'Street or off-road'},
+ {id:'boat',label:'Boat / outboard',sub:'Outboard or I/O'},
+ {id:'snow',label:'Snowblower',sub:'Single or two-stage'},
+ {id:'small',label:'Chainsaw / trimmer',sub:'2-stroke handheld'},
+ {id:'gen',label:'Generator',sub:'Portable or inverter'},
+ {id:'other',label:'Something else',sub:'Any engine-powered machine'},
+ {id:'hvac',label:'Furnace / AC / heat pump',sub:'Central heating and cooling',home:1},
+ {id:'wh',label:'Water heater',sub:'Gas or electric tank',home:1},
+ {id:'washer',label:'Washer / dryer',sub:'Laundry machines',home:1},
+ {id:'fridge',label:'Fridge / freezer',sub:'Including ice makers',home:1},
+ {id:'dish',label:'Dishwasher',sub:'Built-in or portable',home:1},
+ {id:'appliance',label:'Other appliance',sub:'Oven, microwave, window AC…',home:1}];
+const isHome=id=>!!(MACHINES.find(m=>m.id===id)||{}).home;
+const GOALS=[
+ {id:'enjoy',label:'Enjoy it',sub:'Get it running for me. What will it cost to own?'},
+ {id:'client',label:'Fix it for someone',sub:'Paid job. What should I charge?'},
+ {id:'flip',label:'Fix it to sell',sub:'Buy, fix, flip. Is there profit in it?'},
+ {id:'asis',label:'Sell it as-is',sub:'Or should I fix it first? Which nets more?'}];
+const SYMPTOMS=[
+ {id:'nostart',label:"Won't start",sub:'Cranks or pulls, never fires',k:'e'},
+ {id:'dies',label:'Starts, then dies',sub:'Runs a few seconds or only on choke',k:'e'},
+ {id:'rough',label:'Runs rough',sub:'Misses, surges, hunts, backfires',k:'e'},
+ {id:'power',label:'No power / bogs',sub:'Idles fine, falls flat under load',k:'e'},
+ {id:'heat',label:'Overheats',sub:'Gets hot, warning light, shuts down',k:'e'},
+ {id:'smoke',label:'Smokes',sub:'Blue, white or black smoke',k:'e'},
+ {id:'elec',label:'Dead / electrical',sub:'No crank, clicks, no lights',k:'e'},
+ {id:'hoff',label:"Won't turn on",sub:'Nothing happens, no lights',k:'h'},
+ {id:'hheat',label:'Not heating',sub:'No heat, not enough, or no hot water',k:'h'},
+ {id:'hcool',label:'Not cooling',sub:'Warm air, warm fridge, ice on lines',k:'h'},
+ {id:'hcycle',label:'Turns on and off',sub:'Short cycles, stops mid-cycle',k:'h'},
+ {id:'leak',label:'Leaking',sub:'Fluid under it, water on the floor',k:'eh'},
+ {id:'noise',label:'Strange noise',sub:'Knock, squeal, grind, rattle, hum',k:'eh'},
+ {id:'check',label:'Not sure / full checkup',sub:'Inspect before buying or selling',k:'eh'}];
+
+const SAFETY_TIPS={
+ jetski:'Lanyard clipped on? Most PWCs will not crank without it, and Sea-Doo DESS keys must be the coded key for that ski.',
+ atv:'In neutral or brake held? Kill switch on RUN? Many ATVs need the brake lever pulled to crank.',
+ mower:'Blade bail lever held? On riders: seat switch, PTO off, brake pressed, parking brake set.',
+ moto:'Kill switch on RUN, side stand up, clutch pulled in, neutral light on.',
+ boat:'Kill-switch lanyard on, shifter in neutral, primer bulb squeezed firm.',
+ snow:'Key fully pushed in, choke on, primer pushed 3 to 5 times when cold.',
+ small:'Switch on, choke on, primer bulb full of fuel, chain brake off.',
+ gen:'Engine switch ON, fuel valve open, oil full. The low-oil shutoff kills spark when oil is low.',
+ other:'Check every switch, key and lever that has to be in a certain position to start.',
+ hvac:'The furnace has a service switch that looks like a light switch, often on the side or at the stairs. The outdoor AC unit has a disconnect box. If you ever smell gas, leave the house and call the gas company.',
+ wh:'Gas: is the pilot lit and the gas valve on? Electric: check both breakers (it is a 240 V double breaker). If you smell gas, leave and call the gas company.',
+ washer:'Lid or door latched? Many washers will not start unless the lid lock clicks. Dryers need the door switch and, if gas, the gas valve open.',
+ fridge:'Plugged in tight? Check the outlet with a lamp. A tripped GFCI in a garage or basement is common.',
+ dish:'Door fully latched? Many dishwashers wire to a switch under the sink or share a breaker with the disposal.',
+ appliance:'Plug, outlet, breaker, GFCI and any child lock or control lock setting.'};
+
+// step: id, t title, why, how, tool, cost [lo,hi], fix (if bad), only/skip machine lists
+const S={
+ codes:{t:'Read the trouble codes',why:'The computer often already knows what failed.',how:'Plug a $20 OBD-II scanner under the dash, key on, read and write down every code. Many parts stores read them free.',tool:'OBD-II scanner',cost:[0,25],fix:'Look up each code with your year/make/model before buying anything. A code points to a circuit, not always a part.'},
+ safety:{t:'Check switches and the obvious stuff',why:'Most "dead" machines are a switch, a key or a lever in the wrong spot.',how:'Go through every kill switch, key, lever and valve that has to be set to start.',tool:'None',cost:[0,0],fix:'Fix or bypass-test the faulty switch (only to diagnose, never to ride).',safety:true},
+ fuel:{t:'Check the fuel itself',why:'Old gas goes stale in 30 to 90 days and gums up small engines. Water in fuel stops everything.',how:'Smell it (varnish smell = stale). Drain a little into a clear jar: look for water beads or cloudiness.',tool:'Clear jar',cost:[0,10],fix:'Drain the tank, refill with fresh ethanol-free fuel if you can, add stabilizer.'},
+ spark:{t:'Test for spark',why:'No spark means no amount of carb cleaning will help. This splits the problem in half.',how:'Use an inline spark tester between plug and wire. Crank and look for a strong blue spark.',tool:'Spark tester',cost:[0,10],fix:'No spark: check kill switch wiring, then the coil/air gap, then the stator or ignition module.'},
+ plug:{t:'Pull and read the spark plug',why:'The plug tells you how the engine has been running.',how:'Black and sooty = running rich. Wet with fuel = flooded or no spark. White = lean or hot. Oily = oil getting in. Check the gap.',tool:'Plug socket, gap tool',cost:[3,15],fix:'Replace with the correct plug and gap. Note what it looked like; that is a clue.'},
+ air:{t:'Look at the air filter',why:'A clogged or oil-soaked filter chokes the engine and makes it run rich.',how:'Pull it out. Hold paper filters to light. Check foam for rips and oil.',tool:'None',cost:[0,20],fix:'Clean or replace. Look for mouse nests in the airbox too.'},
+ prime:{t:'Starting-fluid test',why:'Shows whether the problem is fuel delivery or something else.',how:'Spray a one-second shot of starting fluid into the intake and try to start. If it fires and dies, fuel is not getting through.',tool:'Starting fluid',cost:[0,8],fix:'Fires on fluid: the problem is fuel delivery. Go to the carb / fuel line steps. Does not fire: back to spark and compression.',skip:['car']},
+ lines:{t:'Fuel flow: lines, filter, tank vent',why:'Cracked lines, a plugged filter or a blocked cap vent starve the engine.',how:'Pull the line at the carb and see if fuel flows freely. Try running with the gas cap loose: if it stops dying, the vent is plugged.',tool:'Clamp, rag',cost:[0,25],fix:'Replace cracked lines and the inline filter. Clean or replace the cap vent.'},
+ carb:{t:'Clean the carburetor',why:'Stale fuel leaves varnish that plugs tiny jets, especially the idle jet.',how:'Drain the bowl, remove the main and idle jets, spray carb cleaner through them, push a thin wire through. Check the float and needle.',tool:'Carb cleaner, screwdrivers',cost:[8,15],fix:'If it is badly corroded, a replacement carb for small engines is often $15 to $40, cheaper than a kit and your time.',skip:['car']},
+ efi:{t:'Fuel pressure and injectors',why:'Fuel injected engines need correct pressure from the pump.',how:'Listen for a 2-second pump hum at key-on. Check fuel pressure at the test port against the spec.',tool:'Fuel pressure gauge (loaner)',cost:[0,40],fix:'Low pressure: filter, pump relay, then the pump itself.',only:['car']},
+ comp:{t:'Compression test',why:'Low compression means internal wear. This decides if the engine is worth fixing.',how:'Warm engine if possible, plug out, throttle wide open, crank 5 to 6 times. Compare to spec (small engines often 90+ psi, PWC/ATV often 120+).',tool:'Compression gauge',cost:[0,35],fix:'Low on one cylinder: add a teaspoon of oil and retest. Goes up = rings. Stays low = valves or head gasket. This is the big money fork in the road.'},
+ battery:{t:'Battery voltage',why:'A weak battery causes clicks, slow cranks and odd electrical problems.',how:'Multimeter on the posts. 12.6 V = full, 12.2 V = half, under 12 V = dead. Watch it while cranking: dropping below 9.6 V means a weak battery.',tool:'Multimeter',cost:[0,20],fix:'Charge it and retest. If it will not hold a charge, replace it.'},
+ cables:{t:'Terminals and ground wires',why:'Corroded or loose connections look exactly like a dead battery.',how:'Wiggle each cable end. Look for green/white crust. Follow the main ground to the frame/engine.',tool:'Wire brush, wrench',cost:[0,10],fix:'Clean to bare metal, tighten, add dielectric grease.'},
+ fuses:{t:'Fuses and relays',why:'A five-cent fuse can kill everything.',how:'Pull and check each fuse. Swap a matching relay to test.',tool:'Test light',cost:[0,10],fix:'Replace the fuse. If it blows again, find the short before replacing more.'},
+ starter:{t:'Starter and solenoid',why:'A click with good battery voltage points here.',how:'Check for 12 V at the starter when the key is turned. Tap the starter lightly while someone cranks.',tool:'Multimeter',cost:[0,10],fix:'Voltage there but no spin: starter. No voltage: solenoid, switch or wiring.'},
+ charging:{t:'Charging system',why:'If the battery keeps dying, it may not be getting charged.',how:'Engine running at fast idle: battery should read about 13.5 to 14.5 V.',tool:'Multimeter',cost:[0,0],fix:'Under 13 V: regulator/rectifier or stator (small engines), alternator (cars).'},
+ choke:{t:'Choke and idle setting',why:'Runs only on choke = lean, usually a plugged idle jet or air leak.',how:'Note if it runs better with partial choke. Check that the choke opens fully when off.',tool:'None',cost:[0,0],fix:'Clean the idle circuit. Check the idle mixture screw setting.',skip:['car']},
+ vacuum:{t:'Look for air leaks',why:'Extra air leaning out the mixture causes surging and dying.',how:'With it running, spray a little carb cleaner around the intake boot/gaskets. RPM change = leak found.',tool:'Carb cleaner',cost:[0,15],fix:'Replace the cracked intake boot or gasket.'},
+ coil:{t:'Ignition coil and plug wire',why:'Weak spark under load shows up as misfire and no power.',how:'Look for cracks in the boot and wire. Test coil resistance against spec.',tool:'Multimeter',cost:[0,10],fix:'Replace the coil or wire only after it fails a test.'},
+ exhaust:{t:'Exhaust and spark arrestor',why:'A plugged spark arrestor or a mouse nest in the muffler kills power.',how:'Pull the spark arrestor screen and look. Check the muffler outlet.',tool:'Screwdriver',cost:[0,0],fix:'Clean the screen with a wire brush or replace it.'},
+ belt:{t:'Drive belt and clutch',why:'Engine revs but the machine does not go = slipping belt.',how:'Inspect for glazing, cracks or width worn thin. Check the clutch for smooth movement.',tool:'Wrench set',cost:[0,10],fix:'Replace the belt. If belts keep failing, look at the clutch.',only:['atv','mower','snow','other']},
+ intake:{t:'Jet pump intake and impeller',why:'Weeds, rope or a worn impeller make a jet ski rev high and go nowhere.',how:'Flip or lift the ski, look up the intake grate. Check impeller blade edges for nicks and wear ring clearance.',tool:'Flashlight',cost:[0,0],fix:'Clear debris. Worn impeller or wear ring: rebuild the pump.',only:['jetski','boat']},
+ cool:{t:'Coolant / cooling path',why:'Low coolant, blocked fins or a plugged water passage cause heat.',how:'Air-cooled: clean grass and dirt off the cooling fins. Liquid-cooled: check level cold. PWC/outboard: check the tell-tale stream and flush.',tool:'Brush, garden hose',cost:[0,25],fix:'Clean fins, top up or flush, clear passages.'},
+ fan:{t:'Fan and thermostat',why:'If coolant is fine, the heat is not being moved.',how:'Does the fan come on when hot? Feel the hoses: one hot and one cold means a stuck thermostat.',tool:'None',cost:[0,30],fix:'Test the fan circuit before replacing the fan. A thermostat is cheap and is often the fix.',skip:['small','mower','snow','gen']},
+ pump:{t:'Water pump / impeller',why:'Outboards and many PWCs pump water through the engine with a rubber impeller that wears out.',how:'Check the water stream at idle. Weak or no stream = impeller or plugged passage.',tool:'Garden hose / flush kit',cost:[0,10],fix:'Replace the water pump impeller (often every 2 to 3 seasons on outboards).',only:['boat','jetski','car','atv','moto']},
+ smokecolor:{t:'Name the smoke color',why:'The color tells you which fluid is burning.',how:'Blue/grey = oil. White and sweet smelling = coolant. Black = too much fuel. White puffs on startup that clear = normal condensation.',tool:'None',cost:[0,0],fix:'Blue: oil overfilled or worn rings/valve seals. White: coolant leak. Black: rich mixture, check air filter and choke first.'},
+ oil:{t:'Check the oil level and condition',why:'Overfilled oil smokes, milky oil means water or coolant, low oil damages the engine.',how:'Check on level ground. Look for milky color, metal flakes or a fuel smell.',tool:'Rag',cost:[0,30],fix:'Correct the level. Milky = find the water leak before running it. Metal flakes = internal damage, stop and reassess.'},
+ leakid:{t:'Identify the fluid',why:'Each fluid points to a different system.',how:'Put cardboard under it overnight. Amber/black = oil. Green/orange = coolant. Red = trans/power steering. Clear and smells = fuel.',tool:'Cardboard',cost:[0,0],fix:'Now you know which system to trace.'},
+ leakclean:{t:'Clean it and find the source',why:'Leaks run downhill and the drip spot is rarely the source.',how:'Degrease the area, dry it, run it, look for the highest wet point.',tool:'Degreaser, flashlight',cost:[5,10],fix:'Start with the cheap stuff: drain plug, filter, hose clamps, before gaskets and seals.'},
+ noisewhen:{t:'Pin down when it happens',why:'Timing narrows the cause fast.',how:'Does it change with engine RPM or with ground speed? Only cold? Only under load? Record a video.',tool:'Phone',cost:[0,0],fix:'Engine speed = engine or accessories. Ground speed = wheels, bearings, drivetrain.'},
+ noisecheck:{t:'Check belts, bearings and loose parts',why:'Most noises are bolt-on parts, not the engine internals.',how:'Engine off: wiggle pulleys, wheels, blades. Look for loose heat shields and shiny rub marks.',tool:'Flashlight, pry bar',cost:[0,0],fix:'Tighten or replace the worn part you found. Deep knocking from the engine itself: stop and do a compression/oil check.'},
+ walk:{t:'Walk-around inspection',why:'Gives you a full picture before you spend money or set a price.',how:'Photos of every side. Note rust, cracks, tire/track wear, hull damage, missing parts, title/registration.',tool:'Phone',cost:[0,0],fix:'Write down everything. This list becomes your parts list and your selling description.'},
+ hpower:{t:'Power, breaker and switches',why:'A tripped breaker, GFCI or service switch is the most common "broken appliance".',how:'Check the breaker panel, any GFCI outlet nearby, the unit\'s own power switch, and test the outlet with a lamp. Turn power OFF before opening any panel.',tool:'Lamp or outlet tester',cost:[0,10],fix:'Reset it. If it trips again right away, there is a short or a failing motor: do not keep resetting it.',safety:true},
+ tstat:{t:'Thermostat',why:'Dead batteries or the wrong mode look like a dead furnace or AC.',how:'Fresh batteries, correct mode (Heat/Cool), fan on Auto, set 5 degrees past room temperature and wait 5 minutes.',tool:'AA/AAA batteries',cost:[0,5],fix:'Replace batteries. A blank or erratic screen after that: thermostat or its wiring.',only:['hvac']},
+ hfilter:{t:'Air filter',why:'A clogged filter makes furnaces overheat and shut off, and makes AC coils freeze up.',how:'Pull the filter at the furnace or return grille. Hold it to light. If you can\'t see through it, it is done.',tool:'None',cost:[0,25],fix:'Replace it (arrow points toward the furnace). Change every 1 to 3 months.',only:['hvac','appliance']},
+ hcodes:{t:'Read the error code',why:'Most modern units tell you what is wrong with a code or a blinking light.',how:'Look at the display, or through the peep window on the furnace control board. Count the blinks. The code chart is usually a sticker inside the panel door or in the manual.',tool:'Phone light',cost:[0,0],fix:'Look up the code for your model number. The code points to a circuit; test that part before buying it.'},
+ door:{t:'Door, lid and safety switches',why:'Appliances will not run if they think the door is open.',how:'Listen for the click when closing. Check the latch for broken plastic. On furnaces, the blower door must be on tight for it to run.',tool:'Multimeter',cost:[0,0],fix:'Replace the switch or latch only if it fails a continuity test.',only:['washer','dish','fridge','hvac','appliance']},
+ reset:{t:'Reset buttons and thermal fuses',why:'Many units have a safety reset that trips when something overheats.',how:'Water heater: red button behind the upper panel (electric). Garbage disposals: red button underneath. Dryers: a thermal fuse on the back panel (test for continuity, it has no reset).',tool:'Multimeter',cost:[0,15],fix:'A tripped reset means something got too hot. Reset once, then find why: dryer vent clogged, element shorted, thermostat stuck.',only:['wh','washer','appliance','dish']},
+ flame:{t:'Igniter and flame sensor',why:'A dirty flame sensor is the #1 reason a furnace lights then shuts off within seconds.',how:'Power off. Remove the thin metal rod near the burner, rub it gently with fine steel wool or a dollar bill, reinstall. Look at the igniter for cracks.',tool:'Nut driver, steel wool',cost:[0,0],fix:'Clean the sensor. Cracked or no-glow igniter: replace ($20 to $45).',only:['hvac']},
+ condensate:{t:'Condensate drain and float switch',why:'High-efficiency furnaces and ACs shut down when the drain line backs up.',how:'Look for water in the drain pan or a full condensate pump. Clear the line with a wet/dry vac at the outside end.',tool:'Wet/dry vac',cost:[0,15],fix:'Clear the line, pour a cup of vinegar in to keep it clean. Pump not running: replace the pump ($50 to $80).',only:['hvac']},
+ coils:{t:'Outdoor unit: coil, fan, capacitor',why:'A dirty coil or failed capacitor is the most common AC "not cooling".',how:'Is the outdoor fan spinning? Is the coil packed with cottonwood or grass? A humming unit with a still fan often means a bad capacitor.',tool:'Garden hose',cost:[0,30],fix:'Rinse the coil from inside out (power off). Capacitors hold a dangerous charge even with power off; replace only if you know how to discharge one, otherwise call a tech.',only:['hvac']},
+ iceup:{t:'Check for ice',why:'Frozen lines or coil mean airflow or refrigerant trouble.',how:'Look at the copper line at the outdoor unit and the indoor coil. If iced, turn cooling OFF and fan ON for a few hours to thaw.',tool:'None',cost:[0,0],fix:'Ices again with a clean filter and open vents: likely low refrigerant. That needs a licensed tech (EPA 608).',only:['hvac']},
+ whheat:{t:'Water heater: elements or pilot',why:'Electric heaters have two elements; gas heaters rely on the pilot and thermocouple.',how:'Electric (power OFF): test each element for continuity, usually 10 to 30 ohms. Gas: is the pilot lit? If it goes out when you release the knob, the thermocouple is weak.',tool:'Multimeter',cost:[0,25],fix:'Electric: replace the failed element ($15 to $30). Gas: thermocouple ($10 to $20).',only:['wh']},
+ fridgecoil:{t:'Condenser coils and fans',why:'Dusty coils and a stopped fan are the cheapest fridge fixes.',how:'Pull the fridge out, vacuum the coils (bottom or back). Check the fan by the compressor and the one inside the freezer both spin.',tool:'Coil brush, vacuum',cost:[0,15],fix:'Clean coils. Stopped fan: replace the fan motor ($25 to $50).',only:['fridge']},
+ defrost:{t:'Frost pattern in the freezer',why:'Heavy frost on the back panel means the defrost system failed.',how:'Remove the back panel of the freezer. A solid sheet of frost on the coil = defrost heater, sensor or timer.',tool:'Screwdriver',cost:[0,0],fix:'Hand-defrost with a hair dryer to confirm it cools again, then test the heater and thermostat before buying.',only:['fridge']},
+ hoses:{t:'Hoses, filters and drain',why:'Most appliance leaks and drain problems are a hose or a clogged filter.',how:'Check supply and drain hoses for cracks. Clean the washer pump filter (front bottom) or dishwasher filter (under the bottom rack).',tool:'Towels, pliers',cost:[0,20],fix:'Replace cracked hoses with braided ones. Clean filters monthly.',only:['washer','dish','fridge','appliance']},
+ whleak:{t:'Water heater: where is it leaking?',why:'A leak from the relief valve is fixable. A leak from the tank itself is not.',how:'Check the T&P valve and its pipe, the drain valve, and the pipe connections on top. Water from under the tank jacket means the tank has failed.',tool:'Flashlight, towel',cost:[0,20],fix:'Valve or fitting: replace it. Tank leak: replace the water heater.',only:['wh']},
+ hlevel:{t:'Level, load and loose parts',why:'Unbalanced loads and uneven feet cause most banging and walking.',how:'Put a level on top. Adjust the feet. Check for a loose panel, a coin in the drum, or a worn blower wheel.',tool:'Level, wrench',cost:[0,0],fix:'Level it. Grinding or roaring that changes with speed: bearings or motor, get a quote before diving in.'},
+ age:{t:'Age and model number',why:'Age decides repair vs replace. Most units last 10 to 15 years.',how:'Find the data plate (inside the door, back, or side panel). Search the serial number decoder for your brand to get the build year.',tool:'Phone',cost:[0,0],fix:'Rule of thumb: if the repair costs more than half the price of a new one and it is past half its life, replace it.'},
+ hours:{t:'Hours, history and paperwork',why:'Hours and records move the value more than shine does.',how:'Check the hour meter or odometer. Ask for service records. Confirm the VIN/HIN matches the title.',tool:'None',cost:[0,0],fix:'No title or mismatched numbers: price it as parts and be careful buying.'}
+};
+const PLANS={
+ nostart:['codes','safety','fuel','spark','plug','air','prime','efi','carb','comp'],
+ dies:['codes','fuel','lines','choke','carb','efi','vacuum','air','plug'],
+ rough:['codes','plug','air','fuel','carb','efi','vacuum','coil','comp'],
+ power:['codes','air','exhaust','intake','belt','fuel','lines','carb','efi','coil','comp'],
+ heat:['codes','oil','cool','fan','pump','intake','air','carb'],
+ smoke:['smokecolor','oil','air','choke','carb','comp'],
+ elec:['safety','battery','cables','fuses','starter','charging','codes'],
+ leak:['leakid','leakclean','oil'],
+ noise:['noisewhen','noisecheck','oil','belt','comp'],
+ check:['walk','hours','oil','battery','plug','air','fuel','comp','codes']};
+const PLANS_HOME={
+ hoff:['hpower','door','tstat','hcodes','reset'],
+ hheat:['tstat','hpower','hfilter','hcodes','flame','condensate','whheat','reset'],
+ hcool:['tstat','hpower','hfilter','iceup','coils','condensate','fridgecoil','defrost','hcodes'],
+ hcycle:['tstat','hfilter','flame','condensate','coils','fridgecoil','hcodes','reset'],
+ leak:['hpower','hoses','whleak','condensate','iceup','defrost'],
+ noise:['noisewhen','hlevel','hfilter','coils','hcodes'],
+ check:['age','hpower','hcodes','hfilter','hoses','coils','fridgecoil','whleak']};
+
+const MAINT={
+ jetski:[['Oil and filter',60],['Spark plugs',25],['Winterize and fog',40],['Flush and anti-corrosion spray',15],['Registration',30],['Insurance',150],['Battery (every 3 yrs)',40]],
+ car:[['Oil changes (3/yr)',150],['Tires (spread over 4 yrs)',175],['Brakes (spread out)',100],['Registration',120],['Insurance',1200],['Wipers, filters, misc',60]],
+ atv:[['Oil and filter',45],['Air filter',20],['Spark plug',10],['Tires (spread out)',75],['Registration / trail permit',40],['Insurance',100]],
+ mower:[['Oil change',12],['Spark plug',6],['Air filter',12],['Blade sharpening',15],['Fuel stabilizer',8],['Belt (every 2 yrs)',15]],
+ moto:[['Oil and filter',50],['Chain and sprockets (spread)',60],['Tires (spread)',120],['Registration',40],['Insurance',300]],
+ boat:[['Lower unit oil',25],['Water pump impeller (spread)',50],['Winterize',150],['Registration',50],['Insurance',300],['Storage',400]],
+ snow:[['Oil change',12],['Spark plug',6],['Shear pins',8],['Fuel stabilizer',8],['Belt (every 3 yrs)',12]],
+ small:[['Bar oil and 2-stroke mix',25],['Chain sharpening / new chain',25],['Spark plug',6],['Air filter',8]],
+ gen:[['Oil changes',20],['Spark plug',6],['Fuel stabilizer',10],['Air filter',10]],
+ other:[['Oil and filter',40],['Spark plug',10],['Filters',20],['Registration / insurance',0]],
+ hvac:[['Air filters',60],['Yearly tune-up',150],['Drain line cleaning',10],['Thermostat batteries',5]],
+ wh:[['Yearly flush',0],['Anode rod (spread over 5 yrs)',10],['Relief valve test',0]],
+ washer:[['Washer cleaner tablets',15],['Hoses (spread over 5 yrs)',8],['Dryer vent cleaning',25]],
+ fridge:[['Water filter',50],['Coil cleaning',0]],
+ dish:[['Dishwasher cleaner',15],['Rinse aid',20]],
+ appliance:[['Cleaning and filters',20]]};
+
+// ---------- state ----------
+const KEY='sorted.v1';
+let state=load()||seed();
+let ui={tab:'plan',wiz:null,mode:null,backup:false,found:null};
+function load(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function save(){saveLight('saving');const ok=storeOK(KEY,JSON.stringify(state));setTimeout(()=>saveLight(ok?'saved':'error'),350)}
+function uid(){return Math.random().toString(36).slice(2,9)}
+function seed(){
+ const p={id:uid(),example:true,name:'2004 Sea-Doo GTX',details:'Bought for $600. Sat 2 seasons. Cranks strong, will not fire.',machine:'jetski',goal:'flip',symptom:'nostart',created:Date.now()-86400000*2,
+  steps:{safety:{s:'ok',note:'DESS key beeps twice, lanyard fine'},fuel:{s:'bad',note:'Smelled like varnish, water beads in the jar'}},
+  parts:[{id:uid(),name:'Fresh fuel + stabilizer',cost:28,status:'bought'},{id:uid(),name:'Spark plugs (x3)',cost:24,status:'idea'},{id:uid(),name:'Carb rebuild kits',cost:65,status:'idea'}],
+  log:[{t:Date.now()-86400000*2,x:'Picked it up. Trailer included.'},{t:Date.now()-86400000,x:'Drained 4 gallons of bad gas.'}],
+  money:{hours:6,rate:60,markup:20,supplies:5,diag:0,buy:600,fees:5,comps:'2400, 2800, 2600',cond:85,myRate:25,uses:20,asis:'',maint:null}};
+ const h={id:uid(),example:true,name:'Basement furnace',details:'Lights, runs about 10 seconds, then shuts off. About 12 years old.',machine:'hvac',goal:'enjoy',symptom:'hcycle',created:Date.now()-86400000,
+  steps:{tstat:{s:'ok',note:'New batteries, set to 72'},hfilter:{s:'ok',note:'Filter was 2 months old, looks OK'}},parts:[],log:[{t:Date.now()-86400000,x:'Started acting up on the first cold night.'}],money:{buy:0,uses:180,newp:4500}};
+ return {projects:[p,h],active:p.id};
+}
+const cur=()=>state.projects.find(p=>p.id===state.active);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=s=>document.querySelector(s);
+const money=n=>(n<0?'-$':'$')+Math.round(Math.abs(n)).toLocaleString();
+const mlabel=id=>(MACHINES.find(m=>m.id===id)||{}).label||id;
+const glabel=id=>(GOALS.find(m=>m.id===id)||{}).label||id;
+const slabel=id=>(SYMPTOMS.find(m=>m.id===id)||{}).label||id;
+function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,1800)}
+
+function stepsFor(p){
+ const P=isHome(p.machine)?PLANS_HOME:PLANS;
+ return (P[p.symptom]||P.check).filter(k=>{const s=S[k];
+  if(k==='codes'&&p.machine!=='car')return false;
+  if(s.only&&!s.only.includes(p.machine))return false;
+  if(s.skip&&s.skip.includes(p.machine))return false;return true}).map(k=>({k,...S[k]}));
+}
+function progress(p){const st=stepsFor(p);const done=st.filter(s=>p.steps[s.k]).length;return {st,done,total:st.length,next:st.find(s=>!p.steps[s.k]),found:st.filter(s=>p.steps[s.k]?.s==='bad')}}
+
+// ---------- render ----------
+function render(){renderTickets();renderMain()}
+function renderTickets(){
+ $('#tickets').innerHTML=state.projects.map(p=>{const g=progress(p);return `<button class="ticket ${p.id===state.active&&!ui.wiz?'on':''}" data-open="${p.id}">
+  <span class="punch"></span><b>${esc(p.name||'Untitled')}</b><small>${esc(mlabel(p.machine))} · ${esc(slabel(p.symptom))}</small>
+  <div class="bar"><i style="width:${g.total?g.done/g.total*100:0}%"></i></div></button>`}).join('')||'<p class="muted" style="margin:0">No projects yet.</p>';
+}
+function renderMain(){
+ const m=$('#main');
+ if(ui.backup)return m.innerHTML=backupView();
+ if(ui.wiz)return m.innerHTML=wizView();
+ const p=cur();
+ if(!p)return m.innerHTML=`<div class="empty"><h2 style="font-size:28px;color:var(--ink)">What are you working on?</h2><p>Start a project and Sorted will lay out the steps.</p><button class="btn primary" data-act="new">+ New project</button></div>`;
+ const tabs=[['plan','Plan'],['steps','Troubleshoot'],['parts','Parts'],['money','Money'],['log','Notes']];
+ m.innerHTML=`<div class="head">
+   <div class="chips"><span class="chip">${esc(mlabel(p.machine))}</span><span class="chip">${esc(slabel(p.symptom))}</span><span class="chip goal">Goal: ${esc(glabel(p.goal))}</span>${p.example?'<span class="chip ex">Example project</span>':''}</div>
+   <h2>${esc(p.name||'Untitled')}</h2>${p.details?`<p class="muted" style="margin:0">${esc(p.details)}</p>`:''}
+  </div>
+  <nav class="tabs">${tabs.map(([k,l])=>`<button class="tab ${ui.tab===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</nav>
+  <div class="body" id="tabbody">${({plan:planView,steps:stepsView,parts:partsView,money:moneyView,log:logView})[ui.tab](p)}</div>`;
+ if(ui.tab==='money')renderMoneyResult();
+}
+
+function nextCard(p,g){
+ if(!g.next){return `<div class="next"><div class="strip"><span>All steps checked</span><span>${g.done}/${g.total}</span></div><div class="in">
+  <h3>${g.found.length?'You found it':'Every check passed'}</h3>
+  <p style="margin:0">${g.found.length?`Problem${g.found.length>1?'s':''} found at: <b>${g.found.map(s=>esc(s.t)).join(', ')}</b>. Fix those, then retest before buying anything else.`:'Nothing failed. Time to get a second opinion, check the service manual for your model, or post your notes on a model-specific forum.'}</p>
+  <div class="acts"><button class="btn" data-tab="parts">Go to parts</button><button class="btn" data-tab="money">Run the numbers</button></div></div></div>`}
+ const s=g.next,i=g.st.indexOf(s)+1;
+ const tip=s.safety?SAFETY_TIPS[p.machine]||SAFETY_TIPS.other:'';
+ const f=ui.found===s.k;
+ return `<div class="next"><div class="strip"><span>Do this next</span><span class="num">Step ${i} of ${g.total}</span></div><div class="in">
+  <h3>${esc(s.t)}</h3>
+  <dl class="kv"><dt>Why</dt><dd>${esc(s.why)}</dd><dt>How</dt><dd>${esc(s.how)}</dd><dt>Tools</dt><dd>${esc(s.tool)}</dd><dt>Cost</dt><dd class="num">${s.cost[1]?money(s.cost[0])+' to '+money(s.cost[1]):'Free'}</dd></dl>
+  ${tip?`<div class="tip">${esc(tip)}</div>`:''}
+  ${f?`<div class="tip" style="border-color:var(--bad)"><b>If this is the problem:</b> ${esc(s.fix)}</div>
+   <div class="f"><label for="fnote">What did you find?</label><input type="text" id="fnote" placeholder="e.g. water in the fuel, plug was black"></div>
+   <div class="f"><label for="fpart">Part or fix this points to (optional, adds to your parts list as confirmed)</label><input type="text" id="fpart" placeholder="e.g. Carb rebuild kit"></div>
+   <div class="acts"><button class="btn bad" data-mark="bad" data-k="${s.k}">Save: problem found</button><button class="btn ghost" data-act="unfound">Cancel</button></div>`
+  :`<div class="f"><label for="snote">Note (optional)</label><input type="text" id="snote" placeholder="What you saw or measured"></div>
+   <div class="acts"><button class="btn ok" data-mark="ok" data-k="${s.k}">Checked, looks fine</button><button class="btn bad" data-act="found" data-k="${s.k}">Found a problem</button><button class="btn ghost" data-mark="skip" data-k="${s.k}">Skip for now</button></div>`}
+ </div></div>`;
+}
+function planView(p){
+ const g=progress(p);
+ const goalText={enjoy:'Get it running reliably for yourself, and know what it costs to keep.',client:'Find the real fault, fix only that, and bill fairly for parts and time.',flip:'Spend as little as possible to make it sell, and know your minimum price before you list it.',asis:'Decide if a fix is worth it before selling, then price it honestly.'}[p.goal];
+ const spent=p.parts.filter(x=>x.status!=='idea').reduce((a,x)=>a+(+x.cost||0),0);
+ return `${nextCard(p,g)}
+ <div class="cols">
+  <div class="box"><span class="label">Your goal</span><h3>${esc(glabel(p.goal))}</h3><p>${goalText}</p><p class="muted" style="font-size:13.5px">Spent so far: <span class="num" style="color:var(--ink)">${money(spent)}</span> · Steps checked: <span class="num" style="color:var(--ink)">${g.done}/${g.total}</span></p></div>
+  <div class="box"><span class="label">House rules</span>
+   <div class="rule"><b>1</b><span>Test before you buy. A part goes on the list as "confirmed" only after it fails a check.</span></div>
+   <div class="rule"><b>2</b><span>Cheapest and easiest checks first. The steps are already in that order.</span></div>
+   <div class="rule"><b>3</b><span>Change one thing, then retest. Two changes at once hide the answer.</span></div>
+   <div class="rule"><b>4</b><span>Feeling buried? Just do the yellow card. Nothing else today.</span></div></div>
+ </div>`;
+}
+function stepsView(p){
+ const g=progress(p);
+ return `${nextCard(p,g)}<div><div class="label" style="margin-bottom:8px">Full checklist, cheapest checks first</div><div class="steps">
+ ${g.st.map((s,i)=>{const r=p.steps[s.k];return `<div class="step ${r?r.s:''} ${g.next===s?'cur':''}"><span class="n">${r?.s==='ok'?'✓':r?.s==='bad'?'!':i+1}</span>
+  <div style="min-width:0"><b>${esc(s.t)}</b><p>${esc(s.why)}</p>${r?.note?`<p class="note">“${esc(r.note)}”</p>`:''}${r?.s==='bad'?`<p class="found">Problem found. ${esc(s.fix)}</p>`:''}</div>
+  <div class="cost"><span class="num">${s.cost[1]?money(s.cost[0])+'–'+money(s.cost[1]):'Free'}</span>${r?`<br><button class="btn small ghost" data-undo="${s.k}">Redo</button>`:''}</div></div>`}).join('')}
+ </div></div>`;
+}
+function partsView(p){
+ const confirmed=progress(p).found.length>0;
+ const tot=p.parts.reduce((a,x)=>a+(+x.cost||0),0), real=p.parts.filter(x=>x.status!=='idea').reduce((a,x)=>a+(+x.cost||0),0);
+ const st=[['idea','Thinking about it'],['need','Confirmed needed'],['bought','Bought'],['in','Installed']];
+ return `<div class="box"><span class="label">Before you buy</span><p>Parts marked <b>Thinking about it</b> have not failed a test yet. ${confirmed?'You have confirmed problems on the troubleshoot list, so tie your purchases to those.':'Nothing has failed a test yet, so hold off on buying and do the next step first.'}</p></div>
+ <div class="tbl"><table><thead><tr><th>Part or supply</th><th style="width:110px">Cost</th><th style="width:170px">Status</th><th style="width:40px"></th></tr></thead><tbody>
+ ${p.parts.map(x=>`<tr><td><input type="text" id="pn-${x.id}" data-pf="name" data-id="${x.id}" value="${esc(x.name)}" aria-label="Part name"></td>
+  <td><div class="pre"><span>$</span><input type="number" min="0" id="pc-${x.id}" data-pf="cost" data-id="${x.id}" value="${esc(x.cost)}" aria-label="Cost"></div></td>
+  <td><select id="ps-${x.id}" data-pf="status" data-id="${x.id}" aria-label="Status">${st.map(([k,l])=>`<option value="${k}" ${x.status===k?'selected':''}>${l}</option>`).join('')}</select></td>
+  <td><button class="btn small ghost" data-delpart="${x.id}" aria-label="Remove">✕</button></td></tr>
+  ${x.status==='idea'?`<tr class="warnrow"><td colspan="4"><span class="warnmsg">Not confirmed yet. Which test shows this part is bad?</span></td></tr>`:''}`).join('')}
+ </tbody></table></div>
+ <div class="acts"><button class="btn" data-act="addpart">+ Add part</button></div>
+ <div class="lines" style="max-width:360px"><div><span>Bought or confirmed</span><span class="num">${money(real)}</span></div><div><span>Still just ideas</span><span class="num">${money(tot-real)}</span></div><div class="tot"><span>If you bought everything</span><span class="num">${money(tot)}</span></div></div>`;
+}
+function M(p){p.money=p.money||{};const d={hours:3,rate:60,markup:20,supplies:5,diag:0,buy:0,fees:5,comps:'',cond:85,myRate:25,uses:20,asis:'',newp:0};for(const k in d)if(p.money[k]===undefined)p.money[k]=d[k];if(!p.money.maint)p.money.maint=(MAINT[p.machine]||MAINT.other).map(([n,c])=>({n,c}));return p.money}
+function moneyView(p){
+ const m=M(p);ui.mode=ui.mode||p.goal;
+ const fld=(k,l,pre,step)=>`<div class="f"><label for="m-${k}">${l}</label>${pre?`<div class="pre"><span>${pre}</span>`:''}<input type="number" id="m-${k}" data-m="${k}" value="${esc(m[k])}" min="0" step="${step||1}">${pre?'</div>':''}</div>`;
+ let form='';
+ if(ui.mode==='client')form=`<div class="frow">${fld('hours','Estimated hours','',0.5)}${fld('rate','Your hourly rate','$')}${fld('markup','Parts markup %')}${fld('supplies','Shop supplies %')}${fld('diag','Diagnostic fee','$')}</div><p class="muted" style="margin:0;font-size:13.5px">Parts come from the Parts tab (everything except "Thinking about it").</p>`;
+ if(ui.mode==='flip')form=`<div class="frow">${fld('buy','What you paid','$')}${fld('hours','Your hours','',0.5)}${fld('myRate','Your time is worth','$')}${fld('fees','Selling fees %')}${fld('cond','Condition vs comps %')}</div>
+  <div class="f"><label for="m-comps">Prices of similar ones that sold or are listed (comma separated)</label><input type="text" id="m-comps" data-m="comps" value="${esc(m.comps)}" placeholder="2400, 2800, 2600"></div>`;
+ if(ui.mode==='asis')form=`<div class="frow">${fld('buy','What you paid','$')}${fld('hours','Hours to fix it','',0.5)}${fld('myRate','Your time is worth','$')}${fld('fees','Selling fees %')}</div>
+  <div class="f"><label for="m-comps">Prices of running ones (comma separated)</label><input type="text" id="m-comps" data-m="comps" value="${esc(m.comps)}" placeholder="2400, 2800, 2600"></div>
+  <div class="f"><label for="m-asis">Prices of non-running ones, if you found any</label><input type="text" id="m-asis" data-m="asis" value="${esc(m.asis)}" placeholder="900, 1100"></div>`;
+ if(ui.mode==='enjoy')form=`<div class="frow">${fld('buy','What you paid','$')}${fld('uses','Times you will use it per year')}${fld('newp','Price of a new one','$')}</div>
+  <div class="label">Yearly upkeep for a ${esc(mlabel(p.machine).toLowerCase())} (edit to match yours)</div>
+  <div class="frow">${m.maint.map((x,i)=>`<div class="f"><label for="mt-${i}">${esc(x.n)}</label><div class="pre"><span>$</span><input type="number" min="0" id="mt-${i}" data-mt="${i}" value="${esc(x.c)}"></div></div>`).join('')}</div>`;
+ return `<div class="seg" role="tablist">${GOALS.map(g=>`<button class="${ui.mode===g.id?'on':''}" data-mode="${g.id}">${g.id===p.goal?'★ ':''}${esc({enjoy:'Cost to own',client:'What to bill',flip:'Flip price',asis:'Sell as-is?'}[g.id])}</button>`).join('')}</div>
+ <div class="cols"><div style="display:flex;flex-direction:column;gap:12px;min-width:0">${form}</div><div id="mres"></div></div>`;
+}
+function partsCost(p){return p.parts.filter(x=>x.status!=='idea').reduce((a,x)=>a+(+x.cost||0),0)}
+function partsAll(p){return p.parts.reduce((a,x)=>a+(+x.cost||0),0)}
+function comps(s){return String(s||'').split(/[,\s]+/).map(Number).filter(n=>n>0)}
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+function renderMoneyResult(){
+ const p=cur(),m=M(p),el=$('#mres');if(!el)return;const n=k=>+m[k]||0;let h='';
+ if(ui.mode==='client'){
+  const parts=partsCost(p),labor=n('hours')*n('rate'),pm=parts*n('markup')/100,sup=(labor+parts)*n('supplies')/100,tot=labor+parts+pm+sup+n('diag');
+  const lo=n('hours')*0.8*n('rate')+parts+pm+sup*0.8+n('diag'),hi=n('hours')*1.3*n('rate')+parts+pm+sup*1.3+n('diag');
+  const q=`ESTIMATE: ${p.name}\nIssue: ${slabel(p.symptom)}\n\nLabor (${n('hours')} hr @ ${money(n('rate'))}/hr)  ${money(labor)}\nParts                     ${money(parts+pm)}\nShop supplies             ${money(sup)}${n('diag')?`\nDiagnostic                ${money(n('diag'))}`:''}\n--------------------------------\nTOTAL                     ${money(tot)}\n\nIf more problems turn up, I will call you before doing extra work.`;
+  h=`<div class="result"><span class="label">Quote the customer</span><div class="big num">${money(tot)}</div><p class="muted" style="margin:0;font-size:13.5px">Likely range if the job runs short or long: <span class="num">${money(lo)}</span> to <span class="num">${money(hi)}</span></p>
+  <div class="lines"><div><span>Labor</span><span class="num">${money(labor)}</span></div><div><span>Parts at cost</span><span class="num">${money(parts)}</span></div><div><span>Parts markup</span><span class="num">${money(pm)}</span></div><div><span>Shop supplies</span><span class="num">${money(sup)}</span></div>${n('diag')?`<div><span>Diagnostic</span><span class="num">${money(n('diag'))}</span></div>`:''}<div class="tot"><span>Total</span><span class="num">${money(tot)}</span></div></div>
+  <pre class="quote" id="quoteText">${esc(q)}</pre><div class="acts"><button class="btn small" data-act="copyquote">Copy quote</button></div></div>`;
+ }
+ if(ui.mode==='flip'){
+  const c=comps(m.comps),a=avg(c),list=a*n('cond')/100,parts=partsAll(p),time=n('hours')*n('myRate'),cost=n('buy')+parts,fee=list*n('fees')/100,profit=list-fee-cost,hourly=n('hours')?profit/n('hours'):0,floor=cost/(1-n('fees')/100);
+  const v=!c.length?['warn','Add 2 or 3 comparable prices to get a list price.']:profit-time>0?['good',`Worth it. You clear about ${money(hourly)} an hour.`]:profit>0?['warn',`Profit, but only ${money(hourly)} an hour, under the ${money(n('myRate'))} your time is worth.`]:['bad','At these numbers you lose money. Fix less, buy cheaper, or sell as-is.'];
+  h=`<div class="result"><span class="label">List it at</span><div class="big num">${c.length?money(Math.ceil(list*1.08/50)*50):'—'}</div><p class="muted" style="margin:0;font-size:13.5px">Room to negotiate down to <span class="num">${money(list)}</span>. Never go below <span class="num">${money(floor)}</span> (break even).</p>
+  <div class="lines"><div><span>Average comp</span><span class="num">${money(a)}</span></div><div><span>Paid + all parts</span><span class="num">-${money(cost)}</span></div><div><span>Selling fees</span><span class="num">-${money(fee)}</span></div><div class="tot"><span>Profit at ${money(list)}</span><span class="num">${money(profit)}</span></div></div>
+  <div class="verdict ${v[0]}">${v[1]}</div></div>`;
+ }
+ if(ui.mode==='asis'){
+  const run=avg(comps(m.comps)),nr=avg(comps(m.asis))||run*0.4,fix=partsAll(p),time=n('hours')*n('myRate'),f=n('fees')/100;
+  const netAs=nr*(1-f),netFix=run*(1-f)-fix-time,diff=netFix-netAs;
+  const v=!run?['warn','Add prices of running ones to compare.']:diff>100?['good',`Fix it first. You net about ${money(diff)} more, even after paying yourself for your time.`]:diff>-100?['warn','About even. Sell as-is unless you enjoy the work or the fix is already confirmed.']:['bad',`Sell it as-is. Fixing it costs you about ${money(-diff)} more than it earns.`];
+  h=`<div class="result"><span class="label">As-is asking price</span><div class="big num">${run?money(Math.ceil(nr*1.1/25)*25):'—'}</div><p class="muted" style="margin:0;font-size:13.5px">${comps(m.asis).length?'Based on your non-running comps.':'Estimated at 40% of running value. Non-running comps make this better.'} Say exactly what you found in your listing; buyers pay more when the problem is known.</p>
+  <div class="lines"><div><span>Sell as-is, you net</span><span class="num">${money(netAs)}</span></div><div><span>Fix first, you net (after parts + your time)</span><span class="num">${money(netFix)}</span></div><div class="tot"><span>Difference</span><span class="num">${money(diff)}</span></div></div>
+  <div class="verdict ${v[0]}">${v[1]}</div></div>`;
+ }
+ if(ui.mode==='enjoy'){
+  const fix=partsAll(p),yr=m.maint.reduce((a,x)=>a+(+x.c||0),0),first=n('buy')+fix+yr,per=n('uses')?(yr/n('uses')):0;
+  h=`<div class="result"><span class="label">First year all-in</span><div class="big num">${money(first)}</div><p class="muted" style="margin:0;font-size:13.5px">Then about <span class="num">${money(yr)}</span> a year, or <span class="num">${money(yr/12)}</span> a month to set aside.</p>
+  <div class="lines"><div><span>Purchase</span><span class="num">${money(n('buy'))}</span></div><div><span>Getting it running (parts list)</span><span class="num">${money(fix)}</span></div><div><span>Yearly upkeep</span><span class="num">${money(yr)}</span></div><div class="tot"><span>Cost per use after year one</span><span class="num">${money(per)}</span></div></div>
+  <div class="verdict ${per>75?'warn':'good'}">${per>75?'Pricey per use. Renting a few times a year might be cheaper.':'Reasonable for how often you will use it.'}</div>
+  ${n('newp')?`<div class="verdict ${fix>n('newp')/2?'bad':'good'}">${fix>n('newp')/2?`Repair or replace? The fix (${money(fix)}) is over half the price of a new one. If it is past half its life, replacing is usually smarter.`:`Repair it. The fix is ${Math.round(fix/n('newp')*100)}% of the price of a new one.`}</div>`:''}</div>`;
+ }
+ el.innerHTML=h;
+}
+function logView(p){
+ return `<div class="f"><label for="logx">Add a note</label><textarea id="logx" placeholder="What you did, what you measured, what to try next"></textarea></div>
+ <div class="acts"><button class="btn primary" data-act="addlog">Add note</button></div>
+ <div class="log">${p.log.slice().reverse().map(l=>`<div><time>${new Date(l.t).toLocaleDateString(undefined,{month:'short',day:'numeric'})} ${new Date(l.t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</time><span>${esc(l.x)}</span></div>`).join('')||'<p class="muted">No notes yet.</p>'}</div>
+ <div class="acts" style="margin-top:12px"><button class="btn small ghost" data-act="askdel">Delete this project</button>${ui.del?`<button class="btn small bad" data-act="del">Yes, delete it</button>`:''}</div>`;
+}
+function wizView(){
+ const w=ui.wiz,n=w.step;
+ const grid=(list,key)=>`<div class="picks">${list.map(x=>`<button class="pick ${w[key]===x.id?'on':''}" data-pick="${key}" data-v="${x.id}"><b>${esc(x.label)}</b><small>${esc(x.sub)}</small></button>`).join('')}</div>`;
+ const home=isHome(w.machine);
+ const syms=SYMPTOMS.filter(s=>s.k.includes(home?'h':'e'));
+ const mach=`<div class="label">Engines and vehicles</div>${grid(MACHINES.filter(m=>!m.home),'machine')}<div class="label">Home and HVAC</div>${grid(MACHINES.filter(m=>m.home),'machine')}`;
+ const q=[['What are you working on?',mach],['What is your goal with it?',grid(GOALS,'goal')],['What is it doing?',grid(syms,'symptom')],
+  ['Give it a name',`<div class="f"><label for="wname">Year, make, model</label><input type="text" id="wname" value="${esc(w.name||'')}" placeholder="e.g. 2011 Honda Rancher 420"></div><div class="f"><label for="wdet">Anything you already know (optional)</label><textarea id="wdet" placeholder="How long it sat, what the seller said, what you already tried">${esc(w.details||'')}</textarea></div>`]][n];
+ const can=n===3||w[['machine','goal','symptom'][n]];
+ return `<div class="wiz"><div class="wsteps">${[0,1,2,3].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div><h2>${q[0]}</h2>${q[1]}
+ <div class="acts"><button class="btn" data-act="${n?'wback':'wcancel'}">${n?'Back':'Cancel'}</button><button class="btn primary" data-act="wnext" ${can?'':'disabled style="opacity:.5"'}>${n===3?'Build my plan':'Next'}</button></div></div>`;
+}
+function backupView(){
+ return `<div class="wiz"><h2>Back up or restore</h2><p class="muted" style="margin:0">Copy this text and keep it somewhere safe. To restore, paste a backup in and press Restore.</p>
+ <textarea id="bk" style="min-height:220px;font-family:var(--mono);font-size:12px">${esc(JSON.stringify(state))}</textarea>
+ <div class="acts"><button class="btn" data-act="bkcopy">Copy</button><button class="btn primary" data-act="bkrestore">Restore from text</button><button class="btn ghost" data-act="bkclose">Close</button></div></div>`;
+}
+
+// ---------- events ----------
+document.addEventListener('click',e=>{
+ const t=e.target.closest('button');if(!t)return;const p=cur(),d=t.dataset;
+ if(t.id==='newBtn'||d.act==='new'){ui.wiz={step:0};ui.backup=false;return render()}
+ if(t.id==='backupBtn'){ui.backup=true;ui.wiz=null;return renderMain()}
+ if(d.open){state.active=d.open;ui.wiz=null;ui.backup=false;ui.tab='plan';ui.mode=null;ui.found=null;ui.del=false;save();return render()}
+ if(d.tab){ui.tab=d.tab;ui.found=null;return renderMain()}
+ if(d.pick){ui.wiz[d.pick]=d.v;if(d.pick==='machine'){const s=SYMPTOMS.find(x=>x.id===ui.wiz.symptom);if(s&&!s.k.includes(isHome(d.v)?'h':'e'))ui.wiz.symptom=null}return renderMain()}
+ if(d.mode){ui.mode=d.mode;return renderMain()}
+ switch(d.act){
+  case 'wcancel':ui.wiz=null;return render();
+  case 'wback':ui.wiz.step--;return renderMain();
+  case 'wnext':{const w=ui.wiz;if(w.step<3){w.step++;return renderMain()}
+   w.name=$('#wname').value.trim();w.details=$('#wdet').value.trim();
+   const np={id:uid(),name:w.name||mlabel(w.machine),details:w.details,machine:w.machine,goal:w.goal,symptom:w.symptom,created:Date.now(),steps:{},parts:[],log:[{t:Date.now(),x:'Project started.'}],money:{}};
+   state.projects.unshift(np);state.active=np.id;ui.wiz=null;ui.tab='plan';ui.mode=null;save();return render()}
+  case 'found':ui.found=d.k;renderMain();return $('#fnote')?.focus();
+  case 'unfound':ui.found=null;return renderMain();
+  case 'addpart':p.parts.push({id:uid(),name:'',cost:0,status:'idea'});save();renderMain();return document.querySelector(`#pn-${p.parts.at(-1).id}`)?.focus();
+  case 'addlog':{const x=$('#logx').value.trim();if(!x)return;p.log.push({t:Date.now(),x});save();return renderMain()}
+  case 'askdel':ui.del=true;return renderMain();
+  case 'del':state.projects=state.projects.filter(x=>x.id!==p.id);state.active=state.projects[0]?.id;ui.del=false;ui.tab='plan';save();return render();
+  case 'copyquote':return copy($('#quoteText').textContent,'Quote copied');
+  case 'bkcopy':return copy($('#bk').value,'Backup copied');
+  case 'bkrestore':try{const s=JSON.parse($('#bk').value);if(!Array.isArray(s.projects))throw 0;state=s;save();ui.backup=false;toast('Restored');return render()}catch(err){return toast('That text is not a Sorted backup')}
+  case 'bkclose':ui.backup=false;return renderMain();
+ }
+ if(d.mark){const k=d.k,note=($('#fnote')||$('#snote'))?.value.trim()||'';p.steps[k]={s:d.mark,note};
+  const st=S[k];
+  if(d.mark==='bad'){const part=$('#fpart')?.value.trim();if(part)p.parts.push({id:uid(),name:part,cost:0,status:'need'});p.log.push({t:Date.now(),x:`Problem found: ${st.t}${note?' — '+note:''}`});toast('Logged. Fix that, then retest.')}
+  else if(d.mark==='ok'){p.log.push({t:Date.now(),x:`Checked OK: ${st.t}${note?' — '+note:''}`});toast('Ruled out. Next step.')}
+  ui.found=null;save();return render()}
+ if(d.undo){delete p.steps[d.undo];save();return render()}
+ if(d.delpart){p.parts=p.parts.filter(x=>x.id!==d.delpart);save();return renderMain()}
+});
+document.addEventListener('input',e=>{
+ const t=e.target,p=cur();if(!p)return;
+ if(t.dataset.m!==undefined){M(p)[t.dataset.m]=t.type==='number'?+t.value:t.value;save();renderMoneyResult()}
+ if(t.dataset.mt!==undefined){M(p).maint[+t.dataset.mt].c=+t.value;save();renderMoneyResult()}
+ if(t.dataset.pf){const x=p.parts.find(x=>x.id===t.dataset.id);if(x){x[t.dataset.pf]=t.dataset.pf==='cost'?+t.value:t.value;save()}}
+});
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset.pf==='status'){renderMain();renderTickets()}});
+function copy(text,msg){try{navigator.clipboard.writeText(text).then(()=>toast(msg),()=>toast('Select the text and copy it'))}catch(e){toast('Select the text and copy it')}}
+render();
+</script>
+
+</body></html>

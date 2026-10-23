@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brainrot Heist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0f0a1a;
+    --bg2: #170f27;
+    --card: #1d1430;
+    --card2: #241a3a;
+    --line: #392a54;
+    --lime: #d4ff3d;
+    --pink: #ff4fb0;
+    --cyan: #3fe8e0;
+    --gold: #ffcf4d;
+    --purple: #b98bff;
+    --text: #f2edff;
+    --sub: #a89bc9;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, #2a1a44 0%, transparent 45%),
+      radial-gradient(circle at 90% 20%, #1a3a3a 0%, transparent 40%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 20px 16px 60px;
+  }
+  .wrap{ max-width: 1080px; margin: 0 auto; }
+
+  /* ---- header ---- */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    flex-wrap: wrap; gap:12px;
+    margin-bottom: 22px;
+  }
+  h1{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:800;
+    font-size: 32px;
+    margin:0;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, var(--lime), var(--cyan));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    transform: rotate(-1.5deg);
+    display:inline-block;
+  }
+  h1 span.wobble{ display:inline-block; animation: wob 3s ease-in-out infinite; }
+  @keyframes wob{ 0%,100%{ transform: rotate(-4deg);} 50%{ transform: rotate(4deg);} }
+
+  .coins{
+    font-family:'JetBrains Mono', monospace;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 18px;
+    font-size: 18px;
+    font-weight:700;
+    color: var(--gold);
+    display:flex; align-items:center; gap:8px;
+    box-shadow: 0 0 0 0 rgba(255,207,77,0);
+  }
+  .coins small{ display:block; color:var(--sub); font-family:'Inter'; font-weight:500; font-size:11px; }
+
+  /* ---- layout ---- */
+  .grid{
+    display:grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 820px){ .grid{ grid-template-columns: 1fr; } }
+
+  section.panel{
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .panel h2{
+    font-family:'Baloo 2', sans-serif;
+    font-size: 19px;
+    margin: 0 0 12px 0;
+    color: var(--text);
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel h2 .tag{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color: var(--bg);
+    background: var(--lime);
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight:700;
+  }
+
+  /* ---- portal ---- */
+  .portal-zone{ text-align:center; padding: 10px 0 4px; }
+  .portal{
+    width: 130px; height: 130px;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    position: relative;
+    background: radial-gradient(circle at 50% 40%, #3a2a5c, #150e26 70%);
+    display:flex; align-items:center; justify-content:center;
+    font-size: 44px;
+  }
+  .portal::before{
+    content:'';
+    position:absolute; inset:-8px;
+    border-radius:50%;
+    border: 3px dashed var(--purple);
+    animation: spin 6s linear infinite;
+    opacity:0.7;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+  .portal.ready{ box-shadow: 0 0 40px 6px rgba(212,255,61,0.35); }
+  .portal .emoji{ animation: pop 0.6s ease; }
+  @keyframes pop{ 0%{ transform: scale(0); } 60%{ transform: scale(1.25);} 100%{ transform: scale(1);} }
+
+  .spawn-status{ color: var(--sub); font-size: 13px; min-height: 18px; margin-bottom: 8px;}
+  .claim-card{
+    display:inline-flex; flex-direction:column; align-items:center; gap:6px;
+    background: var(--card2); border:2px solid var(--line); border-radius:16px;
+    padding: 10px 18px; margin-top: 6px;
+  }
+  .claim-card .name{ font-weight:700; font-family:'Baloo 2'; }
+  .rarity{
+    font-size: 10px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+    padding: 2px 8px; border-radius: 20px;
+  }
+  .rarity.common{ background:#2b3a2b; color:#8fe08f; }
+  .rarity.rare{ background:#22314a; color:var(--cyan); }
+  .rarity.epic{ background:#3a2249; color:var(--purple); }
+  .rarity.legendary{ background:#4a3a1a; color:var(--gold); }
+
+  button{
+    font-family:'Inter', sans-serif; font-weight:700; cursor:pointer;
+    border:none; border-radius: 12px; padding: 9px 16px; font-size: 13px;
+    transition: transform 0.12s ease, filter 0.12s ease;
+  }
+  button:active{ transform: scale(0.94); }
+  button:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btn-lime{ background: var(--lime); color:#14210a; }
+  .btn-lime:hover:not(:disabled){ filter: brightness(1.08); }
+  .btn-pink{ background: var(--pink); color:#2b0018; }
+  .btn-pink:hover:not(:disabled){ filter: brightness(1.08); }
+  .btn-ghost{ background: var(--card2); color: var(--text); border:1px solid var(--line); }
+
+  /* ---- base slots ---- */
+  .slots{ display:grid; grid-template-columns: repeat(auto-fill, minmax(96px,1fr)); gap:12px; }
+  .slot{
+    aspect-ratio: 1; border-radius: 16px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size: 30px; position:relative;
+    background: var(--card2); border:2px solid var(--line);
+  }
+  .slot.empty{ color: var(--sub); font-size:22px; border-style:dashed; cursor: default; }
+  .slot .rate{
+    position:absolute; bottom:6px; font-family:'JetBrains Mono'; font-size:10px; color:var(--gold);
+  }
+  .slot .wiggle{ animation: wiggle 2.4s ease-in-out infinite; display:inline-block; }
+  @keyframes wiggle{ 0%,100%{ transform: rotate(-6deg);} 50%{ transform: rotate(6deg);} }
+  .slot.locked{ opacity:0.5; }
+  .slot .lockbtn{ font-size:10px; margin-top:4px; padding:4px 8px; }
+
+  /* ---- shop ---- */
+  .shop-row{
+    display:flex; align-items:center; justify-content:space-between;
+    background: var(--card2); border:1px solid var(--line); border-radius:14px;
+    padding: 10px 14px; margin-bottom: 10px;
+  }
+  .shop-row .info b{ font-family:'Baloo 2'; font-size:15px; }
+  .shop-row .info div{ font-size:11px; color:var(--sub); margin-top:2px; }
+
+  /* ---- raid ---- */
+  .npc-list{ display:flex; flex-direction:column; gap:10px; }
+  .npc{
+    background: var(--card2); border:1px solid var(--line); border-radius:14px;
+    padding: 12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .npc .who{ display:flex; align-items:center; gap:10px; }
+  .npc .who .ava{ font-size:26px; }
+  .npc .who b{ font-family:'Baloo 2'; }
+  .npc .who .sub{ font-size:11px; color:var(--sub); }
+  .cooldown-bar{ width:70px; height:6px; background:#000; border-radius:6px; overflow:hidden; }
+  .cooldown-bar div{ height:100%; background: var(--pink); width:0%; }
+
+  /* ---- raid modal ---- */
+  .overlay{
+    position:fixed; inset:0; background: rgba(6,3,14,0.78);
+    display:flex; align-items:center; justify-content:center; z-index:50;
+  }
+  .raidbox{
+    background: var(--card); border:2px solid var(--purple); border-radius:22px;
+    padding: 26px 30px; text-align:center; width: 300px;
+  }
+  .raidbox h3{ font-family:'Baloo 2'; margin: 4px 0 14px; }
+  .ring-wrap{ position:relative; width:120px; height:120px; margin: 0 auto 14px; }
+  .ring-wrap svg{ transform: rotate(-90deg); }
+  .ring-wrap .em{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:40px;
+  }
+  .toast{
+    position: fixed; top: 18px; left:50%; transform: translateX(-50%);
+    background: var(--card2); border:2px solid var(--lime); color: var(--text);
+    padding: 10px 20px; border-radius:14px; font-weight:600; font-size:14px;
+    z-index: 100; animation: toastin 0.25s ease, toastout 0.3s ease 1.7s forwards;
+  }
+  @keyframes toastin{ from{ opacity:0; transform: translate(-50%,-14px);} to{opacity:1; transform:translate(-50%,0);} }
+  @keyframes toastout{ to{ opacity:0; transform: translate(-50%,-14px);} }
+
+  .rate-summary{ font-size:12px; color:var(--sub); margin-top:6px; }
+  .footer-note{ text-align:center; color: var(--sub); font-size:11px; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Brainrot Heist <span class="wobble">🧠</span></h1>
+    <div class="coins">🪙 <span id="coinDisplay">0</span>
+      <small id="rateDisplay">+0 / sec</small>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <section class="panel">
+        <h2>Your Base <span class="tag" id="slotCount">0 / 0 slots</span></h2>
+        <div class="slots" id="slots"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Raid Other Bases <span class="tag">STEAL</span></h2>
+        <div class="npc-list" id="npcList"></div>
+      </section>
+    </div>
+
+    <div>
+      <section class="panel">
+        <h2>The Portal</h2>
+        <div class="portal-zone">
+          <div class="portal" id="portal"><span class="emoji" id="portalEmoji">🌀</span></div>
+          <div class="spawn-status" id="spawnStatus">Warming up...</div>
+          <div id="claimArea"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Shop</h2>
+        <div id="shopArea"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="footer-note">Your progress saves automatically to this browser.</div>
+</div>
+
+<script>
+/* ---------------- data ---------------- */
+const RARITIES = {
+  common:    { color:'common',    weight: 58, rateMin: 1,  rateMax: 3,  value: 40  },
+  rare:      { color:'rare',      weight: 27, rateMin: 4,  rateMax: 8,  value: 120 },
+  epic:      { color:'epic',      weight: 12, rateMin: 9,  rateMax: 16, value: 320 },
+  legendary: { color:'legendary', weight: 3,  rateMin: 20, rateMax: 34, value: 900 },
+};
+
+const CREATURES = [
+  { name:'Ploopy Noodlefish',      emoji:'🐟', rarity:'common' },
+  { name:'Sir Yeetington',         emoji:'🐔', rarity:'common' },
+  { name:'Mopwich Dankles',        emoji:'🧦', rarity:'common' },
+  { name:'Glizzy Von Trapp',       emoji:'🌭', rarity:'common' },
+  { name:'Bingus Bonko',           emoji:'🐒', rarity:'rare' },
+  { name:'Glorbo Framalama',       emoji:'🦙', rarity:'rare' },
+  { name:'Wumbo Snacktavius',      emoji:'🦖', rarity:'rare' },
+  { name:'Sussy Wigglemeat',       emoji:'🍖', rarity:'epic' },
+  { name:'Emperor Slopcicle',      emoji:'🍦', rarity:'epic' },
+  { name:'The Grand Doinkosaurus', emoji:'🦕', rarity:'legendary' },
+  { name:'Baron von Wobblestein',  emoji:'👑', rarity:'legendary' },
+];
+
+const NPC_NAMES = ['xX_Toe_Beans_Xx', 'Yeeter9000', 'grandma.exe', 'BrainrotBandit', 'Wifi_Goblin'];
+const NPC_AVATARS = ['🦝','🐸','🧌','👺','🐢'];
+
+/* ---------------- state ---------------- */
+let state = {
+  coins: 0,
+  slotsUnlocked: 3,
+  maxSlots: 9,
+  speedMult: 1,
+  slots: [null, null, null, null, null, null, null, null, null], // {name,emoji,rarity,rate}
+};
+
+let pendingClaim = null;
+let raidTimer = null;
+
+const STORAGE_KEY = 'brainrot-heist-save';
+
+function pickWeighted(){
+  const total = Object.values(RARITIES).reduce((s,r)=>s+r.weight,0);
+  let roll = Math.random()*total;
+  for (const [key, r] of Object.entries(RARITIES)){
+    if (roll < r.weight) return key;
+    roll -= r.weight;
+  }
+  return 'common';
+}
+
+function randomCreature(){
+  const rarity = pickWeighted();
+  const pool = CREATURES.filter(c => c.rarity === rarity);
+  const base = pool[Math.floor(Math.random()*pool.length)];
+  const rr = RARITIES[rarity];
+  const rate = +(rr.rateMin + Math.random()*(rr.rateMax-rr.rateMin)).toFixed(1);
+  return { ...base, rate };
+}
+
+/* ---------------- persistence ---------------- */
+async function save(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+  }catch(e){ console.warn('save failed', e); }
+}
+async function load(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if (res && res.value){
+      const parsed = JSON.parse(res.value);
+      state = { ...state, ...parsed };
+    }
+  }catch(e){ /* no save yet */ }
+}
+
+/* ---------------- rendering ---------------- */
+function fmt(n){
+  n = Math.floor(n);
+  if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return n.toString();
+}
+
+function totalRate(){
+  return state.slots.reduce((s,c)=> s + (c ? c.rate : 0), 0) * state.speedMult;
+}
+
+function renderHeader(){
+  document.getElementById('coinDisplay').textContent = fmt(state.coins);
+  document.getElementById('rateDisplay').textContent = `+${totalRate().toFixed(1)} / sec`;
+}
+
+function slotUnlockCost(i){
+  return Math.round(60 * Math.pow(1.9, i - 2));
+}
+
+function renderSlots(){
+  const el = document.getElementById('slots');
+  el.innerHTML = '';
+  for (let i=0;i<state.maxSlots;i++){
+    const div = document.createElement('div');
+    if (i >= state.slotsUnlocked){
+      div.className = 'slot locked';
+      div.innerHTML = `🔒<button class="lockbtn btn-ghost" data-unlock="${i}">Unlock 🪙${slotUnlockCost(i)}</button>`;
+    } else {
+      const c = state.slots[i];
+      div.className = 'slot' + (c ? '' : ' empty');
+      if (c){
+        div.innerHTML = `<span class="wiggle">${c.emoji}</span><span class="rate">+${c.rate}/s</span>`;
+        div.title = c.name;
+      } else {
+        div.innerHTML = `+`;
+      }
+    }
+    el.appendChild(div);
+  }
+  document.getElementById('slotCount').textContent =
+    `${state.slots.filter(Boolean).length} / ${state.slotsUnlocked} slots`;
+
+  el.querySelectorAll('[data-unlock]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = +btn.dataset.unlock;
+      const cost = slotUnlockCost(i);
+      if (state.coins >= cost){
+        state.coins -= cost;
+        state.slotsUnlocked = i+1;
+        renderAll(); save();
+      }
+    });
+  });
+}
+
+function firstEmptySlot(){
+  for (let i=0;i<state.slotsUnlocked;i++){ if (!state.slots[i]) return i; }
+  return -1;
+}
+
+function renderClaim(){
+  const area = document.getElementById('claimArea');
+  area.innerHTML = '';
+  if (!pendingClaim) return;
+  const c = pendingClaim;
+  const card = document.createElement('div');
+  card.className = 'claim-card';
+  const hasSlot = firstEmptySlot() !== -1;
+  card.innerHTML = `
+    <div style="font-size:34px">${c.emoji}</div>
+    <div class="name">${c.name}</div>
+    <span class="rarity ${RARITIES[c.rarity].color}">${c.rarity}</span>
+    <div class="rate-summary">+${c.rate}/sec</div>
+    <div style="display:flex; gap:8px; margin-top:6px;">
+      <button class="btn-lime" id="claimBtn" ${hasSlot ? '' : 'disabled'}>Add to Base</button>
+      <button class="btn-pink" id="sellBtn">Sell 🪙${RARITIES[c.rarity].value}</button>
+    </div>
+    ${hasSlot ? '' : '<div class="rate-summary">No empty slots — sell it or free up space</div>'}
+  `;
+  area.appendChild(card);
+  document.getElementById('claimBtn').addEventListener('click', ()=>{
+    const i = firstEmptySlot();
+    if (i === -1) return;
+    state.slots[i] = { name:c.name, emoji:c.emoji, rarity:c.rarity, rate:c.rate };
+    pendingClaim = null;
+    renderAll(); save();
+  });
+  document.getElementById('sellBtn').addEventListener('click', ()=>{
+    state.coins += RARITIES[c.rarity].value;
+    pendingClaim = null;
+    renderAll(); save();
+  });
+}
+
+const SHOP_ITEMS = [
+  { key:'speed', name:'Overclock Chip', desc:'+10% income speed', icon:'⚡',
+    cost: ()=> Math.round(150 * Math.pow(1.6, Math.round((state.speedMult-1)*10))),
+    apply: ()=>{ state.speedMult = +(state.speedMult + 0.1).toFixed(2); } },
+];
+
+function renderShop(){
+  const area = document.getElementById('shopArea');
+  area.innerHTML = '';
+  SHOP_ITEMS.forEach(item=>{
+    const cost = item.cost();
+    const row = document.createElement('div');
+    row.className = 'shop-row';
+    row.innerHTML = `
+      <div class="info"><b>${item.icon} ${item.name}</b><div>${item.desc} · now ${state.speedMult.toFixed(1)}x</div></div>
+      <button class="btn-lime" ${state.coins >= cost ? '' : 'disabled'}>🪙 ${cost}</button>
+    `;
+    row.querySelector('button').addEventListener('click', ()=>{
+      if (state.coins >= cost){
+        state.coins -= cost;
+        item.apply();
+        renderAll(); save();
+      }
+    });
+    area.appendChild(row);
+  });
+}
+
+/* ---------------- portal / spawner ---------------- */
+let portalCooldown = 0;
+const PORTAL_INTERVAL = 8;
+
+function tickPortal(dt){
+  portalCooldown -= dt;
+  const portal = document.getElementById('portal');
+  const status = document.getElementById('spawnStatus');
+  if (portalCooldown <= 0 && !pendingClaim){
+    const c = randomCreature();
+    pendingClaim = c;
+    portal.classList.add('ready');
+    document.getElementById('portalEmoji').textContent = c.emoji;
+    document.getElementById('portalEmoji').style.animation = 'none';
+    void document.getElementById('portalEmoji').offsetWidth;
+    document.getElementById('portalEmoji').style.animation = 'pop 0.6s ease';
+    status.textContent = 'A brainrot emerged!';
+    portalCooldown = PORTAL_INTERVAL;
+    renderClaim();
+  } else if (!pendingClaim) {
+    status.textContent = `Next spawn in ${Math.ceil(portalCooldown)}s`;
+    portal.classList.remove('ready');
+  } else {
+    status.textContent = 'Claim it or sell it to summon another';
+  }
+}
+
+/* ---------------- NPC raid bases ---------------- */
+let npcs = NPC_NAMES.map((name, i) => ({
+  name, avatar: NPC_AVATARS[i],
+  creature: randomCreature(),
+  cooldown: 0,
+}));
+
+function renderNpcs(){
+  const list = document.getElementById('npcList');
+  list.innerHTML = '';
+  npcs.forEach((npc, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'npc';
+    if (npc.cooldown > 0){
+      const pct = Math.max(0, 100 - (npc.cooldown/20)*100);
+      row.innerHTML = `
+        <div class="who"><span class="ava">${npc.avatar}</span>
+          <div><b>${npc.name}</b><div class="sub">Guarding... back in ${Math.ceil(npc.cooldown)}s</div></div>
+        </div>
+        <div class="cooldown-bar"><div style="width:${pct}%"></div></div>
+      `;
+    } else {
+      row.innerHTML = `
+        <div class="who"><span class="ava">${npc.avatar}</span>
+          <div><b>${npc.name}</b><div class="sub">Unguarded: ${npc.creature.emoji} ${npc.creature.name}</div></div>
+        </div>
+        <button class="btn-pink" data-raid="${idx}">Raid</button>
+      `;
+    }
+    list.appendChild(row);
+  });
+  list.querySelectorAll('[data-raid]').forEach(btn=>{
+    btn.addEventListener('click', ()=> startRaid(+btn.dataset.raid));
+  });
+}
+
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=> t.remove(), 2000);
+}
+
+function startRaid(idx){
+  const npc = npcs[idx];
+  if (npc.cooldown > 0) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+    <div class="raidbox">
+      <h3>Sneaking up on ${npc.name}...</h3>
+      <div class="ring-wrap">
+        <svg width="120" height="120">
+          <circle cx="60" cy="60" r="52" stroke="#392a54" stroke-width="10" fill="none"/>
+          <circle id="raidRing" cx="60" cy="60" r="52" stroke="#ff4fb0" stroke-width="10" fill="none"
+            stroke-dasharray="327" stroke-dashoffset="0" stroke-linecap="round"/>
+        </svg>
+        <div class="em">${npc.creature.emoji}</div>
+      </div>
+      <div class="rate-summary" style="margin-bottom:10px;">Click STEAL before time runs out!</div>
+      <button class="btn-lime" id="stealBtn" style="width:100%;">STEAL 💨</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const duration = 3000;
+  const start = performance.now();
+  const ring = overlay.querySelector('#raidRing');
+
+  function frame(now){
+    const elapsed = now - start;
+    const pct = Math.min(1, elapsed / duration);
+    ring.setAttribute('stroke-dashoffset', 327 * pct);
+    if (pct >= 1){
+      finishRaid(false);
+      return;
+    }
+    raidTimer = requestAnimationFrame(frame);
+  }
+  raidTimer = requestAnimationFrame(frame);
+
+  overlay.querySelector('#stealBtn').addEventListener('click', ()=> finishRaid(true));
+
+  function finishRaid(success){
+    cancelAnimationFrame(raidTimer);
+    overlay.remove();
+    npc.cooldown = 20;
+    if (success){
+      const i = firstEmptySlot();
+      if (i !== -1){
+        state.slots[i] = { ...npc.creature };
+        toast(`Stole ${npc.creature.name}! 🎉`);
+      } else {
+        const val = RARITIES[npc.creature.rarity].value;
+        state.coins += val;
+        toast(`No room — fenced it for 🪙${val}`);
+      }
+      npc.creature = randomCreature();
+    } else {
+      toast(`Busted! ${npc.name} caught you empty-handed.`);
+    }
+    renderAll(); save();
+  }
+}
+
+/* ---------------- main loop ---------------- */
+function renderAll(){
+  renderHeader();
+  renderSlots();
+  renderClaim();
+  renderShop();
+  renderNpcs();
+}
+
+let last = performance.now();
+function loop(now){
+  const dt = (now - last) / 1000;
+  last = now;
+
+  state.coins += totalRate() * dt;
+  tickPortal(dt);
+
+  npcs.forEach(npc=>{
+    if (npc.cooldown > 0) npc.cooldown = Math.max(0, npc.cooldown - dt);
+  });
+
+  renderHeader();
+  requestAnimationFrame(loop);
+}
+
+let npcRenderTick = 0;
+function slowLoop(){
+  renderSlots();
+  renderNpcs();
+  save();
+}
+
+(async function init(){
+  await load();
+  renderAll();
+  requestAnimationFrame(loop);
+  setInterval(slowLoop, 1000);
+})();
+</script>
+</body>
+</html>

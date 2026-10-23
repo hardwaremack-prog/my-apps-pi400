@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetSentry</title>
+<style>
+:root{
+  --bg:#0a0f1c; --panel:#111a2e; --panel2:#16213a; --line:#22304f; --text:#e6ecf8; --muted:#8a99b8;
+  --teal:#2dd4bf; --green:#22c55e; --amber:#f59e0b; --red:#f43f5e; --crit:#ff2d55; --blue:#60a5fa;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#132447 0,transparent 60%),var(--bg);color:var(--text);
+  font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;min-height:100vh}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  padding:7px 13px;border-radius:9px;transition:.15s}
+button:hover{border-color:var(--teal);color:var(--teal)}
+button.primary{background:var(--teal);color:#06231f;border-color:var(--teal);font-weight:650}
+button.primary:hover{filter:brightness(1.1);color:#06231f}
+button.small{padding:4px 9px;font-size:13px}
+.wrap{max-width:1280px;margin:0 auto;padding:18px 18px 40px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;letter-spacing:.3px}
+.logo svg{width:34px;height:34px}
+.netinfo{color:var(--muted);font-size:13px}
+.spacer{flex:1}
+.hero{display:flex;gap:22px;align-items:center;padding:22px;border-radius:18px;background:var(--panel);border:1px solid var(--line);position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 0 50%,var(--glow,transparent),transparent 70%);opacity:.25;pointer-events:none}
+.orb{width:92px;height:92px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--orb,#334);box-shadow:0 0 0 8px color-mix(in srgb,var(--orb) 18%,transparent),0 0 40px var(--orb);position:relative}
+.orb svg{width:46px;height:46px;color:#fff}
+.orb.pulse::before{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid var(--orb);animation:ping 1.8s infinite}
+@keyframes ping{from{transform:scale(1);opacity:.9}to{transform:scale(1.5);opacity:0}}
+.hero h1{margin:0 0 4px;font-size:26px}
+.hero p{margin:0;color:var(--muted)}
+.bar{height:6px;background:var(--panel2);border-radius:6px;overflow:hidden;margin-top:12px;max-width:520px}
+.bar>div{height:100%;background:linear-gradient(90deg,var(--teal),var(--blue));transition:width .4s}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;cursor:default}
+.stat b{display:block;font-size:28px;line-height:1.1}
+.stat span{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.card h2{margin:0 0 12px;font-size:16px;display:flex;align-items:center;gap:8px}
+.card h2 .count{background:var(--panel2);color:var(--muted);border-radius:20px;padding:1px 9px;font-size:12px;font-weight:600}
+.alert{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:color-mix(in srgb,var(--c) 7%,var(--panel))}
+.alert .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.alert h3{margin:0;font-size:15px}
+.pill{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:2px 8px;border-radius:20px;background:var(--c);color:#0a0f1c;flex:none}
+.alert .lbl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.alert p{margin:2px 0;font-size:14px}
+.alert .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.empty{color:var(--muted);text-align:center;padding:26px 10px}
+.empty .big{font-size:40px}
+.feed{max-height:480px;overflow:auto;padding-right:4px}
+.ev{display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13.5px}
+.ev time{color:var(--muted);font-variant-numeric:tabular-nums;flex:none;width:62px}
+.ev .dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none;background:var(--c)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.chip{padding:5px 12px;border-radius:20px;font-size:13px}
+.chip.on{background:var(--teal);color:#06231f;border-color:var(--teal);font-weight:650}
+input[type=search],input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:7px 11px;border-radius:9px;font:inherit;min-width:200px}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);text-align:left;font-weight:700;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}
+tr.off td{opacity:.45}
+tr.unknown td:first-child{box-shadow:inset 3px 0 var(--amber)}
+.sdot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted)}
+.sdot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.name{font-weight:650;cursor:pointer}
+.name:hover{color:var(--teal)}
+.sub{color:var(--muted);font-size:12px}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;border:1px solid var(--line);color:var(--muted);margin:1px 3px 1px 0}
+.svc{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:10px;margin:2px 3px 2px 0;background:var(--panel2);border:1px solid var(--line)}
+.svc.high{background:color-mix(in srgb,var(--red) 22%,transparent);border-color:var(--red);color:#ffd2dc}
+.svc.medium{background:color-mix(in srgb,var(--amber) 20%,transparent);border-color:var(--amber);color:#ffe6b8}
+.trust{font-size:12.5px;padding:4px 10px}
+.trust.yes{border-color:var(--green);color:var(--green)}
+.trust.no{border-color:var(--amber);color:var(--amber)}
+.tablewrap{overflow-x:auto}
+.conns{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13.5px}
+details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:8px}
+.foot{color:var(--muted);font-size:12.5px;text-align:center;margin-top:20px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--teal);padding:10px 16px;border-radius:10px;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+.offline{display:none;background:var(--red);color:#fff;padding:10px;text-align:center;border-radius:10px;margin-bottom:12px}
+@media (max-width:900px){.grid,.conns{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.hero{flex-direction:column;text-align:center}.bar{margin:12px auto 0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="#2dd4bf" opacity=".18" stroke="#2dd4bf" stroke-width="1.6"/><circle cx="12" cy="11" r="3.2" stroke="#2dd4bf" stroke-width="1.6"/><path d="M12 4.5v2M12 15.5v2M5.5 11h2M16.5 11h2" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round"/></svg>
+      NetSentry
+    </div>
+    <div class="netinfo" id="netinfo">Starting…</div>
+    <div class="spacer"></div>
+    <button id="notifyBtn" title="Pop up a desktop notification when something new is found">🔔 Desktop alerts: off</button>
+    <button class="primary" id="scanBtn">⟳ Scan now</button>
+    <button id="quitBtn" title="Stop NetSentry">⏻ Quit</button>
+  </header>
+
+  <div class="offline" id="offline">Lost contact with the NetSentry engine. Is it still running?</div>
+
+  <section class="hero" id="hero">
+    <div class="orb pulse" id="orb"></div>
+    <div style="flex:1">
+      <h1 id="heroTitle">Learning your network…</h1>
+      <p id="heroSub">The first sweep takes about a minute.</p>
+      <div class="bar"><div id="bar" style="width:0%"></div></div>
+      <p class="sub" id="heroPhase" style="margin-top:6px"></p>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><b id="sOnline">–</b><span>Devices online</span></div>
+    <div class="stat"><b id="sUnknown">–</b><span>Not yet trusted</span></div>
+    <div class="stat"><b id="sAlerts">–</b><span>Alerts</span></div>
+    <div class="stat"><b id="sConns">–</b><span>Live connections from this PC</span></div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h2>⚠️ Things to look at <span class="count" id="alertCount">0</span></h2>
+      <div id="alerts"></div>
+    </div>
+    <div class="card">
+      <h2>📡 Live activity</h2>
+      <div class="feed" id="feed"></div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2>🖥️ Devices on your network <span class="count" id="devCount">0</span></h2>
+    <div class="toolbar">
+      <button class="chip on" data-f="all">All</button>
+      <button class="chip" data-f="online">Online</button>
+      <button class="chip" data-f="unknown">Not trusted</button>
+      <button class="chip" data-f="risky">Risky ports</button>
+      <button class="chip" data-f="offline">Offline</button>
+      <div class="spacer"></div>
+      <input type="search" id="q" placeholder="Search name, IP, maker…">
+      <button id="trustAll" title="Mark every device that's online right now as trusted">✓ Trust all online</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th></th><th>Device</th><th>Looks like</th><th>IP address</th><th>Hardware address</th><th>Open services</th><th>Last seen</th><th></th></tr></thead>
+        <tbody id="devices"></tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:10px">Tip: click a device's name to give it a nickname. Mark the ones you recognise as <b>Trusted</b> — anything new after that gets flagged.</p>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2>🔌 This computer's connections</h2>
+    <div class="conns">
+      <div>
+        <div class="sub" style="margin-bottom:6px">Busiest outside addresses right now</div>
+        <div id="remotes"></div>
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:6px">Ports this computer is listening on</div>
+        <div id="listening"></div>
+        <details>
+          <summary>Settings</summary>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input type="text" id="subnet" placeholder="Network to scan, e.g. 192.168.1.0/24 (blank = auto)">
+            <button id="saveSubnet">Save</button>
+            <button id="undismiss">Show dismissed alerts again</button>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot" id="foot">NetSentry</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const J = v => esc(JSON.stringify(v));   // safe JSON inside HTML attributes
+const COL = {critical:"var(--crit)", high:"var(--red)", medium:"var(--amber)", info:"var(--blue)"};
+const LBL = {critical:"Critical", high:"High", medium:"Check", info:"Info"};
+const ICONS = {
+  ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>',
+  danger:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>',
+  radar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 12 18 6"/></svg>'
+};
+let S = null, filter = "all", seenAlerts = null, notifyOn = false, clockOffset = 0;
+try { notifyOn = localStorage.getItem("ns-notify") === "1" && Notification.permission === "granted"; } catch(e) {}
+
+function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove("show"),2200); }
+function ago(t){ if(!t) return "never"; const s=Math.max(0,Math.round(Date.now()/1000+clockOffset-t)); if(s<60) return s+"s ago"; if(s<3600) return Math.floor(s/60)+"m ago"; if(s<86400) return Math.floor(s/3600)+"h ago"; return Math.floor(s/86400)+"d ago"; }
+function clock(t){ return new Date(t*1000).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }
+
+async function act(body, msg){
+  try{
+    await fetch("/api/action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(msg) toast(msg);
+  }catch(e){ toast("Couldn't reach NetSentry"); }
+  poll();
+}
+
+async function poll(){
+  try{
+    const r = await fetch("/api/state",{cache:"no-store"});
+    S = await r.json();
+    clockOffset = S.now - Date.now()/1000;
+    $("#offline").style.display="none";
+    render();
+  }catch(e){ $("#offline").style.display="block"; }
+}
+
+function render(){
+  const online = S.devices.filter(d=>d.online);
+  const unknown = online.filter(d=>!d.trusted);
+  const alerts = S.alerts;
+  const worst = alerts.length ? alerts[0].level : null;
+
+  $("#netinfo").textContent = S.net ? `Network ${S.net} · Router ${S.gw||"?"} · This PC ${S.lip}` : "Finding your network…";
+  $("#sOnline").textContent = online.length;
+  $("#sUnknown").textContent = unknown.length;
+  $("#sUnknown").style.color = unknown.length ? "var(--amber)" : "";
+  $("#sAlerts").textContent = alerts.length;
+  $("#sAlerts").style.color = alerts.length ? COL[worst] : "var(--green)";
+  $("#sConns").textContent = S.connections.total;
+
+  // hero
+  let orb="var(--green)", icon=ICONS.ok, title="All clear", sub="Nothing suspicious right now. NetSentry keeps watching in the background.";
+  if(!S.first_scan_done){ orb="var(--blue)"; icon=ICONS.radar; title="Learning your network…"; sub="The first sweep takes about a minute. Every device it finds becomes your starting point."; }
+  else if(worst==="critical"){ orb="var(--crit)"; icon=ICONS.danger; title="Possible attack on your network"; sub="Something is behaving like a man-in-the-middle. Read the red alert below now."; }
+  else if(worst==="high"){ orb="var(--red)"; icon=ICONS.danger; const n=alerts.filter(a=>a.level==="high").length; title=`${n} thing${n>1?"s":""} need${n>1?"":"s"} your attention`; sub="Review the alerts below — each one explains what it means and what to do."; }
+  else if(worst==="medium"){ orb="var(--amber)"; icon=ICONS.warn; title="Mostly fine — a few things to check"; sub="Nothing alarming, but some devices have features open you may not want."; }
+  else if(unknown.length){ orb="var(--teal)"; icon=ICONS.ok; title="All clear"; sub=`${unknown.length} device${unknown.length>1?"s":""} not marked trusted yet — review them below so new arrivals stand out.`; }
+  const orbEl=$("#orb"); orbEl.style.setProperty("--orb",orb); orbEl.innerHTML=icon;
+  orbEl.classList.toggle("pulse", S.scanning || worst==="critical" || worst==="high");
+  $("#hero").style.setProperty("--glow",orb);
+  $("#heroTitle").textContent=title; $("#heroSub").textContent=sub;
+  $("#bar").style.width=(S.scanning?S.progress:100)+"%";
+  $("#bar").parentElement.style.opacity = S.scanning ? 1 : .35;
+  $("#scanBtn").disabled = S.scanning;
+  $("#scanBtn").textContent = S.scanning ? "Scanning…" : "⟳ Scan now";
+  updatePhase();
+
+  // alerts
+  $("#alertCount").textContent = alerts.length;
+  $("#alerts").innerHTML = alerts.length ? alerts.map(a=>`
+    <div class="alert" style="--c:${COL[a.level]}">
+      <div class="top"><span class="pill">${LBL[a.level]}</span><h3>${esc(a.title)}</h3></div>
+      <div class="lbl">What this means</div><p>${esc(a.what)}</p>
+      <div class="lbl">What to do</div><p>${esc(a.todo)}</p>
+      <div class="acts">
+        ${a.action==="trust"?`<button class="small primary" onclick='act({type:"trust",mac:${J(a.mac)},value:true},"Trusted")'>✓ Trust device</button>`:""}
+        ${a.action==="accept_gateway"?`<button class="small primary" onclick='act({type:"accept_gateway",gw:${J(a.extra.gw)},mac:${J(a.extra.mac)}},"Router updated")'>That's my new router</button>`:""}
+        ${a.mac?`<button class="small" onclick='showDevice(${J(a.mac)})'>Show device</button>`:""}
+        <button class="small" onclick='act({type:"dismiss",key:${J(a.key)}},"Dismissed")'>Dismiss</button>
+      </div>
+    </div>`).join("") : `<div class="empty"><div class="big">🛡️</div>${S.first_scan_done?"No alerts. Your network looks normal.":"Waiting for the first sweep to finish…"}</div>`;
+
+  // notifications for newly appeared alerts
+  const keys = new Set(alerts.map(a=>a.key));
+  if(seenAlerts && notifyOn){
+    alerts.filter(a=>!seenAlerts.has(a.key) && a.level!=="info").forEach(a=>{
+      try{ new Notification("NetSentry: "+a.title,{body:a.what.slice(0,180)}); }catch(e){}
+    });
+  }
+  seenAlerts = keys;
+
+  // feed
+  $("#feed").innerHTML = S.events.map(e=>`<div class="ev" style="--c:${COL[e.level]||COL.info}"><span class="dot"></span><time>${clock(e.t)}</time><div>${esc(e.text)}</div></div>`).join("") || `<div class="empty">Nothing yet.</div>`;
+
+  // devices
+  const q = $("#q").value.trim().toLowerCase();
+  let list = S.devices.filter(d=>{
+    if(filter==="online" && !d.online) return false;
+    if(filter==="offline" && d.online) return false;
+    if(filter==="unknown" && d.trusted) return false;
+    if(filter==="risky" && !d.port_info.some(p=>p.level!=="info")) return false;
+    if(q){ const hay=[d.name,d.hostname,d.ip,d.mac,d.vendor,d.type].join(" ").toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  });
+  $("#devCount").textContent = S.devices.length;
+  $("#devices").innerHTML = list.map(d=>{
+    const label = d.name || d.hostname || d.vendor || "Unknown device";
+    const tags = [d.is_gateway?"router":"", d.is_self?"this PC":"", d.random_mac?"private address":""].filter(Boolean).map(t=>`<span class="tag">${t}</span>`).join("");
+    const svcs = d.port_info.map(p=>`<span class="svc ${p.level}" title="Port ${p.port}: ${esc(p.why)}">${esc(p.name)}</span>`).join("") || `<span class="sub">${d.ports_checked?"none":"checking…"}</span>`;
+    const mac = d.mac.startsWith("nomac")?"—":d.mac;
+    return `<tr id="dev-${esc(d.mac)}" class="${d.online?"":"off"} ${d.trusted?"":"unknown"}">
+      <td><span class="sdot ${d.online?"on":""}" title="${d.online?"Online":"Offline"}"></span></td>
+      <td><div class="name" onclick='rename(${J(d.mac)},${J(d.name||"")})' title="Click to rename">${esc(label)}</div>
+          <div class="sub">${esc(d.hostname && d.name ? d.hostname : (d.vendor && label!==d.vendor ? d.vendor : ""))}</div>${tags}</td>
+      <td>${esc(d.type||"")}</td>
+      <td class="mono">${esc(d.ip)}${(d.ips||[]).length>1?`<div class="sub">+${d.ips.length-1} more</div>`:""}</td>
+      <td class="mono">${esc(mac)}</td>
+      <td>${svcs}</td>
+      <td class="sub">${d.online?"now":ago(d.last_seen)}<div>first ${ago(d.first_seen)}</div></td>
+      <td style="white-space:nowrap">
+        <button class="trust ${d.trusted?"yes":"no"}" onclick='act({type:"trust",mac:${J(d.mac)},value:${!d.trusted}})'>${d.trusted?"✓ Trusted":"Mark trusted"}</button>
+        ${!d.online?`<button class="small" title="Remove from list" onclick='if(confirm("Forget this device?"))act({type:"forget",mac:${J(d.mac)}})'>✕</button>`:""}
+      </td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="empty">No devices match.</td></tr>`;
+
+  // connections
+  const C = S.connections;
+  $("#remotes").innerHTML = (C.remotes||[]).map(r=>{
+    const bad = (C.flagged||[]).some(f=>f.ip===r.ip);
+    return `<div class="kv"><span class="mono" style="${bad?"color:var(--red);font-weight:700":""}">${esc(r.ip)}</span><span class="sub">port ${r.ports.slice(0,4).join(", ")} · ${r.count} conn</span></div>`;
+  }).join("") || `<div class="sub">No outside connections right now.</div>`;
+  $("#listening").innerHTML = (C.listening||[]).length ? C.listening.map(p=>`<span class="svc">${p}</span>`).join("") : `<div class="sub">Nothing listening.</div>`;
+  $("#undismiss").textContent = `Show dismissed alerts again (${S.dismissed_count})`;
+  if(document.activeElement !== $("#subnet")) $("#subnet").placeholder = S.net ? `Network to scan (auto: ${S.net})` : "Network to scan";
+  $("#foot").textContent = `NetSentry ${S.version} · ${S.scan_count} sweeps this session · last sweep ${ago(S.last_scan)}`;
+}
+
+function updatePhase(){
+  if(!S) return;
+  if(S.scanning){ $("#heroPhase").textContent = `${S.phase}… ${S.progress}%`; return; }
+  const left = Math.max(0, Math.round(S.next_scan - (Date.now()/1000+clockOffset)));
+  $("#heroPhase").textContent = `Watching · next sweep in ${left}s · last ${ago(S.last_scan)}`;
+}
+
+function rename(mac, cur){
+  const n = prompt("Nickname for this device (blank to clear):", cur);
+  if(n !== null) act({type:"rename", mac, name:n.trim()}, "Renamed");
+}
+function showDevice(mac){
+  filter="all"; document.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",c.dataset.f==="all")); $("#q").value=""; render();
+  const row=document.getElementById("dev-"+mac); if(row){ row.scrollIntoView({behavior:"smooth",block:"center"}); row.style.outline="2px solid var(--teal)"; setTimeout(()=>row.style.outline="",2500); }
+}
+
+document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{ filter=c.dataset.f; document.querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===c)); render(); });
+$("#q").oninput = ()=>S&&render();
+$("#scanBtn").onclick = ()=>act({type:"scan"},"Sweep started");
+$("#trustAll").onclick = ()=>{ if(confirm("Mark every online device as trusted?")) act({type:"trust_all"},"All online devices trusted"); };
+$("#quitBtn").onclick = ()=>{ if(confirm("Stop NetSentry?")){ act({type:"quit"}); setTimeout(()=>document.body.innerHTML='<div class="empty" style="margin-top:20vh"><div class="big">👋</div>NetSentry stopped. You can close this tab.</div>',400);} };
+$("#saveSubnet").onclick = ()=>act({type:"subnet", value:$("#subnet").value},"Saved — rescanning");
+$("#undismiss").onclick = ()=>act({type:"undismiss_all"},"Dismissed alerts restored");
+function paintNotify(){ $("#notifyBtn").textContent = "🔔 Desktop alerts: " + (notifyOn?"on":"off"); }
+$("#notifyBtn").onclick = async ()=>{
+  if(!("Notification" in window)) return toast("This browser doesn't support notifications");
+  if(!notifyOn){ const p = await Notification.requestPermission(); notifyOn = p==="granted"; if(!notifyOn) toast("Notifications blocked by the browser"); }
+  else notifyOn=false;
+  try{ localStorage.setItem("ns-notify", notifyOn?"1":"0"); }catch(e){}
+  paintNotify();
+};
+paintNotify();
+poll(); setInterval(poll, 2000); setInterval(updatePhase, 1000);
+</script>
+</body>
+</html>

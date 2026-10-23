@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TERMINAL // real linux, real crt</title>
+<style>
+  :root{
+    --phosphor: #39ff6a;
+    --phosphor-dim: #0e6b2a;
+    --glow: rgba(57,255,106,0.65);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    height:100%; margin:0;
+    background: radial-gradient(ellipse at center, #2b2b2b 0%, #0a0a0a 70%, #000 100%);
+    font-family: 'Courier New', 'Consolas', monospace;
+    display:flex; align-items:center; justify-content:center;
+    padding: 24px;
+  }
+  .rig{
+    width: min(920px, 96vw);
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+  }
+  .brand{
+    color:#7a7a7a; font-size:11px; letter-spacing:3px; text-transform:uppercase;
+  }
+
+  /* ---- Monitor housing ---- */
+  .monitor{
+    width:100%;
+    background: linear-gradient(155deg,#e4ddc8 0%, #cfc7ae 35%, #a89f89 70%, #8d846f 100%);
+    border-radius: 22px 22px 34px 34px;
+    padding: 26px 26px 40px 26px;
+    box-shadow:
+      0 30px 60px rgba(0,0,0,0.6),
+      inset 0 2px 2px rgba(255,255,255,0.4),
+      inset 0 -6px 10px rgba(0,0,0,0.25);
+    position: relative;
+  }
+  .monitor::before{ /* vent lines, cheap 80s plastic texture */
+    content:"";
+    position:absolute; top:10px; left:10px; right:10px; height:6px;
+    background: repeating-linear-gradient(90deg, rgba(0,0,0,0.08) 0 2px, transparent 2px 6px);
+    border-radius: 4px;
+  }
+
+  .bezel{
+    background: #171512;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: inset 0 0 24px rgba(0,0,0,0.9), inset 0 0 3px #000;
+  }
+
+  .screen{
+    position: relative;
+    border-radius: 50% / 8%;
+    border-radius: 24px;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 40%, #0a1a0c 0%, #030603 75%, #000 100%);
+    height: 62vh;
+    min-height: 380px;
+    max-height: 560px;
+    box-shadow:
+      inset 0 0 60px 12px rgba(0,0,0,0.9),
+      inset 0 0 120px rgba(0,0,0,0.7);
+    cursor: text;
+  }
+  .screen.amber{ background: radial-gradient(ellipse at 50% 40%, #1a1206 0%, #060402 75%, #000 100%); }
+  .screen.dragover{
+    box-shadow:
+      inset 0 0 60px 12px rgba(0,0,0,0.9),
+      inset 0 0 120px rgba(0,0,0,0.7),
+      0 0 0 3px var(--phosphor), 0 0 24px var(--glow);
+  }
+
+  #term{
+    position:absolute; inset:0;
+    margin:0; padding: 26px 30px;
+    overflow-y:auto;
+    color: var(--phosphor);
+    text-shadow: 0 0 2px var(--glow), 0 0 8px var(--glow);
+    font-size: 14px;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    word-break: break-word;
+    filter: brightness(1.05);
+  }
+  #term::-webkit-scrollbar{ width:0; }
+  .amber #term{ color:#ffb000; text-shadow:0 0 2px rgba(255,176,0,.7), 0 0 8px rgba(255,176,0,.55); }
+
+  .cursor{
+    display:inline-block; width:8px; height:14px; background:var(--phosphor);
+    box-shadow:0 0 6px var(--glow);
+    animation: blink 1s steps(1) infinite;
+    vertical-align: -2px;
+  }
+  .amber .cursor{ background:#ffb000; box-shadow:0 0 6px rgba(255,176,0,.7); }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  /* scanlines */
+  .screen::before{
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0.18) 1px,
+      rgba(0,0,0,0) 3px
+    );
+    pointer-events:none;
+    z-index:3;
+  }
+  /* vignette + curvature illusion */
+  .screen::after{
+    content:"";
+    position:absolute; inset:0;
+    background: radial-gradient(ellipse at 50% 45%, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.55) 100%);
+    pointer-events:none;
+    z-index:4;
+  }
+  .flicker{
+    position:absolute; inset:0; pointer-events:none; z-index:5;
+    background: rgba(255,255,255,0.02);
+    animation: flick 6.5s infinite;
+  }
+  @keyframes flick{
+    0%,97%,100%{ opacity:0; }
+    98%{ opacity:1; }
+    98.5%{ opacity:0; }
+    99%{ opacity:.6; }
+  }
+  .powerflash{
+    position:absolute; inset:0; background:#eafff0; z-index:10;
+    animation: pf 0.55s ease-out forwards;
+  }
+  @keyframes pf{
+    0%{ opacity:1; }
+    100%{ opacity:0; }
+  }
+
+  #kbdtrap{
+    position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;
+  }
+
+  /* controls */
+  .controls{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center;
+    width:100%;
+  }
+  .controls button{
+    background:#20241f; color:#8fe0a0; border:1px solid #3a4a3a;
+    font-family:inherit; font-size:12px; letter-spacing:1px;
+    padding:8px 14px; border-radius:6px; cursor:pointer;
+    text-transform:uppercase;
+  }
+  .controls button:hover{ background:#2a302a; }
+  .status{
+    font-size:11px; color:#9a9a9a; letter-spacing:1px;
+  }
+  .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; background:#7a1f1f; margin-right:6px; }
+  .dot.boot{ background:#c98a1f; animation: blink 1s infinite; }
+  .dot.ready{ background:#2fbf4a; }
+
+  .note{
+    color:#666; font-size:11.5px; max-width:640px; text-align:center; line-height:1.5;
+  }
+  .note b{ color:#9a9a9a; }
+</style>
+</head>
+<body>
+<div class="rig">
+  <div class="brand">— MODEL 86/CRT — real x86, real kernel, real shell —</div>
+
+  <div class="monitor">
+    <div class="bezel">
+      <div class="screen" id="screen">
+        <pre id="term">Cold boot requested. Press [ POWER ] to begin.</pre>
+        <div class="flicker"></div>
+        <div class="powerflash" id="powerflash" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <input id="kbdtrap" autocomplete="off" autocapitalize="off" spellcheck="false">
+
+  <div class="controls">
+    <button id="powerBtn">Power</button>
+    <button id="colorBtn">Green / Amber</button>
+    <button id="copyBtn">Copy Output</button>
+    <button id="menuBtn">Menu</button>
+    <button id="clearBtn">Clear</button>
+    <button id="rebootBtn">Reboot</button>
+  </div>
+
+  <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Powered off</span></div>
+
+  <div class="note">
+    This boots a real <b>Linux kernel</b> (Buildroot) inside a real x86 CPU emulator
+    (<a href="https://github.com/copy/v86" target="_blank" style="color:#888;">v86</a>, WebAssembly JIT) running
+    entirely client-side, with a real <b>busybox</b> shell attached over the emulated serial console —
+    it is not a scripted animation. It needs to fetch the kernel image (a few MB) over the network the first
+    time, so boot can take 15–60s. Once the shell is ready, a real busybox-based control panel script gets
+    typed onto the live filesystem and launched automatically — no fake GUI, just real commands wrapped in a
+    menu. Type <b>10</b> then <b>Enter</b> to drop to the raw shell, and <b>menu</b> to come back, or hit the
+    Menu button. You can also <b>drag and drop files onto the screen</b> — they're written into a real
+    virtio-9p share and appear inside the VM at <b>/mnt/</b>. If this sandbox blocks the cross-origin fetch,
+    download this file and open it directly in a browser tab and it'll boot the same way.
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/v86@latest/build/libv86.js"></script>
+<script>
+"use strict";
+
+const termEl = document.getElementById('term');
+const screenEl = document.getElementById('screen');
+const kbd = document.getElementById('kbdtrap');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const powerBtn = document.getElementById('powerBtn');
+const colorBtn = document.getElementById('colorBtn');
+const clearBtn = document.getElementById('clearBtn');
+const rebootBtn = document.getElementById('rebootBtn');
+const powerflash = document.getElementById('powerflash');
+
+let emulator = null;
+let booted = false;
+let poweredOn = false;
+let textBuffer = "";
+
+function setStatus(state, text){
+  statusDot.className = 'dot ' + state;
+  statusText.textContent = text;
+}
+
+function stripAnsi(s){
+  // Strip CSI / OSC escape sequences; keep it monochrome & vintage.
+  return s
+    .replace(/\x1b\][^\x07]*\x07/g, '')
+    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')
+    .replace(/\x1b\([AB0]/g, '');
+}
+
+function render(){
+  // keep a blinking cursor at the end
+  termEl.innerHTML = escapeHtml(textBuffer) + '<span class="cursor"></span>';
+  termEl.scrollTop = termEl.scrollHeight;
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let rawAccum = "";
+function feedByte(byte){
+  const ch = String.fromCharCode(byte);
+  if (ch === '\r') return; // CRLF -> just take LF
+  rawAccum += ch;
+  // flush on newline or periodically, after stripping ansi escapes
+  if (ch === '\n' || rawAccum.length > 400){
+    textBuffer += stripAnsi(rawAccum);
+    rawAccum = "";
+    render();
+  } else {
+    // still show partial line (e.g. a live prompt) without escapes mid-sequence being butchered
+    render_partial();
+  }
+}
+function render_partial(){
+  termEl.innerHTML = escapeHtml(textBuffer + stripAnsi(rawAccum)) + '<span class="cursor"></span>';
+  termEl.scrollTop = termEl.scrollHeight;
+}
+
+function powerOn(){
+  if (poweredOn) return;
+  poweredOn = true;
+  powerflash.style.display = 'block';
+  powerflash.style.animation = 'none';
+  void powerflash.offsetWidth;
+  powerflash.style.animation = '';
+  setTimeout(()=>{ powerflash.style.display='none'; }, 600);
+
+  textBuffer = "";
+  render();
+  setStatus('boot', 'Loading emulator…');
+  kbd.focus();
+
+  try{
+    emulator = new V86({
+      wasm_path: "https://cdn.jsdelivr.net/npm/v86@latest/build/v86.wasm",
+      memory_size: 64 * 1024 * 1024,
+      vga_memory_size: 2 * 1024 * 1024,
+      bios: { url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/seabios.bin" },
+      vga_bios: { url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/vgabios.bin" },
+      bzimage: { url: "https://static.simonwillison.net/static/cors-allow/2026/buildroot-bzimage68.bin" },
+      filesystem: {},
+      autostart: true,
+      disable_keyboard: true,
+      disable_mouse: true
+    });
+  } catch(err){
+    setStatus('', 'Failed to start');
+    textBuffer += "\n[ error initializing emulator: " + err.message + " ]\n";
+    render();
+    return;
+  }
+
+  setStatus('boot', 'Booting kernel…');
+
+  emulator.add_listener('serial0-output-byte', function(byte){
+    feedByte(byte);
+    if (!booted && /[#$%] $/.test(textBuffer + rawAccum)){
+      booted = true;
+      setStatus('ready', 'Shell ready — installing menu…');
+      setTimeout(function(){
+        launchMenu();
+        setStatus('ready', 'Shell ready — click screen, start typing');
+      }, 900);
+    }
+  });
+
+  emulator.add_listener('emulator-loaded', function(){
+    setStatus('boot', 'Emulator loaded, booting Linux…');
+  });
+}
+
+function sendChar(str){
+  if (emulator && booted) emulator.serial0_send(str);
+}
+
+// A real busybox-backed text menu. This gets typed into the live shell as an
+// actual shell script, saved to /tmp, and executed for real -- it's not a
+// simulation, just automated typing of real commands.
+const MENU_SCRIPT =
+"cat > /tmp/menu.sh << 'PANEL_EOF'\n" +
+"#!/bin/sh\n" +
+"while true; do\n" +
+"clear\n" +
+"echo '======================================='\n" +
+"echo '        BUSYBOX CONTROL PANEL'\n" +
+"echo '======================================='\n" +
+"echo ' 1) System info        (uname -a)'\n" +
+"echo ' 2) CPU info            (/proc/cpuinfo)'\n" +
+"echo ' 3) Memory info          (free)'\n" +
+"echo ' 4) Disks and mounts     (df / mount)'\n" +
+"echo ' 5) Process list         (ps)'\n" +
+"echo ' 6) Uptime and load'\n" +
+"echo ' 7) Kernel log            (dmesg)'\n" +
+"echo ' 8) Network interfaces'\n" +
+"echo ' 9) Date and time'\n" +
+"echo '10) Drop to raw shell     (type: menu  to return)'\n" +
+"echo ' 0) Exit menu'\n" +
+"echo '---------------------------------------'\n" +
+"printf 'Select: '\n" +
+"read choice\n" +
+"echo\n" +
+"case \"$choice\" in\n" +
+"1) uname -a ;;\n" +
+"2) cat /proc/cpuinfo ;;\n" +
+"3) free 2>/dev/null || cat /proc/meminfo ;;\n" +
+"4) df -h; echo; mount ;;\n" +
+"5) ps aux 2>/dev/null || ps ;;\n" +
+"6) uptime 2>/dev/null || cat /proc/loadavg ;;\n" +
+"7) dmesg | tail -n 40 ;;\n" +
+"8) ifconfig -a 2>/dev/null || ip a 2>/dev/null || echo 'no network tools available' ;;\n" +
+"9) date ;;\n" +
+"10) echo 'Type: menu   to come back.'; break ;;\n" +
+"0) break ;;\n" +
+"*) echo 'invalid choice' ;;\n" +
+"esac\n" +
+"echo\n" +
+"printf 'Press enter to continue...'\n" +
+"read _\n" +
+"done\n" +
+"PANEL_EOF\n" +
+"chmod +x /tmp/menu.sh\n" +
+"alias menu=/tmp/menu.sh\n" +
+"/tmp/menu.sh\n";
+
+let menuInstalled = false;
+function launchMenu(){
+  if (!emulator || !booted) return;
+  emulator.serial0_send(MENU_SCRIPT);
+  menuInstalled = true;
+}
+
+screenEl.addEventListener('mouseup', ()=>{
+  // Don't steal focus away from a text selection the user just made.
+  const sel = window.getSelection();
+  if (sel && sel.toString().length > 0) return;
+  kbd.focus();
+});
+kbd.addEventListener('blur', ()=> setTimeout(()=>{
+  const sel = window.getSelection();
+  if (sel && sel.toString().length > 0) return;
+  if(poweredOn) kbd.focus();
+}, 10));
+
+const copyBtn = document.getElementById('copyBtn');
+copyBtn.addEventListener('click', async ()=>{
+  const fullText = textBuffer + stripAnsi(rawAccum);
+  const original = copyBtn.textContent;
+  try{
+    await navigator.clipboard.writeText(fullText);
+    copyBtn.textContent = 'Copied!';
+  } catch(err){
+    // Fallback: select the terminal text so the user can Ctrl/Cmd+C manually.
+    const range = document.createRange();
+    range.selectNodeContents(termEl);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    copyBtn.textContent = 'Selected — Ctrl+C';
+  }
+  setTimeout(()=>{ copyBtn.textContent = original; }, 1500);
+});
+
+kbd.addEventListener('keydown', function(e){
+  if (!poweredOn){ return; }
+  e.preventDefault();
+  if (!booted) return;
+
+  if (e.key === 'Enter'){ sendChar('\r'); return; }
+  if (e.key === 'Backspace'){ sendChar('\x7f'); return; }
+  if (e.key === 'Tab'){ sendChar('\t'); return; }
+  if (e.key === 'ArrowUp'){ sendChar('\x1b[A'); return; }
+  if (e.key === 'ArrowDown'){ sendChar('\x1b[B'); return; }
+  if (e.key === 'ArrowRight'){ sendChar('\x1b[C'); return; }
+  if (e.key === 'ArrowLeft'){ sendChar('\x1b[D'); return; }
+  if (e.ctrlKey && e.key.length === 1){
+    const code = e.key.toUpperCase().charCodeAt(0) - 64;
+    if (code >= 0 && code < 32){ sendChar(String.fromCharCode(code)); return; }
+  }
+  if (e.key.length === 1){ sendChar(e.key); return; }
+});
+
+powerBtn.addEventListener('click', powerOn);
+rebootBtn.addEventListener('click', ()=> location.reload());
+clearBtn.addEventListener('click', ()=>{ textBuffer=""; rawAccum=""; render(); });
+colorBtn.addEventListener('click', ()=> screenEl.classList.toggle('amber'));
+
+const menuBtn = document.getElementById('menuBtn');
+menuBtn.addEventListener('click', ()=>{
+  if (!booted) return;
+  if (menuInstalled){
+    sendChar('/tmp/menu.sh\r');
+  } else {
+    launchMenu();
+  }
+  kbd.focus();
+});
+
+// --- Drag and drop: real files -> real 9p filesystem -> real /mnt in the guest ---
+['dragenter','dragover'].forEach(evt=>{
+  screenEl.addEventListener(evt, function(e){
+    e.preventDefault(); e.stopPropagation();
+    screenEl.classList.add('dragover');
+  });
+});
+['dragleave','drop'].forEach(evt=>{
+  screenEl.addEventListener(evt, function(e){
+    e.preventDefault(); e.stopPropagation();
+    screenEl.classList.remove('dragover');
+  });
+});
+
+function announce(msg){
+  rawAccum = "";
+  textBuffer += "\n[ " + msg + " ]\n";
+  render();
+}
+
+screenEl.addEventListener('drop', function(e){
+  if (!emulator || !poweredOn){
+    announce('power it on first');
+    return;
+  }
+  const files = Array.from(e.dataTransfer.files || []);
+  if (files.length === 0) return;
+  files.forEach(function(file){
+    const reader = new FileReader();
+    reader.onload = function(){
+      const bytes = new Uint8Array(reader.result);
+      const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, '_');
+      emulator.create_file(safeName, bytes, function(){
+        announce('sent ' + file.name + ' (' + bytes.length + ' bytes) -> /mnt/' + safeName);
+        if (booted) sendChar('\r');
+      });
+    };
+    reader.readAsArrayBuffer(file);
+  });
+});
+
+setStatus('', 'Powered off');
+</script>
+</body>
+</html>

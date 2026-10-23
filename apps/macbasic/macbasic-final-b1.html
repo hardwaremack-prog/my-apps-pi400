@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MacBASIC</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+  :root{
+    --phosphor: #4dff85;
+    --phosphor-dim: #1f7a44;
+    --glow: 0 0 4px rgba(77,255,133,0.75), 0 0 10px rgba(77,255,133,0.35);
+    --bezel: #cfc9b8;
+    --bezel-dark: #8f8a7c;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: #2b2924;
+    display:flex; align-items:center; justify-content:center;
+    font-family: 'VT323', monospace;
+  }
+  .machine{
+    width: min(880px, 96vw);
+    padding: 26px 26px 34px;
+    border-radius: 22px;
+    background: linear-gradient(160deg, var(--bezel) 0%, var(--bezel-dark) 100%);
+    box-shadow:
+      0 20px 50px rgba(0,0,0,0.55),
+      inset 0 2px 0 rgba(255,255,255,0.35),
+      inset 0 -6px 10px rgba(0,0,0,0.25);
+    position: relative;
+  }
+  .brand{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0 6px 10px;
+    font-family: -apple-system, Helvetica, Arial, sans-serif;
+    color: #5b5648;
+  }
+  .brand .logo{ font-size:13px; font-weight:600; letter-spacing:0.5px; }
+  .brand .model{ font-size:11px; color:#7a7566; }
+
+  .screen-well{
+    background: #111;
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: inset 0 0 0 3px #050505, inset 0 10px 24px rgba(0,0,0,0.85);
+  }
+  .crt{
+    position: relative;
+    background: radial-gradient(ellipse at 50% 40%, #0d1f12 0%, #060b07 78%, #030503 100%);
+    border-radius: 8px;
+    height: 480px;
+    overflow: hidden;
+    cursor: text;
+  }
+  .crt::before{
+    /* scanlines */
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0.18) 0px,
+      rgba(0,0,0,0.18) 1px,
+      transparent 2px,
+      transparent 3px
+    );
+    pointer-events:none;
+    z-index: 3;
+  }
+  .crt::after{
+    /* vignette */
+    content:"";
+    position:absolute; inset:0;
+    box-shadow: inset 0 0 60px 18px rgba(0,0,0,0.75);
+    pointer-events:none;
+    z-index: 4;
+    border-radius: 8px;
+  }
+  .crt.drag-over{
+    outline: 2px dashed var(--phosphor);
+    outline-offset: -6px;
+  }
+
+  .flicker{
+    position:absolute; inset:0;
+    animation: flicker 6.5s infinite;
+    pointer-events:none;
+    z-index: 2;
+    background: rgba(255,255,255,0.015);
+  }
+  @keyframes flicker{
+    0%,100%{ opacity:0.3; }
+    48%{ opacity:0.3; }
+    50%{ opacity:0.6; }
+    52%{ opacity:0.3; }
+    77%{ opacity:0.3; }
+    79%{ opacity:0.5; }
+    81%{ opacity:0.3; }
+  }
+
+  #gfx{
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    filter: drop-shadow(0 0 2px rgba(77,255,133,0.5));
+    pointer-events: none;
+  }
+
+  #screen{
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    padding: 18px 20px;
+    color: var(--phosphor);
+    text-shadow: var(--glow);
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    line-height: 1.28;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  #screen::-webkit-scrollbar{ display:none; }
+
+  .cursor{
+    display:inline-block;
+    width: 0.55em;
+    height: 1em;
+    background: var(--phosphor);
+    box-shadow: var(--glow);
+    transform: translateY(0.15em);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{
+    0%,49%{ opacity:1; }
+    50%,100%{ opacity:0; }
+  }
+  .cursor.hidden{ display:none; }
+
+  #hiddenInput{
+    position:absolute; opacity:0; pointer-events:none;
+    width:1px; height:1px; left:-9999px;
+  }
+
+  .footer-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 12px 8px 0;
+    font-family: -apple-system, Helvetica, Arial, sans-serif;
+    font-size: 11px; color:#7a7566;
+  }
+  .led{
+    width:7px; height:7px; border-radius:50%;
+    background: #3ecf5e; box-shadow: 0 0 5px #3ecf5e;
+    display:inline-block; margin-right:6px; vertical-align:middle;
+  }
+</style>
+</head>
+<body>
+
+  <div class="machine">
+    <div class="brand">
+      <span class="logo">MacBASIC</span>
+      <span class="model">retro-model no. 1978B</span>
+    </div>
+    <div class="screen-well">
+      <div class="crt" id="crtClick">
+        <canvas id="gfx" width="320" height="200"></canvas>
+        <div class="flicker"></div>
+        <div id="screen"></div>
+      </div>
+    </div>
+    <div class="footer-row">
+      <span><span class="led"></span>READY</span>
+      <span>RUN &middot; SAVE &middot; EXPORT &middot; drag in .bas/.img &middot; HELP</span>
+    </div>
+  </div>
+
+  <input id="hiddenInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+
+<script>
+// ============================================================
+// ===== MacBASIC core interpreter (engine, DOM-independent) ==
+// ============================================================
+function isDigit(c){ return c >= '0' && c <= '9'; }
+function isAlpha(c){ return /[A-Za-z]/.test(c); }
+
+function lex(text){
+  const toks = [];
+  let i = 0;
+  const s = text;
+  while (i < s.length){
+    const c = s[i];
+    if (c === ' ' || c === '\t'){ i++; continue; }
+    if (c === '"'){
+      let j = i+1, buf = '';
+      while (j < s.length && s[j] !== '"'){ buf += s[j]; j++; }
+      j++;
+      toks.push({type:'STRING', value: buf});
+      i = j;
+      continue;
+    }
+    if (isDigit(c) || (c === '.' && isDigit(s[i+1]))){
+      let j = i, buf='';
+      while (j < s.length && (isDigit(s[j]) || s[j] === '.')) { buf += s[j]; j++; }
+      if (s[j] === 'E' || s[j] === 'e'){
+        buf += s[j]; j++;
+        if (s[j] === '+' || s[j] === '-'){ buf += s[j]; j++; }
+        while (j < s.length && isDigit(s[j])){ buf += s[j]; j++; }
+      }
+      toks.push({type:'NUMBER', value: parseFloat(buf)});
+      i = j;
+      continue;
+    }
+    if (isAlpha(c)){
+      let j = i, buf='';
+      while (j < s.length && /[A-Za-z0-9]/.test(s[j])){ buf += s[j]; j++; }
+      if (s[j] === '$' || s[j] === '%'){ buf += s[j]; j++; }
+      toks.push({type:'IDENT', value: buf.toUpperCase()});
+      i = j;
+      continue;
+    }
+    const two = s.substr(i,2);
+    if (two === '<=' || two === '>=' || two === '<>'){
+      toks.push({type:'OP', value: two}); i += 2; continue;
+    }
+    if ('+-*/^=<>(),;:'.includes(c)){
+      toks.push({type:'OP', value: c}); i++; continue;
+    }
+    i++;
+  }
+  return toks;
+}
+
+function splitStatements(text){
+  const out = [];
+  let buf = '', inStr = false;
+  for (let i=0;i<text.length;i++){
+    const c = text[i];
+    if (c === '"'){ inStr = !inStr; buf += c; continue; }
+    if (c === ':' && !inStr){
+      // A REM comment swallows everything after it on the line, colons included.
+      if (/^\s*REM\b/i.test(buf)){ buf += text.slice(i); break; }
+      out.push(buf); buf=''; continue;
+    }
+    buf += c;
+  }
+  out.push(buf);
+  return out.map(s=>s.trim()).filter(s=>s.length>0);
+}
+
+function splitTokensOn(tokens, sep){
+  const groups = [];
+  let cur = [], depth = 0;
+  for (const t of tokens){
+    if (t.type==='OP' && t.value==='(') depth++;
+    if (t.type==='OP' && t.value===')') depth--;
+    if (t.type==='OP' && t.value===sep && depth===0){
+      groups.push(cur); cur=[];
+    } else cur.push(t);
+  }
+  groups.push(cur);
+  return groups;
+}
+
+const FUNCTIONS = new Set(['ABS','INT','RND','SQR','SGN','LEN','LEFT$','RIGHT$','MID$','STR$','VAL','CHR$','ASC','TAB','SIN','COS','ATN','LOG','EXP']);
+
+class ParseError extends Error {}
+class BasicError extends Error {}
+
+class ExprParser {
+  constructor(tokens, interp){
+    this.toks = tokens; this.pos = 0; this.interp = interp;
+  }
+  peek(){ return this.toks[this.pos]; }
+  next(){ return this.toks[this.pos++]; }
+  atEnd(){ return this.pos >= this.toks.length; }
+  expectOp(v){
+    const t = this.next();
+    if (!t || t.type!=='OP' || t.value!==v) throw new ParseError('SYNTAX ERROR: expected '+v);
+    return t;
+  }
+  parseExpr(){ return this.parseOr(); }
+  parseOr(){
+    let left = this.parseAnd();
+    while (!this.atEnd() && this.peek().type==='IDENT' && this.peek().value==='OR'){
+      this.next();
+      const right = this.parseAnd();
+      left = (truthy(left) || truthy(right)) ? -1 : 0;
+    }
+    return left;
+  }
+  parseAnd(){
+    let left = this.parseNot();
+    while (!this.atEnd() && this.peek().type==='IDENT' && this.peek().value==='AND'){
+      this.next();
+      const right = this.parseNot();
+      left = (truthy(left) && truthy(right)) ? -1 : 0;
+    }
+    return left;
+  }
+  parseNot(){
+    if (!this.atEnd() && this.peek().type==='IDENT' && this.peek().value==='NOT'){
+      this.next();
+      const v = this.parseNot();
+      return truthy(v) ? 0 : -1;
+    }
+    return this.parseCompare();
+  }
+  parseCompare(){
+    let left = this.parseAdd();
+    const t = this.peek();
+    if (t && t.type==='OP' && ['=','<>','<','>','<=','>='].includes(t.value)){
+      this.next();
+      const right = this.parseAdd();
+      let result;
+      if (typeof left === 'string' || typeof right === 'string'){
+        const a = String(left), b = String(right);
+        switch(t.value){
+          case '=': result = a===b; break;
+          case '<>': result = a!==b; break;
+          case '<': result = a<b; break;
+          case '>': result = a>b; break;
+          case '<=': result = a<=b; break;
+          case '>=': result = a>=b; break;
+        }
+      } else {
+        switch(t.value){
+          case '=': result = left===right; break;
+          case '<>': result = left!==right; break;
+          case '<': result = left<right; break;
+          case '>': result = left>right; break;
+          case '<=': result = left<=right; break;
+          case '>=': result = left>=right; break;
+        }
+      }
+      return result ? -1 : 0;
+    }
+    return left;
+  }
+  parseAdd(){
+    let left = this.parseMul();
+    while (!this.atEnd() && this.peek().type==='OP' && (this.peek().value==='+' || this.peek().value==='-')){
+      const op = this.next().value;
+      const right = this.parseMul();
+      if (op === '+'){
+        if (typeof left === 'string' || typeof right === 'string') left = String(left) + String(right);
+        else left = left + right;
+      } else {
+        left = numOf(left) - numOf(right);
+      }
+    }
+    return left;
+  }
+  parseMul(){
+    let left = this.parsePow();
+    while (!this.atEnd() && this.peek().type==='OP' && (this.peek().value==='*' || this.peek().value==='/')){
+      const op = this.next().value;
+      const right = this.parsePow();
+      if (op === '*') left = numOf(left) * numOf(right);
+      else {
+        const rv = numOf(right);
+        if (rv === 0) throw new BasicError('DIVISION BY ZERO ERROR');
+        left = numOf(left) / rv;
+      }
+    }
+    return left;
+  }
+  parsePow(){
+    let left = this.parseUnary();
+    if (!this.atEnd() && this.peek().type==='OP' && this.peek().value==='^'){
+      this.next();
+      const right = this.parsePow();
+      left = Math.pow(numOf(left), numOf(right));
+    }
+    return left;
+  }
+  parseUnary(){
+    if (!this.atEnd() && this.peek().type==='OP' && this.peek().value==='-'){
+      this.next();
+      return -numOf(this.parseUnary());
+    }
+    if (!this.atEnd() && this.peek().type==='OP' && this.peek().value==='+'){
+      this.next();
+      return numOf(this.parseUnary());
+    }
+    return this.parsePrimary();
+  }
+  parsePrimary(){
+    const t = this.next();
+    if (!t) throw new ParseError('SYNTAX ERROR: unexpected end');
+    if (t.type === 'NUMBER') return t.value;
+    if (t.type === 'STRING') return t.value;
+    if (t.type === 'OP' && t.value === '('){
+      const v = this.parseExpr();
+      this.expectOp(')');
+      return v;
+    }
+    if (t.type === 'IDENT'){
+      if (FUNCTIONS.has(t.value)){
+        const args = [];
+        if (!this.atEnd() && this.peek().type==='OP' && this.peek().value==='('){
+          this.next();
+          if (!(this.peek() && this.peek().type==='OP' && this.peek().value===')')){
+            args.push(this.parseExpr());
+            while (!this.atEnd() && this.peek().type==='OP' && this.peek().value===','){
+              this.next(); args.push(this.parseExpr());
+            }
+          }
+          this.expectOp(')');
+        }
+        return this.interp.callFunction(t.value, args);
+      }
+      if (!this.atEnd() && this.peek().type==='OP' && this.peek().value==='('){
+        this.next();
+        const idx = [this.parseExpr()];
+        while (!this.atEnd() && this.peek().type==='OP' && this.peek().value===','){
+          this.next(); idx.push(this.parseExpr());
+        }
+        this.expectOp(')');
+        return this.interp.getArray(t.value, idx);
+      }
+      return this.interp.getVar(t.value);
+    }
+    throw new ParseError('SYNTAX ERROR');
+  }
+}
+
+function truthy(v){ return numOf(v) !== 0; }
+function numOf(v){ return typeof v === 'string' ? (parseFloat(v)||0) : v; }
+
+class Interpreter {
+  constructor(io){
+    this.io = io;
+    this.reset();
+  }
+  reset(){
+    this.program = new Map();
+    this.vars = {};
+    this.arrays = {};
+    this.flat = [];
+    this.lineIndex = {};
+    this.dataList = [];
+    this.dataPtr = 0;
+    this.forStack = [];
+    this.gosubStack = [];
+    this.running = false;
+    this.currentColor = 10;
+  }
+  defaultVal(name){ return name.endsWith('$') ? '' : 0; }
+  getVar(name){
+    if (name in this.vars) return this.vars[name];
+    return this.defaultVal(name);
+  }
+  setVar(name, val){
+    if (name.endsWith('$')) this.vars[name] = String(val);
+    else this.vars[name] = numOf(val);
+  }
+  getArray(name, idxExprs){
+    const idx = idxExprs.map(v=>Math.trunc(numOf(v)));
+    const arr = this.arrays[name];
+    if (!arr) throw new BasicError('UNDIMENSIONED ARRAY: '+name);
+    let v = arr;
+    for (const i of idx){
+      if (!Array.isArray(v) || i<0 || i>=v.length) throw new BasicError('BAD SUBSCRIPT ERROR');
+      v = v[i];
+    }
+    return v;
+  }
+  setArray(name, idxExprs, val){
+    const idx = idxExprs.map(v=>Math.trunc(numOf(v)));
+    const arr = this.arrays[name];
+    if (!arr) throw new BasicError('UNDIMENSIONED ARRAY: '+name);
+    let v = arr;
+    for (let d=0; d<idx.length-1; d++){
+      v = v[idx[d]];
+    }
+    const last = idx[idx.length-1];
+    if (last<0 || last>=v.length) throw new BasicError('BAD SUBSCRIPT ERROR');
+    v[last] = name.endsWith('$') ? String(val) : numOf(val);
+  }
+  dimArray(name, sizes){
+    function build(dims){
+      const n = dims[0]+1;
+      const fill = name.endsWith('$') ? '' : 0;
+      if (dims.length===1) return new Array(n).fill(fill);
+      return new Array(n).fill(null).map(()=>build(dims.slice(1)));
+    }
+    this.arrays[name] = build(sizes.map(s=>Math.trunc(numOf(s))));
+  }
+  callFunction(name, args){
+    const a0 = args[0];
+    switch(name){
+      case 'ABS': return Math.abs(numOf(a0));
+      case 'INT': return Math.floor(numOf(a0));
+      case 'RND': return Math.random();
+      case 'SQR': return Math.sqrt(numOf(a0));
+      case 'SGN': { const n = numOf(a0); return n>0?1:(n<0?-1:0); }
+      case 'SIN': return Math.sin(numOf(a0));
+      case 'COS': return Math.cos(numOf(a0));
+      case 'ATN': return Math.atan(numOf(a0));
+      case 'LOG': return Math.log(numOf(a0));
+      case 'EXP': return Math.exp(numOf(a0));
+      case 'LEN': return String(a0).length;
+      case 'LEFT$': return String(a0).substring(0, Math.trunc(numOf(args[1])));
+      case 'RIGHT$': { const s=String(a0); const n=Math.trunc(numOf(args[1])); return s.substring(s.length-n); }
+      case 'MID$': { const s=String(a0); const start=Math.trunc(numOf(args[1]))-1; const len = args[2]!==undefined?Math.trunc(numOf(args[2])):s.length; return s.substr(Math.max(0,start), len); }
+      case 'STR$': return String(numOf(a0));
+      case 'VAL': return parseFloat(a0) || 0;
+      case 'CHR$': return String.fromCharCode(Math.trunc(numOf(a0)));
+      case 'ASC': return String(a0).charCodeAt(0) || 0;
+      case 'TAB': return {__tab: Math.trunc(numOf(a0))};
+      default: throw new BasicError('UNKNOWN FUNCTION: '+name);
+    }
+  }
+
+  loadProgram(lines){
+    this.program = new Map();
+    for (const {num, text} of lines) this.program.set(num, text);
+    this.rebuild();
+  }
+  setLine(num, text){
+    if (text === '' || text === undefined) this.program.delete(num);
+    else this.program.set(num, text);
+  }
+  rebuild(){
+    const nums = [...this.program.keys()].sort((a,b)=>a-b);
+    this.flat = [];
+    this.lineIndex = {};
+    this.dataList = [];
+    for (const n of nums){
+      const rawLine = this.program.get(n);
+      const stmts = /^\s*IF\b/i.test(rawLine) ? [rawLine.trim()] : splitStatements(rawLine);
+      this.lineIndex[n] = this.flat.length;
+      for (const s of stmts){
+        this.flat.push({line: n, text: s});
+      }
+    }
+    for (const f of this.flat){
+      if (/^DATA\b/i.test(f.text.trim())){
+        const rest = f.text.replace(/^\s*DATA/i, '');
+        for (const part of rest.split(',')){
+          const p = part.trim();
+          if (p.length===0) continue;
+          if (/^".*"$/.test(p)) this.dataList.push(p.slice(1,-1));
+          else if (!isNaN(parseFloat(p))) this.dataList.push(parseFloat(p));
+          else this.dataList.push(p);
+        }
+      }
+    }
+  }
+  listProgram(){
+    const nums = [...this.program.keys()].sort((a,b)=>a-b);
+    return nums.map(n=>n+' '+this.program.get(n));
+  }
+  evalExprTokens(tokens){ return new ExprParser(tokens, this).parseExpr(); }
+  evalExprString(str){ return this.evalExprTokens(lex(str)); }
+
+  async runProgram(){
+    this.vars = {}; this.arrays = {}; this.forStack=[]; this.gosubStack=[]; this.dataPtr=0;
+    this.rebuild();
+    this.running = true;
+    let pc = 0, steps = 0, curLine = 0;
+    try {
+      while (this.running && pc < this.flat.length){
+        const stmt = this.flat[pc];
+        curLine = stmt.line;
+        let jump = await this.execStatement(stmt.text, stmt.line, pc);
+        while (jump && jump.__inlineStmt !== undefined){
+          const inlineParts = splitStatements(jump.__inlineStmt);
+          let inner;
+          for (const part of inlineParts){
+            inner = await this.execStatement(part, stmt.line, pc);
+            if (inner && (inner.gotoLine !== undefined || inner.gotoIndex !== undefined || inner.end || inner.__inlineStmt !== undefined)) break;
+          }
+          jump = inner;
+        }
+        if (jump && jump.end) break;
+        if (jump && jump.gotoLine !== undefined){
+          if (!(jump.gotoLine in this.lineIndex)) throw new BasicError('UNDEFINED LINE '+jump.gotoLine+' ERROR');
+          pc = this.lineIndex[jump.gotoLine];
+        } else if (jump && jump.gotoIndex !== undefined){
+          pc = jump.gotoIndex;
+        } else {
+          pc++;
+        }
+        steps++;
+        if (steps % 300 === 0) await new Promise(r=>setTimeout(r,0));
+      }
+    } catch (e){
+      if (e && e.message === 'BREAK') this.io.print('\nBREAK IN '+curLine+'\n');
+      else if (e instanceof BasicError || e instanceof ParseError) this.io.print('\n?'+e.message+' IN '+curLine+'\n');
+      else this.io.print('\n?INTERNAL ERROR: '+e.message+' IN '+curLine+'\n');
+    } finally {
+      this.running = false;
+    }
+  }
+
+  async runImmediate(text){
+    const stmts = /^\s*IF\b/i.test(text) ? [text.trim()] : splitStatements(text);
+    for (const s of stmts){
+      let jump = await this.execStatement(s, 0, -1);
+      while (jump && jump.__inlineStmt !== undefined){
+        const inlineParts = splitStatements(jump.__inlineStmt);
+        let inner;
+        for (const part of inlineParts){
+          inner = await this.execStatement(part, 0, -1);
+          if (inner && (inner.gotoLine !== undefined || inner.gotoIndex !== undefined || inner.end || inner.__inlineStmt !== undefined)) break;
+        }
+        jump = inner;
+      }
+      if (jump && (jump.gotoLine !== undefined || jump.gotoIndex !== undefined)){
+        throw new BasicError('ILLEGAL DIRECT ERROR');
+      }
+    }
+  }
+
+  async execStatement(text, lineNum, pcIndex){
+    const trimmed = text.trim();
+    if (trimmed.length === 0) return;
+    const m = trimmed.match(/^([A-Za-z]+\$?)\s*(.*)$/s);
+    let cmd = '', rest = trimmed;
+    if (m){ cmd = m[1].toUpperCase(); rest = m[2]; }
+    if (!['REM','PRINT','INPUT','IF','FOR','NEXT','GOTO','GOSUB','RETURN','END','STOP','DIM','DATA','READ','RESTORE','LET','CLS','SCREEN','PSET','LINE','CIRCLE','COLOR','SLEEP'].includes(cmd)){
+      return this.doAssignment(trimmed);
+    }
+    switch(cmd){
+      case 'REM': return;
+      case 'LET': return this.doAssignment(rest);
+      case 'PRINT': return this.doPrint(rest);
+      case 'INPUT': return await this.doInput(rest);
+      case 'IF': return this.doIf(rest, lineNum, pcIndex);
+      case 'FOR': return this.doFor(rest, pcIndex);
+      case 'NEXT': return this.doNext(rest);
+      case 'GOTO': return {gotoLine: Math.trunc(this.evalExprString(rest))};
+      case 'GOSUB': {
+        this.gosubStack.push(pcIndex+1);
+        return {gotoLine: Math.trunc(this.evalExprString(rest))};
+      }
+      case 'RETURN': {
+        if (this.gosubStack.length===0) throw new BasicError('RETURN WITHOUT GOSUB ERROR');
+        return {gotoIndex: this.gosubStack.pop()};
+      }
+      case 'END': case 'STOP': return {end:true};
+      case 'DIM': return this.doDim(rest);
+      case 'DATA': return;
+      case 'READ': return this.doRead(rest);
+      case 'RESTORE': this.dataPtr = 0; return;
+      case 'CLS': this.io.clear(); if (this.io.graphics) this.io.graphics.clearCanvas(); return;
+      case 'SCREEN': if (this.io.graphics) this.io.graphics.clearCanvas(); return;
+      case 'COLOR': this.currentColor = Math.trunc(this.evalExprString(rest)); return;
+      case 'PSET': return this.doPset(rest);
+      case 'LINE': return this.doLine(rest);
+      case 'CIRCLE': return this.doCircle(rest);
+      case 'SLEEP': {
+        const secs = numOf(this.evalExprString(rest));
+        await new Promise(r=>setTimeout(r, Math.max(0, secs) * 1000));
+        return;
+      }
+    }
+  }
+
+  doPset(rest){
+    const p = new ExprParser(lex(rest), this);
+    p.expectOp('(');
+    const x = numOf(p.parseExpr());
+    p.expectOp(',');
+    const y = numOf(p.parseExpr());
+    p.expectOp(')');
+    let color = this.currentColor;
+    if (!p.atEnd() && p.peek().type==='OP' && p.peek().value===','){
+      p.next(); color = numOf(p.parseExpr());
+    }
+    if (this.io.graphics) this.io.graphics.pset(x, y, color);
+  }
+
+  doLine(rest){
+    const p = new ExprParser(lex(rest), this);
+    p.expectOp('(');
+    const x1 = numOf(p.parseExpr()); p.expectOp(',');
+    const y1 = numOf(p.parseExpr()); p.expectOp(')');
+    p.expectOp('-');
+    p.expectOp('(');
+    const x2 = numOf(p.parseExpr()); p.expectOp(',');
+    const y2 = numOf(p.parseExpr()); p.expectOp(')');
+    let color = this.currentColor;
+    let style = null;
+    if (!p.atEnd() && p.peek().type==='OP' && p.peek().value===','){
+      p.next();
+      color = numOf(p.parseExpr());
+      if (!p.atEnd() && p.peek().type==='OP' && p.peek().value===','){
+        p.next();
+        if (!p.atEnd() && p.peek().type==='IDENT'){ style = p.next().value; }
+      }
+    }
+    if (this.io.graphics) this.io.graphics.line(x1, y1, x2, y2, color, style);
+  }
+
+  doCircle(rest){
+    const p = new ExprParser(lex(rest), this);
+    p.expectOp('(');
+    const x = numOf(p.parseExpr()); p.expectOp(',');
+    const y = numOf(p.parseExpr()); p.expectOp(')');
+    p.expectOp(',');
+    const r = numOf(p.parseExpr());
+    let color = this.currentColor;
+    if (!p.atEnd() && p.peek().type==='OP' && p.peek().value===','){
+      p.next(); color = numOf(p.parseExpr());
+    }
+    if (this.io.graphics) this.io.graphics.circle(x, y, r, color);
+  }
+
+  doAssignment(str){
+    const eq = this.findTopLevelEquals(str);
+    if (eq < 0) throw new BasicError('SYNTAX ERROR');
+    const lhs = str.slice(0, eq).trim();
+    const val = this.evalExprTokens(lex(str.slice(eq+1)));
+    const lm = lhs.match(/^([A-Za-z][A-Za-z0-9]*[$%]?)\s*(\((.*)\))?$/s);
+    if (!lm) throw new BasicError('SYNTAX ERROR');
+    const name = lm[1].toUpperCase();
+    if (lm[2]){
+      const idxGroups = splitTokensOn(lex(lm[3]), ',').map(g=>this.evalExprTokens(g));
+      this.setArray(name, idxGroups, val);
+    } else {
+      this.setVar(name, val);
+    }
+  }
+  findTopLevelEquals(str){
+    let depth=0, inStr=false;
+    for (let i=0;i<str.length;i++){
+      const c = str[i];
+      if (c==='"'){ inStr=!inStr; continue; }
+      if (inStr) continue;
+      if (c==='(') depth++;
+      if (c===')') depth--;
+      if (c==='=' && depth===0) return i;
+    }
+    return -1;
+  }
+
+  doPrint(rest){
+    if (rest.trim().length === 0){ this.io.print('\n'); return; }
+    const toks = lex(rest);
+    const groups = []; let cur=[], depth=0; const seps=[];
+    for (const t of toks){
+      if (t.type==='OP' && t.value==='(') depth++;
+      if (t.type==='OP' && t.value===')') depth--;
+      if (t.type==='OP' && (t.value===',' || t.value===';') && depth===0){
+        groups.push(cur); cur=[]; seps.push(t.value);
+      } else cur.push(t);
+    }
+    groups.push(cur);
+    let out = '';
+    for (let i=0;i<groups.length;i++){
+      const g = groups[i];
+      if (g.length>0){
+        const v = this.evalExprTokens(g);
+        if (v && typeof v === 'object' && '__tab' in v){
+          while (out.length < v.__tab) out += ' ';
+        } else out += String(v);
+      }
+      if (i < seps.length && seps[i] === ','){
+        while (out.length % 14 !== 0) out += ' ';
+      }
+    }
+    const lastSep = seps[seps.length-1];
+    const suppress = (lastSep === ';' || lastSep===',') && groups[groups.length-1].length===0;
+    this.io.print(out + (suppress ? '' : '\n'));
+  }
+
+  async doInput(rest){
+    let prompt = '? ';
+    let body = rest;
+    const sm = rest.match(/^\s*"([^"]*)"\s*[;,]\s*(.*)$/s);
+    if (sm){ prompt = sm[1] + ' '; body = sm[2]; }
+    const names = body.split(',').map(s=>s.trim()).filter(s=>s.length>0);
+    this.io.print(prompt);
+    const line = await this.io.inputLine();
+    const parts = line.split(',');
+    for (let i=0;i<names.length;i++){
+      const raw = (parts[i] !== undefined ? parts[i] : '').trim();
+      const name = names[i].toUpperCase();
+      this.setVar(name, name.endsWith('$') ? raw : (parseFloat(raw)||0));
+    }
+  }
+
+  doIf(rest){
+    const thenIdx = findKeywordTop(rest, 'THEN');
+    if (thenIdx < 0) throw new BasicError('SYNTAX ERROR: IF WITHOUT THEN');
+    const condStr = rest.slice(0, thenIdx);
+    let afterThen = rest.slice(thenIdx+4);
+    let elseStr = null;
+    const elseIdx = findKeywordTop(afterThen, 'ELSE');
+    if (elseIdx >= 0){
+      elseStr = afterThen.slice(elseIdx+4).trim();
+      afterThen = afterThen.slice(0, elseIdx);
+    }
+    afterThen = afterThen.trim();
+    const cond = truthy(this.evalExprString(condStr));
+    const branch = cond ? afterThen : (elseStr !== null ? elseStr : null);
+    if (branch === null) return;
+    if (/^\d+$/.test(branch.trim())) return {gotoLine: parseInt(branch.trim(),10)};
+    return {__inlineStmt: branch};
+  }
+
+  doFor(rest, pcIndex){
+    const eq = rest.indexOf('=');
+    const name = rest.slice(0,eq).trim().toUpperCase();
+    const afterEq = rest.slice(eq+1);
+    const toIdx = findKeywordTop(afterEq, 'TO');
+    const startStr = afterEq.slice(0, toIdx);
+    let remainder = afterEq.slice(toIdx+2);
+    let stepStr = '1', toStr = remainder;
+    const stepIdx = findKeywordTop(remainder, 'STEP');
+    if (stepIdx >= 0){ toStr = remainder.slice(0, stepIdx); stepStr = remainder.slice(stepIdx+4); }
+    const start = numOf(this.evalExprString(startStr));
+    const end = numOf(this.evalExprString(toStr));
+    const step = numOf(this.evalExprString(stepStr));
+    this.setVar(name, start);
+    this.forStack.push({name, end, step, bodyIndex: pcIndex+1});
+  }
+
+  doNext(rest){
+    const name = rest.trim().toUpperCase();
+    if (this.forStack.length === 0) throw new BasicError('NEXT WITHOUT FOR ERROR');
+    let frame = this.forStack[this.forStack.length-1];
+    if (name && frame.name !== name){
+      const idx = this.forStack.findIndex(f=>f.name===name);
+      if (idx>=0){ this.forStack.length = idx+1; frame = this.forStack[idx]; }
+    }
+    const cur = numOf(this.getVar(frame.name)) + frame.step;
+    this.setVar(frame.name, cur);
+    const done = frame.step >= 0 ? cur > frame.end : cur < frame.end;
+    if (done){ this.forStack.pop(); return; }
+    return {gotoIndex: frame.bodyIndex};
+  }
+
+  doDim(rest){
+    for (const part of this.splitDimParts(rest)){
+      const m = part.match(/^([A-Za-z][A-Za-z0-9]*[$%]?)\s*\((.*)\)$/s);
+      if (!m) continue;
+      const name = m[1].toUpperCase();
+      const sizes = splitTokensOn(lex(m[2]), ',').map(g=>this.evalExprTokens(g));
+      this.dimArray(name, sizes);
+    }
+  }
+  splitDimParts(rest){
+    const out = []; let depth=0, buf='';
+    for (const c of rest){
+      if (c==='(') depth++;
+      if (c===')') depth--;
+      if (c===',' && depth===0){ out.push(buf); buf=''; continue; }
+      buf += c;
+    }
+    out.push(buf);
+    return out.map(s=>s.trim()).filter(s=>s.length>0);
+  }
+
+  doRead(rest){
+    const names = rest.split(',').map(s=>s.trim()).filter(s=>s.length>0);
+    for (const n of names){
+      if (this.dataPtr >= this.dataList.length) throw new BasicError('OUT OF DATA ERROR');
+      const val = this.dataList[this.dataPtr++];
+      this.setVar(n.toUpperCase(), val);
+    }
+  }
+}
+
+function findKeywordTop(str, kw){
+  let inStr=false, d=0;
+  const upper = str.toUpperCase();
+  for (let i=0;i<str.length;i++){
+    const c = str[i];
+    if (c==='"'){ inStr=!inStr; continue; }
+    if (inStr) continue;
+    if (c==='(') d++;
+    if (c===')') d--;
+    if (d===0 && upper.substr(i, kw.length)===kw){
+      const before = str[i-1]; const after = str[i+kw.length];
+      const boundaryBefore = !before || !/[A-Za-z0-9]/.test(before);
+      const boundaryAfter = !after || !/[A-Za-z0-9$%]/.test(after);
+      if (boundaryBefore && boundaryAfter) return i;
+    }
+  }
+  return -1;
+}
+
+// ============================================================
+// ===================== Terminal UI ==========================
+// ============================================================
+const screenEl = document.getElementById('screen');
+const hiddenInput = document.getElementById('hiddenInput');
+const crtEl = document.getElementById('crtClick');
+
+let completed = '';     // finished scrollback text
+let buffer = '';        // text currently being typed
+let mode = 'command';   // 'command' | 'running' | 'inputwait'
+let history = [];
+let histPos = -1;
+let pendingInputResolve = null;
+let pendingInputReject = null;
+
+const gfxCanvas = document.getElementById('gfx');
+const gfxCtx = gfxCanvas.getContext('2d');
+gfxCtx.imageSmoothingEnabled = false;
+
+const CGA_PALETTE = [
+  '#000000','#0000AA','#00AA00','#00AAAA','#AA0000','#AA00AA','#AA5500','#AAAAAA',
+  '#555555','#5555FF','#55FF55','#55FFFF','#FF5555','#FF55FF','#FFFF55','#FFFFFF'
+];
+function colorFor(c){
+  const idx = Math.trunc(c);
+  return CGA_PALETTE[((idx % 16) + 16) % 16];
+}
+
+const graphics = {
+  clearCanvas(){ gfxCtx.clearRect(0, 0, gfxCanvas.width, gfxCanvas.height); },
+  pset(x, y, color){
+    gfxCtx.fillStyle = colorFor(color);
+    gfxCtx.fillRect(Math.round(x), Math.round(y), 1, 1);
+  },
+  line(x1, y1, x2, y2, color, style){
+    gfxCtx.strokeStyle = colorFor(color);
+    gfxCtx.fillStyle = colorFor(color);
+    if (style === 'B' || style === 'BF'){
+      const rx = Math.min(x1, x2), ry = Math.min(y1, y2);
+      const rw = Math.abs(x2 - x1), rh = Math.abs(y2 - y1);
+      if (style === 'BF') gfxCtx.fillRect(rx, ry, rw, rh);
+      else gfxCtx.strokeRect(rx + 0.5, ry + 0.5, rw, rh);
+    } else {
+      gfxCtx.beginPath();
+      gfxCtx.moveTo(x1 + 0.5, y1 + 0.5);
+      gfxCtx.lineTo(x2 + 0.5, y2 + 0.5);
+      gfxCtx.stroke();
+    }
+  },
+  circle(x, y, r, color){
+    gfxCtx.strokeStyle = colorFor(color);
+    gfxCtx.beginPath();
+    gfxCtx.arc(x, y, r, 0, Math.PI * 2);
+    gfxCtx.stroke();
+  }
+};
+
+const io = {
+  print(str){ completed += str; render(); },
+  clear(){ completed = ''; render(); },
+  graphics,
+  inputLine(){
+    return new Promise((resolve, reject)=>{
+      pendingInputResolve = resolve;
+      pendingInputReject = reject;
+      mode = 'inputwait';
+      render();
+    });
+  }
+};
+
+const interp = new Interpreter(io);
+
+// ---- program storage (works inside Claude's artifact sandbox via
+// window.storage, and falls back to localStorage if this file is ever
+// downloaded and opened directly in a browser) ----
+const useArtifactStorage = (typeof window !== 'undefined' && !!window.storage);
+const STORE_PREFIX = 'macbasic:prog:';
+function safeKey(name){ return STORE_PREFIX + name.trim().toUpperCase().replace(/["'\/\\\s]+/g, '_'); }
+async function storageSet(key, value){
+  if (useArtifactStorage){ await window.storage.set(key, value, false); }
+  else { localStorage.setItem(key, value); }
+}
+async function storageGet(key){
+  if (useArtifactStorage){
+    try { const r = await window.storage.get(key, false); return r ? r.value : null; }
+    catch(e){ return null; }
+  }
+  return localStorage.getItem(key);
+}
+async function storageList(prefix){
+  if (useArtifactStorage){
+    try { const r = await window.storage.list(prefix, false); return (r && r.keys) || []; }
+    catch(e){ return []; }
+  }
+  const keys = [];
+  for (let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); if (k && k.startsWith(prefix)) keys.push(k); }
+  return keys;
+}
+async function storageDelete(key){
+  if (useArtifactStorage){ try { await window.storage.delete(key, false); } catch(e){} }
+  else { localStorage.removeItem(key); }
+}
+
+function render(){
+  screenEl.textContent = completed + buffer;
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor' + (mode === 'running' ? ' hidden' : '');
+  screenEl.appendChild(cursor);
+  screenEl.scrollTop = screenEl.scrollHeight;
+}
+
+function focusInput(){ hiddenInput.focus(); }
+crtEl.addEventListener('mouseup', ()=>{
+  const sel = window.getSelection();
+  if (!sel || sel.toString().length === 0){
+    focusInput();
+  }
+  // else: a text selection was just made — leave focus alone so the
+  // browser's native Cmd/Ctrl+C copies the selected screen text.
+});
+window.addEventListener('load', focusInput);
+
+hiddenInput.addEventListener('input', ()=>{
+  buffer = hiddenInput.value;
+  render();
+});
+
+hiddenInput.addEventListener('keydown', (e)=>{
+  if (e.ctrlKey && (e.key === 'c' || e.key === 'C')){
+    e.preventDefault();
+    if (mode === 'inputwait' && pendingInputReject){
+      const r = pendingInputReject; pendingInputReject = null; pendingInputResolve = null;
+      r(new Error('BREAK'));
+    } else if (mode === 'running'){
+      interp.running = false;
+    }
+    return;
+  }
+  if (e.key === 'Enter'){
+    e.preventDefault();
+    submitLine();
+    return;
+  }
+  if (e.key === 'ArrowUp' && mode === 'command'){
+    e.preventDefault();
+    if (history.length){
+      histPos = Math.max(0, (histPos < 0 ? history.length : histPos) - 1);
+      buffer = history[histPos] || '';
+      hiddenInput.value = buffer;
+      render();
+    }
+    return;
+  }
+  if (e.key === 'ArrowDown' && mode === 'command'){
+    e.preventDefault();
+    if (histPos >= 0){
+      histPos++;
+      if (histPos >= history.length){ histPos = -1; buffer=''; }
+      else buffer = history[histPos];
+      hiddenInput.value = buffer;
+      render();
+    }
+    return;
+  }
+  if (mode === 'running'){
+    // block ordinary typing while the program is executing (and not waiting on INPUT)
+    e.preventDefault();
+  }
+});
+
+hiddenInput.addEventListener('paste', (e)=>{
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  if (!/\r|\n/.test(text)) return; // single line: let the browser paste it normally
+  e.preventDefault();
+  pasteLines(text.split(/\r\n|\r|\n/));
+});
+
+// ---- drag-and-drop .bas files onto the screen ----
+window.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+window.addEventListener('drop', (e)=>{ e.preventDefault(); });
+
+crtEl.addEventListener('dragover', (e)=>{
+  e.preventDefault();
+  crtEl.classList.add('drag-over');
+});
+crtEl.addEventListener('dragleave', ()=>{
+  crtEl.classList.remove('drag-over');
+});
+crtEl.addEventListener('drop', async (e)=>{
+  e.preventDefault();
+  crtEl.classList.remove('drag-over');
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file) return;
+  if (mode !== 'command'){
+    completed += '\n?BUSY - FINISH OR BREAK THE CURRENT PROGRAM FIRST\n';
+    render();
+    return;
+  }
+  let text;
+  try {
+    text = await file.text();
+  } catch(e){
+    completed += '\n?COULD NOT READ FILE: ' + file.name + '\n';
+    render();
+    return;
+  }
+
+  // Is this a whole "floppy disk" catalog export, rather than a single program?
+  let floppy = null;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && parsed.format === 'MACBASIC-FLOPPY-V1' && parsed.programs) floppy = parsed;
+  } catch(e){ /* not JSON — treat as a plain .bas program below */ }
+
+  if (floppy){
+    completed += '\nREADING FLOPPY "' + file.name + '"...\n';
+    render();
+    const names = Object.keys(floppy.programs);
+    for (const name of names){
+      await storageSet(safeKey(name), floppy.programs[name]);
+    }
+    completed += 'IMPORTED ' + names.length + ' PROGRAM(S): ' + names.join(', ') + '\n';
+    completed += 'TYPE CATALOG TO SEE THEM, OR LOAD "NAME" TO OPEN ONE.\n';
+    render();
+    return;
+  }
+
+  completed += '\nLOADING "' + file.name + '"...\n';
+  render();
+  await pasteLines(text.split(/\r\n|\r|\n/));
+});
+
+async function pasteLines(lines){
+  if (mode !== 'command') return; // don't accept multi-line paste mid-run or mid-INPUT
+  buffer = '';
+  hiddenInput.value = '';
+  render();
+  for (const raw of lines){
+    const line = raw.replace(/\r$/, '');
+    if (line.trim().length === 0) continue;
+    completed += line + '\n';
+    history.push(line); histPos = -1;
+    render();
+    await processCommand(line);
+  }
+}
+
+function submitLine(){
+  const line = buffer;
+  if (mode === 'inputwait'){
+    completed += line + '\n';
+    buffer = '';
+    hiddenInput.value = '';
+    mode = 'running';
+    render();
+    const r = pendingInputResolve; pendingInputResolve = null; pendingInputReject = null;
+    r(line);
+    return;
+  }
+  if (mode === 'command'){
+    completed += line + '\n';
+    buffer = '';
+    hiddenInput.value = '';
+    if (line.trim().length){ history.push(line); histPos = -1; }
+    render();
+    processCommand(line);
+    return;
+  }
+  // mode === 'running' with no pending input: ignore Enter
+}
+
+async function processCommand(rawLine){
+  const trimmed = rawLine.trim();
+  if (trimmed.length === 0) return;
+
+  const numMatch = trimmed.match(/^(\d+)(\s+(.*))?$/s);
+  if (numMatch){
+    const num = parseInt(numMatch[1],10);
+    const rest = (numMatch[3] || '').trim();
+    interp.setLine(num, rest);
+    return;
+  }
+
+  const upper = trimmed.toUpperCase();
+  if (upper === 'RUN'){
+    mode = 'running'; render();
+    completed += '\n'; render();
+    await interp.runProgram();
+    mode = 'command';
+    completed += '\nREADY.\n';
+    render();
+    return;
+  }
+  if (upper === 'LIST'){
+    const lines = interp.listProgram();
+    completed += (lines.length ? lines.join('\n') + '\n' : '');
+    render();
+    return;
+  }
+  if (upper === 'NEW'){
+    interp.reset();
+    completed += '\nREADY.\n';
+    render();
+    return;
+  }
+  if (upper === 'CLS' || upper === 'CLEAR'){
+    completed = '';
+    render();
+    return;
+  }
+
+  const saveMatch = trimmed.match(/^SAVE\s+"?([^"]+)"?\s*$/i);
+  if (saveMatch){
+    const name = saveMatch[1];
+    const lines = interp.listProgram();
+    if (lines.length === 0){ completed += '?NOTHING TO SAVE\n'; render(); return; }
+    try {
+      await storageSet(safeKey(name), lines.join('\n'));
+      completed += 'SAVED "' + name.trim() + '"\n';
+    } catch(e){
+      completed += '?SAVE FAILED: ' + e.message + '\n';
+    }
+    render();
+    return;
+  }
+
+  const loadMatch = trimmed.match(/^LOAD\s+"?([^"]+)"?\s*$/i);
+  if (loadMatch){
+    const name = loadMatch[1];
+    try {
+      const text = await storageGet(safeKey(name));
+      if (text === null || text === undefined){
+        completed += '?FILE NOT FOUND: "' + name.trim() + '"\n';
+      } else {
+        interp.reset();
+        for (const l of text.split('\n')){
+          const m2 = l.match(/^(\d+)\s(.*)$/);
+          if (m2) interp.setLine(parseInt(m2[1],10), m2[2]);
+        }
+        completed += 'LOADED "' + name.trim() + '"\n';
+      }
+    } catch(e){
+      completed += '?LOAD FAILED: ' + e.message + '\n';
+    }
+    render();
+    return;
+  }
+
+  const killMatch = trimmed.match(/^KILL\s+"?([^"]+)"?\s*$/i);
+  if (killMatch){
+    const name = killMatch[1];
+    await storageDelete(safeKey(name));
+    completed += 'DELETED "' + name.trim() + '"\n';
+    render();
+    return;
+  }
+
+  if (upper === 'CATALOG' || upper === 'FILES' || upper === 'DIR'){
+    try {
+      const keys = await storageList(STORE_PREFIX);
+      if (keys.length === 0){
+        completed += 'NO SAVED PROGRAMS\n';
+      } else {
+        const names = keys.map(k=>k.slice(STORE_PREFIX.length)).sort();
+        completed += 'SAVED PROGRAMS:\n' + names.map(n=>'  '+n).join('\n') + '\n';
+      }
+    } catch(e){
+      completed += '?CATALOG FAILED: ' + e.message + '\n';
+    }
+    render();
+    return;
+  }
+
+  const exportMatch = trimmed.match(/^EXPORT(\s+"?([^"]+)"?)?\s*$/i);
+  if (exportMatch){
+    try {
+      const keys = await storageList(STORE_PREFIX);
+      if (keys.length === 0){
+        completed += '?NO SAVED PROGRAMS TO EXPORT\n';
+        render();
+        return;
+      }
+      const programs = {};
+      for (const key of keys){
+        const name = key.slice(STORE_PREFIX.length);
+        const text = await storageGet(key);
+        if (text !== null && text !== undefined) programs[name] = text;
+      }
+      const diskName = (exportMatch[2] || 'floppy').trim().replace(/["'\/\\\s]+/g, '_');
+      const payload = {
+        format: 'MACBASIC-FLOPPY-V1',
+        created: new Date().toISOString(),
+        programs
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 1)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = diskName + '.img';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      completed += 'EXPORTED ' + Object.keys(programs).length + ' PROGRAM(S) TO "' + diskName + '.img"\n';
+    } catch(e){
+      completed += '?EXPORT FAILED: ' + e.message + '\n';
+    }
+    render();
+    return;
+  }
+  if (upper === 'HELP' || upper === '?'){
+    completed += [
+      '',
+      'MACBASIC QUICK REFERENCE',
+      '  10 PRINT "HELLO" : GOTO 10   (line-numbered program)',
+      '  RUN   LIST   NEW   CLS      (commands, no line number)',
+      '  SAVE "NAME"  LOAD "NAME"    (store/recall a program)',
+      '  CATALOG                     (list saved programs)',
+      '  EXPORT ["NAME"]             (save whole catalog as a .img floppy file)',
+      '  (drag a .img floppy file in to import a friend\'s catalog)',
+      '  KILL "NAME"                 (delete a saved program)',
+      '  SCREEN 1                    (clear the graphics layer)',
+      '  PSET (X,Y) [,C]             (plot a pixel, color 0-15)',
+      '  LINE (X1,Y1)-(X2,Y2) [,C[,B|BF]]  (line or box)',
+      '  CIRCLE (X,Y),R [,C]         (draw a circle)',
+      '  COLOR C                     (set default pen color 0-15)',
+      '  SLEEP N                     (pause N seconds, e.g. SLEEP 0.5)',
+      '  PRINT  LET  INPUT  IF...THEN...ELSE',
+      '  FOR...TO...STEP...NEXT      GOTO   GOSUB   RETURN',
+      '  DIM  DATA  READ  RESTORE    REM   END   STOP',
+      '  FUNCTIONS: ABS INT RND SQR SGN SIN COS LEN',
+      '             LEFT$ RIGHT$ MID$ STR$ VAL CHR$ ASC TAB',
+      '  Type a line without a number to run it immediately.',
+      ''
+    ].join('\n') + '\n';
+    render();
+    return;
+  }
+
+  // immediate-mode statement
+  mode = 'running'; render();
+  try {
+    await interp.runImmediate(trimmed);
+  } catch (e){
+    if (e && e.message === 'BREAK') completed += 'BREAK\n';
+    else completed += '?' + e.message + '\n';
+  }
+  mode = 'command';
+  render();
+}
+
+// ---- boot sequence ----
+async function boot(){
+  const lines = [
+    'MACBASIC 1.0',
+    'RETRO SYSTEMS INC. 1984',
+    '64K RAM  38911 BYTES FREE',
+    ''
+  ];
+  for (const l of lines){
+    completed += l + '\n';
+    render();
+    await new Promise(r=>setTimeout(r, 140));
+  }
+  completed += 'READY.\n';
+  render();
+}
+boot();
+</script>
+</body>
+</html>

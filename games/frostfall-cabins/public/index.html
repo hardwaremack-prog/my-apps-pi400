@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frostfall Cabins</title>
+<style>
+  :root {
+    --ink: #eef3fb; --dim: #9fb0c8; --panel: rgba(10, 16, 28, 0.62); --edge: rgba(190, 215, 255, 0.16);
+    --fire: #ff9a3c; --fire2: #ffd27a; --ice: #8fd0ff; --cold: #5aa8ff; --bad: #ff6b5e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #05080f; overflow: hidden; color: var(--ink);
+    font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; }
+  canvas#view { display: block; width: 100vw; height: 100vh; }
+  .hidden { display: none !important; }
+  .panel { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+
+  /* ---------- join screen ---------- */
+  #join { position: fixed; inset: 0; display: grid; place-items: center; z-index: 30;
+    background: radial-gradient(ellipse at 50% 120%, #3b2a2a 0%, #141a2c 45%, #05070d 100%); }
+  #join .card { width: min(460px, 92vw); padding: 30px 30px 24px; }
+  #join h1 { margin: 0; font: 600 40px/1.05 Georgia, "DejaVu Serif", serif; letter-spacing: .5px; }
+  #join h1 span { color: var(--fire2); }
+  #join .sub { color: var(--dim); margin: 8px 0 22px; }
+  label.f { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 14px 0 6px; }
+  input[type=text] { width: 100%; padding: 11px 12px; border-radius: 8px; border: 1px solid var(--edge);
+    background: rgba(255,255,255,.06); color: var(--ink); font-size: 16px; outline: none; }
+  input[type=text]:focus { border-color: var(--fire); }
+  .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sw { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+  .sw.on { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.18); }
+  .seg { display: flex; gap: 6px; }
+  .seg button { flex: 1; padding: 9px; border-radius: 8px; border: 1px solid var(--edge); background: rgba(255,255,255,.05);
+    color: var(--ink); cursor: pointer; font-size: 14px; }
+  .seg button.on { background: rgba(255,154,60,.18); border-color: var(--fire); }
+  #go { width: 100%; margin-top: 22px; padding: 13px; border: 0; border-radius: 9px; cursor: pointer;
+    background: linear-gradient(180deg, #ffb35c, #e2742a); color: #2a1406; font-weight: 700; font-size: 17px; }
+  #go:disabled { opacity: .55; cursor: wait; }
+  .keys { margin-top: 18px; color: var(--dim); font-size: 12.5px; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+  kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border-radius: 4px; background: rgba(255,255,255,.1);
+    border: 1px solid var(--edge); color: var(--ink); }
+  #joinErr { color: var(--bad); margin-top: 10px; min-height: 18px; font-size: 13px; }
+
+  /* ---------- hud ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  #clock { position: absolute; top: 14px; left: 14px; padding: 12px 14px; width: 250px; }
+  #clock .t { font: 600 28px/1 Georgia, "DejaVu Serif", serif; }
+  #clock .ph { margin-top: 4px; font-size: 13px; color: var(--dim); }
+  #clock .ph.warn { color: var(--fire2); } #clock .ph.gale { color: var(--ice); font-weight: 700; letter-spacing: .06em; }
+  .night { position: relative; height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); margin-top: 10px; overflow: hidden; }
+  .night .galeband { position: absolute; top: 0; bottom: 0; background: rgba(143,208,255,.45); }
+  .night .now { position: absolute; top: -2px; width: 3px; height: 10px; background: #fff; border-radius: 2px; }
+  .meter { margin-top: 10px; }
+  .meter .lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); margin-bottom: 3px; }
+  .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 50%; border-radius: 4px; }
+  #warmBar { background: linear-gradient(90deg, var(--cold), #ffb35c); }
+  #hungBar { background: linear-gradient(90deg, #c9a26b, #e9d29a); }
+  #carry { margin-top: 10px; display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--dim); }
+  .logdot { width: 22px; height: 9px; border-radius: 5px; background: rgba(255,255,255,.1); }
+  .logdot.on { background: linear-gradient(180deg, #a26a3a, #6b4224); }
+  #canTag { margin-left: auto; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,.1); color: var(--ink); }
+
+  #cabins { position: absolute; top: 14px; right: 14px; width: 250px; padding: 10px 12px; }
+  #cabins h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+  .cab { padding: 6px 0; border-top: 1px solid rgba(255,255,255,.06); }
+  .cab:first-of-type { border-top: 0; }
+  .cab .row { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+  .cab .nm { font-weight: 600; font-size: 13px; }
+  .cab.here .nm { color: var(--fire2); }
+  .cab .meta { font-size: 11.5px; color: var(--dim); white-space: nowrap; }
+  .cab .bar { height: 5px; margin-top: 4px; }
+  .cab .bar i { background: linear-gradient(90deg, #e2742a, var(--fire2)); }
+  .cab.out .bar i { background: #5d6b80; }
+  .pips { display: inline-flex; gap: 3px; margin-left: 4px; vertical-align: middle; }
+  .pips b { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+  #prompt { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); padding: 9px 14px; font-size: 15px; white-space: nowrap; }
+  #prompt kbd { margin-right: 6px; font-size: 13px; padding: 4px 8px; }
+  #cross { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%;
+    background: rgba(255,255,255,.75); box-shadow: 0 0 4px rgba(0,0,0,.6); }
+
+  #toasts { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .toast { padding: 7px 13px; font-size: 13.5px; animation: tin .25s ease-out; transition: opacity .6s; }
+  @keyframes tin { from { opacity: 0; transform: translateY(-6px); } }
+
+  #chat { position: absolute; left: 14px; bottom: 14px; width: 340px; }
+  #chatLog { display: flex; flex-direction: column; gap: 3px; font-size: 13px; text-shadow: 0 1px 3px #000; }
+  #chatLog div { transition: opacity 1s; }
+  #chatIn { pointer-events: auto; margin-top: 6px; }
+
+  #mapWrap { position: absolute; right: 14px; bottom: 14px; padding: 6px; }
+  #mapWrap canvas { display: block; border-radius: 6px; }
+  #mapWrap.big { right: 50%; bottom: 50%; transform: translate(50%, 50%); }
+
+  #tags { position: absolute; inset: 0; }
+  .ctag { position: absolute; transform: translate(-50%, -100%); font-size: 12px; white-space: nowrap; text-align: center;
+    text-shadow: 0 1px 3px #000, 0 0 8px #000; color: var(--dim); }
+  .ctag b { display: block; color: var(--ink); font-size: 13px; }
+  .ctag.lit b { color: var(--fire2); }
+
+  #frost { position: fixed; inset: 0; pointer-events: none; z-index: 5; opacity: 0;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(170,215,255,.35) 80%, rgba(225,240,255,.85) 100%); }
+
+  #roster { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 380px; padding: 14px 18px; }
+  #roster table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  #roster td, #roster th { padding: 5px 6px; text-align: left; }
+  #roster th { color: var(--dim); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+
+  .overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; text-align: center; pointer-events: none; }
+  .overlay .big { font: 600 44px/1.1 Georgia, "DejaVu Serif", serif; }
+  #frozenOv { background: radial-gradient(ellipse at center, rgba(120,180,240,.25), rgba(210,235,255,.75)); color: #0c2440; }
+  #frozenOv p { font-size: 17px; }
+  #dawnOv { background: linear-gradient(180deg, rgba(40,30,60,.55), rgba(240,160,110,.45)); }
+  #dawnOv .card { padding: 22px 26px; min-width: 360px; pointer-events: auto; }
+  #dawnOv table { margin: 12px auto 0; border-collapse: collapse; }
+  #dawnOv td { padding: 4px 10px; text-align: left; }
+  #clickOv { background: rgba(5,8,15,.35); pointer-events: auto; cursor: pointer; }
+  #clickOv .card { padding: 18px 26px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+  @media (max-width: 760px) { #cabins { width: 190px; } #clock { width: 200px; } #chat { width: 240px; } }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="frost"></div>
+
+<div id="join">
+  <div class="card panel">
+    <h1>Frostfall <span>Cabins</span></h1>
+    <div class="sub">Five cabins on one mountain. Split up, keep every stove burning, and make it to dawn through the 2:00 AM icy gale — together.</div>
+    <label class="f" for="nameIn">Your name</label>
+    <input id="nameIn" type="text" maxlength="16" placeholder="Hiker" autocomplete="off">
+    <label class="f">Coat colour</label>
+    <div class="swatches" id="swatches"></div>
+    <label class="f">Graphics</label>
+    <div class="seg" id="quality">
+      <button data-q="pi">Raspberry Pi</button>
+      <button data-q="pc">PC / Laptop</button>
+    </div>
+    <button id="go">Head up the mountain</button>
+    <div id="joinErr"></div>
+    <div class="keys">
+      <kbd>WASD</kbd><span>walk &nbsp;·&nbsp; <kbd>Shift</kbd> run &nbsp;·&nbsp; <kbd>Space</kbd> jump</span>
+      <kbd>E</kbd><span>pick up logs, stack woodbox, feed stove, light candles, cans</span>
+      <kbd>T</kbd><span>chat &nbsp;·&nbsp; <kbd>Tab</kbd> players &nbsp;·&nbsp; <kbd>M</kbd> big map</span>
+    </div>
+  </div>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="tags"></div>
+  <div id="cross"></div>
+  <div id="clock" class="panel">
+    <div class="t" id="clockT">6:00 PM</div>
+    <div class="ph" id="clockP">Dusk</div>
+    <div class="night"><div class="galeband" id="galeBand"></div><div class="now" id="nightNow"></div></div>
+    <div class="meter"><div class="lbl"><span>Warmth</span><span id="warmN">100</span></div><div class="bar"><i id="warmBar"></i></div></div>
+    <div class="meter"><div class="lbl"><span>Hunger</span><span id="hungN">100</span></div><div class="bar"><i id="hungBar"></i></div></div>
+    <div id="carry"><span>Logs</span><span class="logdot"></span><span class="logdot"></span><span class="logdot"></span><span class="logdot"></span><span id="canTag" class="hidden">Can</span></div>
+  </div>
+  <div id="cabins" class="panel"><h3>Cabins</h3><div id="cabList"></div></div>
+  <div id="toasts"></div>
+  <div id="prompt" class="panel hidden"></div>
+  <div id="chat"><div id="chatLog"></div><input id="chatIn" type="text" class="hidden" maxlength="120" placeholder="Say something… (Enter to send)"></div>
+  <div id="mapWrap" class="panel"><canvas id="map" width="190" height="190"></canvas></div>
+  <div id="roster" class="panel hidden"></div>
+</div>
+
+<div id="clickOv" class="overlay hidden"><div class="card panel"><div style="font-size:18px;font-weight:600">Click to look around</div><div style="color:var(--dim);margin-top:4px">Esc frees the mouse</div></div></div>
+<div id="frozenOv" class="overlay hidden"><div><div class="big">You froze solid</div><p id="frozenMsg">Thawing out…</p></div></div>
+<div id="dawnOv" class="overlay hidden"><div class="card panel" id="dawnCard"></div></div>
+
+<script type="module" src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Apps</title>
+<style>
+:root{
+  --bg:#14111f; --panel:#1f1a30; --panel2:#2a2341; --ink:#f4efe6; --dim:#a79fbd;
+  --games:#ff5d73; --apps:#4fd1c5; --suite:#ffc145; --focus:#ffffff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"DejaVu Sans","Noto Sans",system-ui,sans-serif}
+body{min-height:100vh;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, #3a2459 0%, transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, #123c4a 0%, transparent 60%),
+    var(--bg)}
+header{display:flex;align-items:center;gap:24px;flex-wrap:wrap;padding:28px 40px 8px}
+h1{margin:0;font-size:56px;letter-spacing:-1px;line-height:1;font-weight:900}
+h1 span{display:inline-block;transform:rotate(-3deg);background:var(--games);color:var(--bg);padding:2px 14px;border-radius:10px;margin-left:6px}
+.clock{margin-left:auto;text-align:right;color:var(--dim);font-size:15px}
+.clock b{display:block;color:var(--ink);font-size:34px;font-variant-numeric:tabular-nums}
+nav{display:flex;gap:12px;padding:18px 40px;flex-wrap:wrap;align-items:center}
+.tab{appearance:none;border:3px solid transparent;background:var(--panel);color:var(--ink);
+  font:inherit;font-size:20px;font-weight:700;padding:12px 22px;border-radius:999px;cursor:pointer}
+.tab .n{opacity:.6;font-weight:400;margin-left:6px}
+.tab[aria-selected=true]{background:var(--c);color:var(--bg)}
+.tab:focus-visible{outline:none;border-color:var(--focus)}
+.search{margin-left:auto;background:var(--panel);border:3px solid var(--panel2);color:var(--ink);
+  font:inherit;font-size:18px;padding:11px 18px;border-radius:999px;width:260px}
+.search:focus{outline:none;border-color:var(--focus)}
+main{padding:10px 40px 40px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:22px}
+.card{position:relative;display:flex;flex-direction:column;text-decoration:none;color:inherit;
+  background:var(--panel);border-radius:18px;overflow:hidden;border:4px solid transparent;
+  transition:transform .12s ease, border-color .12s ease}
+.card:hover,.card:focus-visible{transform:translateY(-4px) scale(1.02);border-color:var(--c);outline:none}
+.card:focus-visible{border-color:var(--focus)}
+.shot{aspect-ratio:16/10;background:var(--panel2) center/cover no-repeat;display:grid;place-items:center;
+  font-size:64px;font-weight:900;color:var(--c)}
+.body{padding:14px 16px 16px;border-top:4px solid var(--c)}
+.name{font-size:21px;font-weight:800;margin:0 0 4px}
+.blurb{font-size:14.5px;color:var(--dim);margin:0;line-height:1.35}
+.net{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.65);color:#fff;font-size:12px;
+  padding:4px 9px;border-radius:999px}
+.empty{color:var(--dim);font-size:20px;padding:40px 0}
+footer{color:var(--dim);font-size:14px;padding:0 40px 30px}
+kbd{background:var(--panel2);border-radius:5px;padding:1px 7px;color:var(--ink);font-family:inherit}
+@media (max-width:640px){header,nav,main,footer{padding-left:16px;padding-right:16px}h1{font-size:40px}.search{width:100%;margin-left:0}}
+</style>
+<!--STATUSBAR-CSS-->
+<style>
+.pibar{margin:6px 40px 4px;background:rgba(31,26,48,.72);border:2px solid var(--panel2);border-radius:18px;padding:14px 16px 12px}
+.pibar .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pibar .row+.row{margin-top:10px}
+.pill{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border-radius:999px;padding:6px 13px;font-size:14px;white-space:nowrap}
+.pill b{font-weight:800}
+.pill.warn{background:#5a2330;color:#ffd0d8}
+.pill.ok b{color:#7ee2a8}
+.sechead{display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:800;letter-spacing:.08em;color:var(--dim);text-transform:uppercase;margin:12px 2px 8px}
+.sechead .sp{flex:1}
+.mini{appearance:none;border:2px solid var(--panel2);background:transparent;color:var(--ink);font:inherit;font-size:13px;font-weight:700;
+  text-transform:none;letter-spacing:0;padding:4px 12px;border-radius:999px;cursor:pointer}
+.mini:hover,.mini:focus-visible{border-color:var(--apps);outline:none}
+.srvs{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:8px}
+.srv{appearance:none;text-align:left;font:inherit;color:inherit;cursor:pointer;display:grid;grid-template-columns:14px 1fr auto;gap:2px 9px;align-items:center;
+  background:var(--panel);border:2px solid transparent;border-radius:12px;padding:9px 11px;min-width:0}
+.srv:hover,.srv:focus-visible{border-color:var(--apps);outline:none}
+.srv.down{opacity:.78}
+.dot{width:12px;height:12px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 3px rgba(229,72,77,.18)}
+.srv.up .dot{background:#3fd27f;box-shadow:0 0 0 3px rgba(63,210,127,.2),0 0 10px rgba(63,210,127,.6)}
+.srv.amber .dot{background:#ffb224;box-shadow:0 0 0 3px rgba(255,178,36,.2)}
+.srv .nm{font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srv .pt{font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+.srv .sub{grid-column:2/4;font-size:12.5px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srv .act{font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--ink)}
+.srv .x{color:var(--dim);font-weight:900;padding:0 4px}
+.srv .stopb{float:right;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:999px;border:1.5px solid rgba(229,72,77,.55);color:#ff9aa6;margin-left:6px}
+.srv .stopb:hover{background:#e5484d;border-color:#e5484d;color:#fff}
+.srv .stopb.armed{background:#e5484d;border-color:#e5484d;color:#fff;animation:pulse 1s infinite}
+.srv .stopb.busy{opacity:.6;animation:none}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(229,72,77,.25)}}
+.srv .x:hover{color:#ff8a9a}
+.pioff{color:var(--dim);font-size:15px;line-height:1.45}
+.pioff code{background:var(--panel2);padding:2px 8px;border-radius:6px;color:var(--ink);font-size:13.5px}
+.watchform{display:none;gap:8px;flex-wrap:wrap;margin:4px 0 10px}
+.watchform.on{display:flex}
+.watchform input{background:var(--panel);border:2px solid var(--panel2);color:var(--ink);font:inherit;font-size:14px;padding:7px 12px;border-radius:10px;min-width:0}
+.watchform input:focus{outline:none;border-color:var(--apps)}
+.pibar.closed .body2{display:none}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
+  background:#f4efe6;color:#14111f;font-weight:700;padding:12px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.4);transition:.2s;max-width:90vw;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%)}
+@media (max-width:640px){.pibar{margin-left:16px;margin-right:16px}}
+</style>
+<!--/STATUSBAR-CSS-->
+</head>
+<body>
+<header>
+  <h1>My <span>Apps</span></h1>
+  <div class="clock"><b id="time">--:--</b><span id="date"></span></div>
+</header>
+<!--STATUSBAR-HTML-->
+<section class="pibar" id="pibar" aria-label="This Pi and its servers">
+  <div class="row" id="hostrow"><span class="pioff">Checking this Pi…</span></div>
+  <div class="body2">
+    <div class="sechead"><span id="srvhead">Servers</span><span class="sp"></span>
+      <button class="mini" id="watchbtn" title="Keep an eye on a server on another computer, like your PC's Shelf">+ Watch</button>
+      <button class="mini" id="pibartoggle" title="Hide the server lights">Hide</button></div>
+    <form class="watchform" id="watchform" autocomplete="off">
+      <input id="wname" placeholder="Name (My PC Shelf)" maxlength="40" style="width:190px">
+      <input id="whost" placeholder="Address (192.168.1.20)" maxlength="100" style="width:200px" required>
+      <input id="wport" placeholder="Port (8080)" inputmode="numeric" maxlength="5" style="width:110px" required>
+      <button class="mini" type="submit">Add</button><button class="mini" type="button" id="wcancel">Cancel</button>
+    </form>
+    <div class="srvs" id="srvs"></div>
+    <div id="watchwrap" hidden>
+      <div class="sechead"><span>Other computers</span></div>
+      <div class="srvs" id="watchlist"></div>
+    </div>
+  </div>
+</section>
+<div id="toast" role="status" aria-live="polite"></div>
+<!--/STATUSBAR-HTML-->
+<nav role="tablist">
+  <button class="tab" role="tab" data-cat="games" style="--c:var(--games)">🎮 Games<span class="n"></span></button>
+  <button class="tab" role="tab" data-cat="apps" style="--c:var(--apps)">🧰 Apps<span class="n"></span></button>
+  <button class="tab" role="tab" data-cat="suite" style="--c:var(--suite)">✨ Tidy Suite<span class="n"></span></button>
+  <input class="search" id="q" type="search" placeholder="Find an app…  ( / )" aria-label="Find an app">
+</nav>
+<main><div class="grid" id="grid"></div></main>
+<footer>Click a tile to play. Keyboard: <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> to move, <kbd>Enter</kbd> to open, <kbd>Tab</kbd>/<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> to switch sections, <kbd>/</kbd> to search. 📶 means it needs the internet.</footer>
+<script>
+const APPS = [{"cat": "games", "name": "Frostfall Cabins", "href": "games/frostfall-cabins/launch.html", "img": "thumbs/frostfall-cabins.jpg", "blurb": "LAN multiplayer: five cabins on one mountain. Split up, haul firewood and keep every stove lit through the 2 AM icy gale together."}, {"cat": "games", "name": "Ember Valley", "href": "games/ember-valley/ember-valley.html", "img": "thumbs/ember-valley.jpg", "blurb": "Realistic 3D valley at golden hour. Gather 12 embers before sunset. Built for the AMD 395 PC; use Low on a Pi.", "net": true}, {"cat": "games", "name": "Sim Fish", "href": "games/sim-fish/sim-fish.html", "img": "thumbs/sim-fish.jpg", "blurb": "Eat smaller fish, dodge bigger ones and sharks. Chain combos and dive through 7 ocean zones.", "net": false}, {"cat": "games", "name": "Dead Mall Arena", "href": "games/dead-mall-arena/arena-RPI400-version.html", "img": "thumbs/dead-mall-arena.jpg", "blurb": "3D arena shooter in an abandoned mall. Tuned for the Pi 400.", "net": true}, {"cat": "games", "name": "Blockscape", "href": "games/blockscape/blockscape.html", "img": "thumbs/blockscape.jpg", "blurb": "Build and explore a blocky voxel world.", "net": true}, {"cat": "games", "name": "Brainrot Heist", "href": "games/brainrot-heist/brainrot-heist.html", "img": "thumbs/brainrot-heist.jpg", "blurb": "Sneak in, grab the loot, get out.", "net": false}, {"cat": "games", "name": "Akkanoid", "href": "games/akkanoid/akkanoid.html", "img": "thumbs/akkanoid.jpg", "blurb": "Bounce the ball and smash every brick.", "net": false}, {"cat": "games", "name": "Block Boy", "href": "games/block-boy/gb-tetris_1.html", "img": "thumbs/block-boy.jpg", "blurb": "Falling-block puzzles, handheld style.", "net": false}, {"cat": "games", "name": "Space Invaders", "href": "games/space-invaders/space-invaders.html", "img": "thumbs/space-invaders.jpg", "blurb": "Hold the line against the alien waves.", "net": false}, {"cat": "games", "name": "Missile Command", "href": "games/missile-command/missile-command_3.html", "img": "thumbs/missile-command.jpg", "blurb": "Protect your cities from incoming missiles.", "net": false}, {"cat": "games", "name": "Choplifter", "href": "games/choplifter/choplifter.html", "img": "thumbs/choplifter.jpg", "blurb": "Fly the chopper and rescue the hostages.", "net": false}, {"cat": "games", "name": "StuntCopter", "href": "games/stuntcopter/StuntCopter_5.html", "img": "thumbs/stuntcopter.jpg", "blurb": "Drop the stuntman onto the moving cart.", "net": false}, {"cat": "games", "name": "Paper Route", "href": "games/paper-route/paperboy.html", "img": "thumbs/paper-route.jpg", "blurb": "Ride your bike and land the papers.", "net": false}, {"cat": "games", "name": "Deep Drill", "href": "games/deep-drill/drill_game-final-b1.html", "img": "thumbs/deep-drill.jpg", "blurb": "Dig deep and dodge danger.", "net": false}, {"cat": "games", "name": "Wolf3D", "href": "games/wolf3d/wolf3d-final -b2.html", "img": "thumbs/wolf3d.jpg", "blurb": "Old-school 3D maze action.", "net": false}, {"cat": "games", "name": "Number Munchers", "href": "games/number-munchers/number_munchers_3.html", "img": "thumbs/number-munchers.jpg", "blurb": "Munch the right numbers, dodge the Troggles.", "net": false}, {"cat": "games", "name": "Checkers 3D", "href": "games/checkers-3d/checkers-3d.html", "img": "thumbs/checkers-3d.jpg", "blurb": "Classic checkers on a 3D board.", "net": true}, {"cat": "games", "name": "The Trail, 1847", "href": "games/oregon-trail/oregon-trail-final b2.html", "img": "thumbs/oregon-trail.jpg", "blurb": "Lead your wagon west and survive the trail.", "net": false}, {"cat": "games", "name": "Realmshold", "href": "games/realm-wars/realm-wars-final-b3.html", "img": "thumbs/realm-wars.jpg", "blurb": "Defend the frontier in a fantasy war.", "net": true}, {"cat": "games", "name": "Blueprint City", "href": "games/blueprint-city/blueprint_city_10.html", "img": "thumbs/blueprint-city.jpg", "blurb": "Plan and grow your own city.", "net": false}, {"cat": "games", "name": "MacBandit", "href": "games/macbandit/macbandit.html", "img": "thumbs/macbandit.jpg", "blurb": "Pull the lever on a retro slot machine.", "net": false}, {"cat": "apps", "name": "HAL 9000", "href": "apps/hal/HAL Standalone.html", "img": "thumbs/hal.jpg", "blurb": "Talk with HAL. He might even sing Daisy Bell.", "net": false}, {"cat": "apps", "name": "Circuit Lab", "href": "apps/circuit-lab/circuit-lab-b10.html", "img": "thumbs/circuit-lab.jpg", "blurb": "Build and test electronic circuits.", "net": false}, {"cat": "apps", "name": "MacBASIC", "href": "apps/macbasic/macbasic-final-b1.html", "img": "thumbs/macbasic.jpg", "blurb": "Write your own BASIC programs. Samples are in the folder.", "net": false}, {"cat": "apps", "name": "System 6", "href": "apps/macos6/macos6_4.html", "img": "thumbs/macos6.jpg", "blurb": "A classic black-and-white Mac desktop.", "net": false}, {"cat": "apps", "name": "PC/AT 286", "href": "apps/dos286/dos286-emulator.html", "img": "thumbs/dos286.jpg", "blurb": "Boot up an old-school DOS computer.", "net": false}, {"cat": "apps", "name": "Real DOS", "href": "apps/real-dos/real-dos-jsdos.html", "img": "thumbs/real-dos.jpg", "blurb": "Real DOSBox running in the browser.", "net": true}, {"cat": "apps", "name": "CRT Linux", "href": "apps/crt-linux/crt-linux-b3.html", "img": "thumbs/crt-linux.jpg", "blurb": "A real Linux running on a glowing CRT.", "net": true}, {"cat": "apps", "name": "CRT PowerShell", "href": "apps/crt-powershell/crt_powershell.html", "img": "thumbs/crt-powershell.jpg", "blurb": "A retro green-screen command shell.", "net": false}, {"cat": "apps", "name": "Winamp", "href": "apps/winamp/winamp16.html", "img": "thumbs/winamp.jpg", "blurb": "It really whips. Play your music.", "net": false}, {"cat": "apps", "name": "The Recital", "href": "apps/recital/classical-recital-player.html", "img": "thumbs/recital.jpg", "blurb": "Classical pieces played by a synth.", "net": true}, {"cat": "apps", "name": "Matrix Rain", "href": "apps/matrix-rain/matrix-rain_1.html", "img": "thumbs/matrix-rain.jpg", "blurb": "Green code raining down the screen.", "net": false}, {"cat": "apps", "name": "World Internet Health", "href": "apps/dns-status/dns-status4.html", "img": null, "blurb": "See how the internet is doing right now.", "net": true}, {"cat": "apps", "name": "Blueprint Wiki", "href": "apps/blueprint-wiki/Open Blueprint Wiki.html", "img": "thumbs/blueprint-wiki.jpg", "blurb": "Your own wiki for projects and prototypes, with pictures, PDFs and a drag-and-drop network and flowchart maker.", "net": false}, {"cat": "apps", "name": "Halo Studio", "href": "apps/halo-studio/Open Halo Studio.html", "img": "thumbs/halo-studio.jpg", "blurb": "Easy AI image editor: layers, generative fill, batch thumbnails, GIFs, AVIF/JPEG XL and 3D-print models. Runs on the AI PC for the whole house.", "net": false}, {"cat": "apps", "name": "Cutwise", "href": "apps/cutwise/Open Cutwise.html", "img": "thumbs/cutwise.jpg", "blurb": "The easy AI video editor: removes silences and “um”s, writes captions, splits scenes. Runs on the AI PC with Radeon GPU exports.", "net": false}, {"cat": "apps", "name": "NetPulse", "href": "apps/netpulse/Open NetPulse.html", "img": "thumbs/netpulse.jpg", "blurb": "Up/down board, port checks and PingPlotter-style graphs. Import from Excel.", "net": false}, {"cat": "apps", "name": "NetSentry", "href": "apps/netsentry/Open NetSentry.html", "img": "thumbs/netsentry.jpg", "blurb": "Real-time network watchdog: every device on your network, and plain-English alerts for intruders, router spoofing and backdoor ports.", "net": false}, {"cat": "apps", "name": "RPi400 Performance", "href": "apps/rpi400-performance/Open RPi400 Performance.html", "img": "thumbs/rpi400-performance.jpg", "blurb": "Make the Pi run as fast as it can: one-click tune-up, overclock to 2.15 GHz, compressed RAM, SD card care, speed test and memory hogs.", "net": false}, {"cat": "apps", "name": "PiDirStat", "href": "apps/pidirstat/Open PiDirStat.html", "img": "thumbs/pidirstat.jpg", "blurb": "See what's filling your SD card or drive: folder tree, file types and a WinDirStat block map.", "net": false}, {"cat": "apps", "name": "PON Lab", "href": "apps/ponlab/Open PON Lab.html", "img": "thumbs/ponlab.jpg", "blurb": "Cut power to AMI meters with relays and time the PON, mesh survival and supercap holdup.", "net": false}, {"cat": "apps", "name": "PON Fleet", "href": "apps/ponfleet/Open PON Fleet.html", "img": "thumbs/ponfleet.jpg", "blurb": "Control many PON Lab Pis by IP and cut up to 16 meters at the same instant.", "net": false}, {"cat": "apps", "name": "PodDeck", "href": "apps/poddeck/Open PodDeck.html", "img": "thumbs/poddeck.jpg", "blurb": "Control panel for Podman containers: start, stop, logs and one-click apps.", "net": false}, {"cat": "apps", "name": "PiMesh", "href": "apps/pimesh/Open PiMesh.html", "img": "thumbs/pimesh.jpg", "blurb": "Link your Pis into a mesh: live dashboard of every member with CPU, temps, memory and link speeds.", "net": false}, {"cat": "apps", "name": "68K Mac Museum", "href": "apps/mac68k-museum/68K Mac Museum.html", "img": "thumbs/mac68k-museum.jpg", "blurb": "Every 68K Mac from the 128K to the PowerBook 190: specs, repair fixes, upgrades, overclocks and accessories.", "net": false}, {"cat": "apps", "name": "Raspberry Pi Museum", "href": "apps/pi-museum/Raspberry Pi Museum.html", "img": "thumbs/pi-museum.jpg", "blurb": "Every Raspberry Pi from the 2012 Model B to the Pi 500+: specs, hacks, fixes, GPIO map, speed and AI tokens/s.", "net": false}, {"cat": "apps", "name": "Ham Radio Museum", "href": "apps/ham-museum/Ham Radio Museum.html", "img": "thumbs/ham-museum.jpg", "blurb": "50 ham rigs from boatanchors to SDRs: issues, mods, prices, best buys, bands, antennas, amps and an offline toolkit.", "net": false}, {"cat": "apps", "name": "Keeper Cars", "href": "apps/keeper-cars/Keeper Cars.html", "img": "thumbs/keeper-cars.jpg", "blurb": "28 used cars that last and are cheap to fix: 5- and 10-year costs, specs, part prices, test-drive checklist and a deal checker.", "net": false}, {"cat": "apps", "name": "PiSnip", "href": "apps/pisnip/Open PiSnip.html", "img": "thumbs/pisnip.jpg", "blurb": "A Snipping Tool for the Pi: snip, mark up, read text and record the screen. Print Screen starts a snip.", "net": false}, {"cat": "apps", "name": "WiFi Share", "href": "apps/wifi-share/Open WiFi Share.html", "img": "thumbs/wifi-share.jpg", "blurb": "Share the Pi's Wi-Fi through its Ethernet port and see who's plugged in.", "net": false}, {"cat": "apps", "name": "Network Monitor", "href": "apps/network-monitor/network-monitor_1.html", "img": "thumbs/network-monitor.jpg", "blurb": "Watch your network traffic.", "net": false}, {"cat": "apps", "name": "Weather Monitor", "href": "apps/weather/Weather Monitor.html", "img": null, "blurb": "Temperatures around the country.", "net": true}, {"cat": "apps", "name": "AFS Dispatch", "href": "apps/afs-dispatch/afs-dispatch.html", "img": "thumbs/afs-dispatch.jpg", "blurb": "Field dispatch board.", "net": false}, {"cat": "apps", "name": "Drift Backup", "href": "apps/drift-backup/drift-backup-app-final-b1.html", "img": "thumbs/drift-backup.jpg", "blurb": "Backup that waits for the right moment.", "net": false}, {"cat": "apps", "name": "The Shelf Tour", "href": "apps/shelf-tour/the-shelf-tour.html", "img": "thumbs/shelf-tour.jpg", "blurb": "A guided tour of The Shelf.", "net": false}, {"cat": "suite", "name": "Tidy Suite Dashboard", "href": "tidy-suite/Open Tidy Suite.html", "img": null, "blurb": "All the suite apps in one place.", "net": false, "big": true}, {"cat": "suite", "name": "Tidy", "href": "tidy-suite/tidy/tidy.html", "img": "thumbs/suite-tidy.jpg", "blurb": "Spreadsheets that explain themselves.", "net": true}, {"cat": "suite", "name": "Neat", "href": "tidy-suite/neat/neat.html", "img": "thumbs/suite-neat.jpg", "blurb": "Write and print documents.", "net": false}, {"cat": "suite", "name": "Spruce", "href": "tidy-suite/spruce/spruce.html", "img": "thumbs/suite-spruce.jpg", "blurb": "Make slideshows.", "net": false}, {"cat": "suite", "name": "Ready", "href": "tidy-suite/ready/ready.html", "img": "thumbs/suite-ready.jpg", "blurb": "Calendar and to-do list.", "net": false}, {"cat": "suite", "name": "Chipper", "href": "tidy-suite/chipper/chipper.html", "img": "thumbs/suite-chipper.jpg", "blurb": "Chores and allowance.", "net": false}, {"cat": "suite", "name": "Hearty", "href": "tidy-suite/hearty/hearty.html", "img": "thumbs/suite-hearty.jpg", "blurb": "Plan meals and shopping.", "net": false}, {"cat": "suite", "name": "Steady", "href": "tidy-suite/steady/steady.html", "img": "thumbs/suite-steady.jpg", "blurb": "Bills, with a plan and hope.", "net": true}, {"cat": "suite", "name": "Clearout", "href": "tidy-suite/clearout/clearout.html", "img": "thumbs/suite-clearout.jpg", "blurb": "Price and sell your stuff.", "net": false}, {"cat": "suite", "name": "Handy", "href": "tidy-suite/handy/handy.html", "img": "thumbs/suite-handy.jpg", "blurb": "Earn money helping neighbors.", "net": false}, {"cat": "suite", "name": "Sorted", "href": "tidy-suite/sorted/sorted.html", "img": "thumbs/suite-sorted.jpg", "blurb": "Fix things step by step.", "net": false}, {"cat": "suite", "name": "Stocked", "href": "tidy-suite/stocked/stocked.html", "img": "thumbs/suite-stocked.jpg", "blurb": "Home inventory.", "net": false}, {"cat": "suite", "name": "Polished", "href": "tidy-suite/polished/polished.html", "img": "thumbs/suite-polished.jpg", "blurb": "Resume and job hunt.", "net": false}, {"cat": "suite", "name": "Rugged", "href": "tidy-suite/rugged/rugged.html", "img": "thumbs/suite-rugged.jpg", "blurb": "Grid-down plan and field guide. Works offline.", "net": false}, {"cat": "suite", "name": "Snug", "href": "tidy-suite/snug/snug.html", "img": "thumbs/suite-snug.jpg", "blurb": "Back up your suite work.", "net": false}];
+const COLORS={games:'var(--games)',apps:'var(--apps)',suite:'var(--suite)'};
+const grid=document.getElementById('grid'), q=document.getElementById('q');
+const tabs=[...document.querySelectorAll('.tab')];
+let cat='games'; try{cat=localStorage.getItem('myapps.tab')||'games'}catch(e){}
+tabs.forEach(t=>{t.querySelector('.n').textContent=APPS.filter(a=>a.cat===t.dataset.cat).length;
+  t.onclick=()=>{q.value='';setCat(t.dataset.cat)}});
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function render(){
+  const term=q.value.trim().toLowerCase();
+  const list=term?APPS.filter(a=>(a.name+' '+a.blurb).toLowerCase().includes(term)):APPS.filter(a=>a.cat===cat);
+  tabs.forEach(t=>t.setAttribute('aria-selected',!term&&t.dataset.cat===cat));
+  grid.innerHTML=list.length?list.map(a=>`<a class="card" href="${encodeURI(a.href)}" target="_blank" style="--c:${COLORS[a.cat]}">
+    <div class="shot" ${a.img?`style="background-image:url('${a.img}')"`:''}>${a.img?'':esc(a.name[0])}</div>
+    ${a.net?'<span class="net" title="Needs the internet">📶</span>':''}
+    <div class="body"><p class="name">${esc(a.name)}</p><p class="blurb">${esc(a.blurb)}</p></div></a>`).join('')
+    :'<p class="empty">Nothing matches that. Try another word.</p>';
+}
+function setCat(c){cat=c;try{localStorage.setItem('myapps.tab',c)}catch(e){};render();}
+q.oninput=render;
+function cols(){const cs=getComputedStyle(grid).gridTemplateColumns.split(' ').length;return cs||1}
+document.addEventListener('keydown',e=>{
+  if(e.key==='/'&&document.activeElement!==q){e.preventDefault();q.focus();return}
+  if(e.key==='Escape'){q.value='';render();q.blur();return}
+  if(document.activeElement===q&&!['ArrowDown'].includes(e.key))return;
+  const cards=[...grid.querySelectorAll('.card')];if(!cards.length)return;
+  const i=cards.indexOf(document.activeElement);
+  if(['1','2','3'].includes(e.key)){setCat(['games','apps','suite'][+e.key-1]);grid.querySelector('.card')?.focus();return}
+  const m={ArrowRight:1,ArrowLeft:-1,ArrowDown:cols(),ArrowUp:-cols()}[e.key];
+  if(m!==undefined){e.preventDefault();let n=i<0?0:Math.max(0,Math.min(cards.length-1,i+m));cards[n].focus();}
+});
+function tick(){const d=new Date();document.getElementById('time').textContent=d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  document.getElementById('date').textContent=d.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}
+tick();setInterval(tick,10000);
+render();
+</script>
+<!--STATUSBAR-JS-->
+<script src="status/token.js"></script>
+<script>
+(function(){
+  const bar=document.getElementById('pibar'), hostrow=document.getElementById('hostrow'), srvs=document.getElementById('srvs'),
+        head=document.getElementById('srvhead'), wl=document.getElementById('watchlist'), ww=document.getElementById('watchwrap'),
+        wf=document.getElementById('watchform'), toastEl=document.getElementById('toast');
+  const BASE='http://127.0.0.1:'+((window.MYAPPS_STATUS&&MYAPPS_STATUS.port)||8399);
+  const h=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let last=null, failures=0, toastT;
+  const armed={}, busy={};   // Stop buttons: port -> time the "click again" ends / stop in progress
+  function toast(m){toastEl.textContent=m;toastEl.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('on'),3800)}
+  function gb(b){return (b/1073741824).toFixed(b<10737418240?1:0)}
+  function dur(s){const d=Math.floor(s/86400),hh=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return d?d+'d '+hh+'h':hh?hh+'h '+m+'m':m+'m'}
+  function reloadToken(){return new Promise(r=>{const s=document.createElement('script');s.src='status/token.js?'+Date.now();s.onload=s.onerror=()=>{s.remove();r()};document.head.appendChild(s)})}
+  async function post(path,body,retry=true){
+    try{
+      const r=await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json','X-MyApps-Key':(window.MYAPPS_STATUS||{}).token||''},body:JSON.stringify(body||{})});
+      if(r.status===403&&retry){await reloadToken();return post(path,body,false)}
+      return await r.json();
+    }catch(e){return {ok:false,msg:'The status helper is not running. Run Set Up My Apps.sh once.'}}
+  }
+  function copy(t,msg){
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast(msg),()=>{
+      const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast(msg)}catch(e){toast(t)}a.remove()});
+  }
+  try{if(localStorage.getItem('myapps.pibar')==='closed')bar.classList.add('closed')}catch(e){}
+  document.getElementById('pibartoggle').onclick=()=>{const c=bar.classList.toggle('closed');try{localStorage.setItem('myapps.pibar',c?'closed':'open')}catch(e){};paintHead()};
+  document.getElementById('watchbtn').onclick=()=>{wf.classList.toggle('on');if(wf.classList.contains('on'))document.getElementById('whost').focus()};
+  document.getElementById('wcancel').onclick=()=>wf.classList.remove('on');
+  wf.onsubmit=async e=>{e.preventDefault();
+    let host=document.getElementById('whost').value.trim(), port=document.getElementById('wport').value.trim();
+    const m=host.match(/^(?:https?:\/\/)?([^\/:]+)(?::(\d+))?/); if(m){host=m[1];if(m[2]&&!port)port=m[2]}
+    const r=await post('/watch',{name:document.getElementById('wname').value.trim(),host,port:+port});
+    if(r.ok){wf.reset();wf.classList.remove('on');toast('Watching '+host+':'+port);setTimeout(poll,1500)}else toast(r.msg||'Could not add that one.')};
+  // keep the keyboard shortcuts of the menu from firing while typing here
+  wf.addEventListener('keydown',e=>e.stopPropagation());
+
+  function paintHost(d){
+    const x=d.host||{}, p=[];
+    p.push(`<span class="pill" title="${h(x.model||'')}">🍓 <b>${h(x.name||'Pi')}</b> · ${h(x.ip||'')}</span>`);
+    if(x.temp!=null)p.push(`<span class="pill${x.temp>=80?' warn':''}" title="CPU temperature">🌡 <b>${Math.round(x.temp)}°C</b></span>`);
+    if(x.cpu!=null)p.push(`<span class="pill" title="Processor busy">CPU <b>${x.cpu}%</b></span>`);
+    if(x.memTotal)p.push(`<span class="pill" title="Memory in use">Memory <b>${gb(x.memUsed)} / ${gb(x.memTotal)} GB</b></span>`);
+    if(x.diskTotal)p.push(`<span class="pill${x.diskUsed/x.diskTotal>.9?' warn':''}" title="SD card space used">SD card <b>${gb(x.diskUsed)} / ${gb(x.diskTotal)} GB</b></span>`);
+    if(x.uptime!=null)p.push(`<span class="pill" title="Time since the Pi started">Up <b>${dur(x.uptime)}</b></span>`);
+    if(x.powerNow)p.push(`<span class="pill warn" title="The power supply is too weak right now. Use the official 5.1 V 3 A supply.">⚡ <b>Low power!</b></span>`);
+    else if(x.powerEver)p.push(`<span class="pill warn" title="The power dipped since the Pi started. A better power supply or cable helps.">⚡ Power dipped</span>`);
+    if(x.hotNow)p.push(`<span class="pill warn" title="The Pi is slowing itself down to stay cool or because of power.">🐢 <b>Slowed down</b></span>`);
+    hostrow.innerHTML=p.join('');
+  }
+  function paintHead(){
+    if(!last){head.textContent='Servers';return}
+    const up=last.servers.filter(s=>s.up).length, t=new Date(last.at);
+    head.textContent='Servers · '+up+' running · checked '+(isNaN(t)?'':t.toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'}));
+    document.getElementById('pibartoggle').textContent=bar.classList.contains('closed')?'Show':'Hide';
+  }
+  function tile(s){
+    const amber=s.up&&s.status>=500;
+    let act='', sub=s.note||'';
+    if(s.up){
+      if(s.kind==='ssh'){act='Copy';sub='ssh '+(last.host.user||'pi')+'@'+(last.host.ip||'')}
+      else if(s.kind==='vnc'){act='Copy';sub='VNC viewer → '+(last.host.ip||'')+(s.detail?' ('+s.detail+')':'')}
+      else if(s.url){act='Open';if(s.status>=400)sub='Answers HTTP '+s.status}
+    }else{
+      if(s.config){act='Turn on';sub='Off · '+sub}
+      else if(s.launch){act='Start';sub='Not running'}
+      else sub='Not running · '+sub;
+    }
+    let stop='';
+    if(s.up&&s.stoppable){
+      const st=busy[s.port]?'busy':(armed[s.port]>Date.now()?'armed':'');
+      stop=`<span class="stopb ${st}" data-stop="${s.port}" title="Shut down ${h(s.name)}">${st==='busy'?'Stopping…':st==='armed'?'Click to confirm':'■ Stop'}</span>`;
+    }
+    const tip=[s.name+' (port '+s.port+')',s.note,s.title&&s.title!==s.name?'Page: '+s.title:'',s.lanUrl?'From other devices: '+s.lanUrl:''].filter(Boolean).join('\n');
+    return `<button class="srv ${s.up?'up':'down'}${amber?' amber':''}" data-id="${h(s.id)}" title="${h(tip)}">
+      <span class="dot"></span><span class="nm">${h(s.name)}</span><span class="pt">:${s.port}</span>
+      <span class="sub">${stop}${act?`<span class="act">${act}</span> `:''}${h(sub)}</span></button>`;
+  }
+  function paint(d){
+    last=d; paintHost(d); paintHead();
+    const list=d.servers.slice().sort((a,b)=>(b.up-a.up));
+    const html=list.map(tile).join('');
+    if(html!==srvs._html){srvs._html=html;srvs.innerHTML=html}   // redraw only on change, so clicks aren't lost
+    ww.hidden=!d.watch.length;
+    wl.innerHTML=d.watch.map((w,i)=>`<button class="srv ${w.up?'up':'down'}" data-w="${i}" title="${h(w.host+':'+w.port)}">
+      <span class="dot"></span><span class="nm">${h(w.name)}</span><span class="x" data-rm="${i}" title="Stop watching">×</span>
+      <span class="sub">${w.up?(w.url?'<span class="act">Open</span> ':''):'Not answering · '}${h(w.host)}:${w.port}</span></button>`).join('');
+  }
+  srvs.onclick=async e=>{
+    const sb=e.target.closest('[data-stop]');
+    if(sb&&last){
+      e.stopPropagation();
+      const port=+sb.dataset.stop, s=last.servers.find(x=>x.port===port&&x.up); if(!s||busy[port])return;
+      if(!(armed[port]>Date.now())){armed[port]=Date.now()+6000;paint(last);setTimeout(()=>last&&paint(last),6100);return}
+      delete armed[port]; busy[port]=1; paint(last);
+      const r=await post('/stop',{port});
+      delete busy[port]; toast(r.msg||(r.ok?'Stopped '+s.name:'Couldn\'t stop '+s.name)); poll(); setTimeout(poll,1500);
+      return;
+    }
+    const b=e.target.closest('.srv'); if(!b||!last)return;
+    const s=last.servers.find(x=>x.id===b.dataset.id); if(!s)return;
+    if(s.up){
+      if(s.kind==='ssh')return copy('ssh '+(last.host.user||'pi')+'@'+last.host.ip,'Copied: ssh '+(last.host.user||'pi')+'@'+last.host.ip);
+      if(s.kind==='vnc')return copy(last.host.ip,'Copied '+last.host.ip+' — type it into VNC Viewer on your other computer');
+      if(s.url)return window.open(s.url,'_blank');
+      return toast(s.name+' is running on port '+s.port);
+    }
+    if(s.config){const r=await post('/config');return toast(r.msg||'')}
+    if(s.launch){const r=await post('/start',{id:s.id});toast(r.msg||'');setTimeout(poll,2500);return}
+    toast(s.name+' isn\'t running. '+(s.id==='shelf'?'Start The Shelf on this Pi first.':s.id==='pimesh'?'Install PiMesh with Set Up My Apps.sh.':''));
+  };
+  wl.onclick=async e=>{
+    const rm=e.target.closest('[data-rm]'), b=e.target.closest('.srv'); if(!b||!last)return;
+    const w=last.watch[+(rm||b).dataset[rm?'rm':'w']]; if(!w)return;
+    if(rm){const r=await post('/watch',{remove:true,host:w.host,port:w.port});if(r.ok){toast('Stopped watching '+w.name);poll()}return}
+    if(w.url)window.open(w.url,'_blank'); else toast(w.up?w.name+' is answering on port '+w.port:w.name+' isn\'t answering. Is that computer on?');
+  };
+  function offline(){
+    head.textContent='Servers';
+    hostrow.innerHTML=`<span class="pioff">💤 The server lights are off. To turn them on, run <code>Set Up My Apps.sh</code> once
+      (or in a Terminal: <code>python3 ~/Desktop/"My Apps"/status/pi-status.py &amp;</code>). They come on by themselves after that.</span>`;
+    srvs.innerHTML=''; ww.hidden=true;
+  }
+  async function poll(){
+    try{
+      const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),2500);
+      const r=await fetch(BASE+'/status',{cache:'no-store',signal:ctl.signal}); clearTimeout(t);
+      const d=await r.json(); failures=0;
+      if(!window.MYAPPS_STATUS||!MYAPPS_STATUS.token)reloadToken();
+      paint(d);
+    }catch(e){ if(++failures>=2||!last)offline(); }
+  }
+  poll(); setInterval(()=>{if(!document.hidden)poll()},3000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
+})();
+</script>
+<!--/STATUSBAR-JS-->
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en"><head><script src="../suite-users.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Snug</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
+<style>
+/* Layout: one calm column. Big safety status up top, two clear actions, then every app's shelf of saved work. */
+:root{
+  --bg:#F6F2F7; --surface:#FFFFFF; --sunk:#EEE6F0; --ink:#251C2A; --muted:#6A5E70; --line:#E0D5E3;
+  --plum:#7A3E8C; --plum-soft:#EBDDF0; --on-plum:#FFFFFF; --good:#2C8A57; --good-soft:#DDF0E4; --warn:#B87400; --warn-soft:#FBEBCC; --bad:#C2453A;
+  --f:"Nunito","Avenir Next","Segoe UI Rounded","Segoe UI",system-ui,sans-serif;
+  --r:18px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#151018; --surface:#1F1824; --sunk:#29202F; --ink:#EEE6F1; --muted:#A898AE; --line:#362B3C;
+  --plum:#C890DA; --plum-soft:#3A2744; --on-plum:#1A1020; --good:#56C98B; --good-soft:#1C3527; --warn:#F2B13C; --warn-soft:#3A2D13; --bad:#EE7A6E;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151018; --surface:#1F1824; --sunk:#29202F; --ink:#EEE6F1; --muted:#A898AE; --line:#362B3C;
+  --plum:#C890DA; --plum-soft:#3A2744; --on-plum:#1A1020; --good:#56C98B; --good-soft:#1C3527; --warn:#F2B13C; --warn-soft:#3A2D13; --bad:#EE7A6E;
+  color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.55}
+[hidden]{display:none!important}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--plum);outline-offset:2px}
+.wrap{max-width:860px;margin:0 auto;padding-inline:16px;padding-block:18px 60px;display:flex;flex-direction:column;gap:20px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-weight:900;font-size:24px;color:var(--plum);display:flex;align-items:center;gap:10px;letter-spacing:-.01em}
+.logo svg{width:28px;height:28px}
+.saved{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:4px 10px;border-radius:99px}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none}
+.save-dot.saving{background:var(--warn);animation:svpulse .9s infinite ease-in-out}
+.save-dot.error{background:var(--bad)}
+@keyframes svpulse{50%{transform:scale(1.5)}}
+
+.status{border-radius:var(--r);padding:26px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:center;background:var(--s-bg);border:1px solid var(--line)}
+.status .ring{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--s-ink)}
+.status .ring svg{width:40px;height:40px}
+.status h1{margin:0;font-weight:900;font-size:clamp(26px,4.4vw,36px);line-height:1.1;letter-spacing:-.02em;text-wrap:balance}
+.status p{margin:6px 0 0;color:var(--muted);max-width:56ch}
+.status.ok{--s-bg:var(--good-soft);--s-ink:var(--good)}
+.status.due{--s-bg:var(--warn-soft);--s-ink:var(--warn)}
+.status.never{--s-bg:var(--plum-soft);--s-ink:var(--plum)}
+@media (max-width:520px){.status{grid-template-columns:1fr;padding:20px}}
+
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:620px){.actions{grid-template-columns:1fr}}
+.action{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:10px}
+.action h2{margin:0;font-size:20px;font-weight:800}
+.action p{margin:0;color:var(--muted);font-size:15px}
+.btn{border:2px solid var(--line);background:var(--surface);padding:11px 18px;border-radius:14px;font-weight:800;cursor:pointer;align-self:flex-start}
+.btn:hover{border-color:var(--plum)}
+.btn.primary{background:var(--plum);border-color:var(--plum);color:var(--on-plum)}
+.btn.small{padding:6px 12px;font-size:14px;border-radius:10px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.file{position:relative;align-self:flex-start}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.phead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.phead h2{margin:0;font-size:20px;font-weight:800}
+.phead span{color:var(--muted);font-size:14px}
+.apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.app{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:var(--sunk)}
+.app i{width:14px;height:14px;border-radius:5px;background:var(--c);flex:none}
+.app b{display:block;font-weight:800}
+.app small{color:var(--muted);font-size:13px}
+.app.none{opacity:.55}
+
+.restore{display:flex;flex-direction:column;gap:12px}
+.pick{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--sunk)}
+.pick input{width:20px;height:20px;accent-color:var(--plum)}
+.pick label{flex:1;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;cursor:pointer}
+.pick small{color:var(--muted)}
+.warnbox{background:var(--warn-soft);border-radius:12px;padding:12px 14px;font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.remind{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--muted)}
+.remind select{font:inherit;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:6px 10px;color:var(--ink)}
+.steps{margin:0;padding-left:1.2em;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:700;z-index:20}
+footer{color:var(--muted);font-size:13px;text-align:center}
+@media (prefers-reduced-motion:reduce){.save-dot.saving{animation:none}}
+</style></head><body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>Snug</div>
+    <span class="saved" title="Snug's settings are saved in this browser"><i class="save-dot" id="saveDot"></i><span id="saveText">Saved</span></span>
+  </div>
+
+  <section class="status" id="status" aria-live="polite">
+    <div class="ring" id="ring"></div>
+    <div><h1 id="sTitle">Keep your work safe.</h1><p id="sText"></p></div>
+  </section>
+
+  <div class="actions">
+    <div class="action">
+      <h2>Back up everything</h2>
+      <p>Saves all your Tidy Suite work into one small file. Put it on a USB stick, in Google Drive, or email it to yourself.</p>
+      <button class="btn primary" id="backupBtn">Save backup file</button>
+    </div>
+    <div class="action">
+      <h2>Restore from a backup</h2>
+      <p>Lost your work, or moving to a new computer? Open a Snug backup file and pick what to bring back.</p>
+      <span class="file btn"><input type="file" id="fileIn" accept=".json,application/json" aria-label="Open a Snug backup file">Open backup file</span>
+    </div>
+  </div>
+
+  <section class="panel restore" id="restorePanel" hidden aria-labelledby="hRestore">
+    <div class="phead"><h2 id="hRestore">What to bring back</h2><span id="rFrom"></span></div>
+    <div id="picks" class="restore"></div>
+    <div class="warnbox" id="confirmBox" hidden>Restoring replaces what's in those apps on this computer right now. Snug keeps a copy first, so you can undo it.</div>
+    <div class="row">
+      <button class="btn primary" id="restoreBtn">Restore selected</button>
+      <button class="btn" id="cancelBtn">Cancel</button>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="hApps">
+    <div class="phead"><h2 id="hApps">Your saved work</h2><span id="total"></span></div>
+    <div class="apps" id="apps"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="hRemind">
+    <div class="phead"><h2 id="hRemind">Reminder</h2></div>
+    <div class="remind"><label for="every">Remind me to back up</label>
+      <select id="every"><option value="7">every week</option><option value="14">every 2 weeks</option><option value="30">every month</option><option value="0">never</option></select></div>
+    <p style="color:var(--muted);margin:12px 0 0;font-size:15px">Your apps save in this web browser. Clearing your browser history, switching browsers, or a computer problem can erase that. A backup file keeps a copy somewhere else.</p>
+    <ol class="steps" style="margin-top:10px"><li>Save a backup file.</li><li>Move it somewhere safe, like a USB stick or cloud drive.</li><li>Do it again when Snug reminds you.</li></ol>
+  </section>
+  <footer>Snug is part of the Tidy Suite. Your backup file stays wherever you put it. Nothing is uploaded.</footer>
+</div>
+
+<script>
+function saveLight(s){const d=document.getElementById('saveDot'),t=document.getElementById('saveText');if(!d)return;
+ d.className='save-dot'+(s==='saved'?'':' '+s);t.textContent={saved:'Saved',saving:'Saving…',error:'Not saved. Check browser settings'}[s];
+ clearTimeout(saveLight.t);if(s==='saving')saveLight.t=setTimeout(()=>{if(d.classList.contains('saving'))saveLight('saved')},4000);}
+function storeOK(k,v){try{localStorage.setItem(k,v);return localStorage.getItem(k)===v}catch(e){return false}}
+
+(function(){
+const KEY='snug.v1';
+const $=id=>document.getElementById(id);
+const APPS=[
+ {id:'tidy',name:'Tidy',what:'Spreadsheets',c:'#3F6E63',match:k=>k.startsWith('tidy:')||k==='tidy-theme'},
+ {id:'neat',name:'Neat',what:'Writing',c:'#C2694F',match:k=>k.startsWith('neat.')},
+ {id:'spruce',name:'Spruce',what:'Slides',c:'#E8B93E',match:k=>k.startsWith('spruce.')},
+ {id:'steady',name:'Steady',what:'Bills',c:'#FF7A33',match:k=>k.startsWith('steady-')||k.startsWith('steady.')},
+ {id:'clearout',name:'Clearout',what:'Selling',c:'#23824A',match:k=>k.startsWith('clearout.')},
+ {id:'handy',name:'Handy',what:'Side income',c:'#3E3AA0',match:k=>k.startsWith('handy.')},
+ {id:'sorted',name:'Sorted',what:'Repairs',c:'#F0B323',match:k=>k.startsWith('sorted.')},
+ {id:'hearty',name:'Hearty',what:'Meals',c:'#2E6A3E',match:k=>k.startsWith('hearty.')},
+ {id:'ready',name:'Ready',what:'Calendar',c:'#2B63B5',match:k=>k.startsWith('ready.')},
+ {id:'stocked',name:'Stocked',what:'Home inventory',c:'#2F6F7E',match:k=>k.startsWith('stocked.')},
+ {id:'polished',name:'Polished',what:'Job hunt',c:'#33415C',match:k=>k.startsWith('polished.')},
+ {id:'chipper',name:'Chipper',what:'Chores',c:'#D9446F',match:k=>k.startsWith('chipper.')},
+ {id:'rugged',name:'Rugged',what:'Grid-down plan',c:'#C4561D',match:k=>k.startsWith('rugged.')||k.startsWith('hardy.')}];
+let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){} S=S||{last:null,every:14,undo:null};
+function save(){saveLight('saving');const ok=storeOK(KEY,JSON.stringify(S));setTimeout(()=>saveLight(ok?'saved':'error'),300)}
+const icons={ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ due:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+ never:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M12 8v5M12 16v.5"/></svg>'};
+
+function keysFor(app){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(app.match(k))out.push(k)}}catch(e){}return out}
+function sizeOf(keys){let n=0;keys.forEach(k=>{try{n+=(localStorage.getItem(k)||'').length}catch(e){}});return n}
+const kb=n=>n<1024?n+' bytes':n<1048576?Math.round(n/1024)+' KB':(n/1048576).toFixed(1)+' MB';
+const daysSince=t=>t?Math.floor((Date.now()-t)/864e5):null;
+const fmtDate=t=>new Date(t).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+
+function renderStatus(){
+  const used=APPS.filter(a=>keysFor(a).length).length; const d=daysSince(S.last); const every=+S.every;
+  const st=$('status'); let kind,title,text;
+  if(!S.last){kind='never';title=used?'You haven\'t made a backup yet.':'Nothing to back up yet.';
+    text=used?`You have work in ${used} app${used>1?'s':''}. One backup file takes a second and keeps it all safe.`:'Once you start using the Tidy Suite apps, come back here to keep your work safe.';}
+  else if(every&&d>=every){kind='due';title='Time for a fresh backup.';text=`Your last backup was ${d} days ago, on ${fmtDate(S.last)}. Anything you've done since then isn't in it.`;}
+  else{kind='ok';title='Your work is backed up. Nice and snug.';text=`Last backup ${d===0?'today':d===1?'yesterday':d+' days ago'}, on ${fmtDate(S.last)}.${every?' Snug will remind you again in '+Math.max(0,every-d)+' day'+(every-d===1?'':'s')+'.':''}`;}
+  st.className='status '+kind; $('ring').innerHTML=icons[kind]; $('sTitle').textContent=title; $('sText').textContent=text;
+}
+function renderApps(){
+  let tot=0,used=0;
+  $('apps').innerHTML=APPS.map(a=>{const k=keysFor(a),n=sizeOf(k);tot+=n;if(k.length)used++;
+    return `<div class="app${k.length?'':' none'}" style="--c:${a.c}"><i></i><div><b>${a.name}</b><small>${k.length?kb(n)+' saved':'Nothing saved yet'}</small></div></div>`}).join('');
+  $('total').textContent=used+' of '+APPS.length+' apps · '+kb(tot);
+  $('backupBtn').disabled=!used;
+}
+
+/* ---------- backup ---------- */
+$('backupBtn').onclick=()=>{
+  const data={};APPS.forEach(a=>keysFor(a).forEach(k=>{if(k!==KEY)data[k]=localStorage.getItem(k)}));
+  const file={kind:'tidy-suite-backup',version:1,made:new Date().toISOString(),apps:APPS.filter(a=>keysFor(a).some(k=>k!==KEY)).map(a=>a.id),data};
+  const blob=new Blob([JSON.stringify(file)],{type:'application/json'});
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`tidy-suite-backup-${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}.json`;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  S.last=Date.now();save();renderStatus();toast('Backup saved. Move it somewhere safe.');
+};
+
+/* ---------- restore ---------- */
+let incoming=null;
+$('fileIn').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const j=JSON.parse(r.result);if(j.kind!=='tidy-suite-backup'||!j.data)throw 0;incoming=j;showPicks()}
+    catch(err){toast('That file isn\'t a Snug backup. Pick a file named tidy-suite-backup.')}};r.readAsText(f);e.target.value='';});
+function showPicks(){
+  const ids=APPS.filter(a=>Object.keys(incoming.data).some(a.match));
+  $('rFrom').textContent='Backup from '+fmtDate(new Date(incoming.made).getTime());
+  $('picks').innerHTML=ids.map(a=>{const ks=Object.keys(incoming.data).filter(a.match);const n=ks.reduce((s,k)=>s+incoming.data[k].length,0);const here=keysFor(a).length;
+    return `<div class="pick"><input type="checkbox" id="pk-${a.id}" value="${a.id}" checked><label for="pk-${a.id}"><span><b>${a.name}</b> · ${a.what}</span><small>${kb(n)}${here?' · will replace what\'s here':' · nothing here now'}</small></label></div>`}).join('')||'<p>This backup is empty.</p>';
+  $('confirmBox').hidden=false; $('restorePanel').hidden=false; $('restoreBtn').textContent='Restore selected'; $('restorePanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+$('cancelBtn').onclick=()=>{incoming=null;$('restorePanel').hidden=true};
+$('restoreBtn').onclick=()=>{
+  if(!incoming)return; const chosen=[...document.querySelectorAll('#picks input:checked')].map(i=>APPS.find(a=>a.id===i.value));
+  if(!chosen.length){toast('Pick at least one app');return}
+  const undo={};chosen.forEach(a=>keysFor(a).forEach(k=>undo[k]=localStorage.getItem(k)));
+  let ok=true;
+  chosen.forEach(a=>{keysFor(a).forEach(k=>localStorage.removeItem(k));Object.keys(incoming.data).filter(a.match).forEach(k=>{if(!storeOK(k,incoming.data[k]))ok=false})});
+  S.undo={at:Date.now(),apps:chosen.map(a=>a.id),data:undo};
+  if(!storeOK(KEY,JSON.stringify(S))){S.undo=null;save()} else saveLight('saved');
+  incoming=null;$('restorePanel').hidden=true;renderAll();
+  toast(ok?'Restored '+chosen.map(a=>a.name).join(', ')+'. Open them to see your work.':'Some work could not be restored. Your browser storage may be full.');
+};
+function renderUndo(){
+  let el=$('undoBar'); if(!S.undo){if(el)el.remove();return}
+  if(!el){el=document.createElement('div');el.id='undoBar';el.className='panel row';el.style.justifyContent='space-between';document.querySelector('.actions').after(el)}
+  el.innerHTML=`<span>Restored ${S.undo.apps.map(id=>APPS.find(a=>a.id===id).name).join(', ')} on ${fmtDate(S.undo.at)}.</span><span class="row"><button class="btn small" id="undoBtn">Undo restore</button><button class="btn small" id="keepBtn">Keep it</button></span>`;
+  $('undoBtn').onclick=()=>{S.undo.apps.forEach(id=>{const a=APPS.find(x=>x.id===id);keysFor(a).forEach(k=>localStorage.removeItem(k))});
+    Object.entries(S.undo.data).forEach(([k,v])=>storeOK(k,v));S.undo=null;save();renderAll();toast('Put back the way it was')};
+  $('keepBtn').onclick=()=>{S.undo=null;save();renderAll()};
+}
+
+$('every').value=String(S.every);
+$('every').onchange=()=>{S.every=+$('every').value;save();renderStatus()};
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2800)}
+function renderAll(){renderStatus();renderApps();renderUndo()}
+window.addEventListener('storage',renderAll);
+renderAll();
+})();
+</script>
+</body></html>

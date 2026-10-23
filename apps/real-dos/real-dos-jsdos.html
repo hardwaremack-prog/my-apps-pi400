@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Real DOS via js-dos (DOSBox/WASM)</title>
+<link rel="stylesheet" href="https://v8.js-dos.com/latest/js-dos.css">
+<script src="https://v8.js-dos.com/latest/js-dos.js"></script>
+<style>
+  html, body { height:100%; margin:0; background:#111; font-family: Arial, sans-serif; }
+  #wrap { max-width: 900px; margin: 0 auto; padding: 16px; color:#ddd; }
+  #dos { width: 100%; height: 60vh; background:#000; }
+  h1 { font-size: 18px; }
+  .note { background:#1c1c1c; border-left: 3px solid #ffb000; padding: 10px 14px; margin: 14px 0; font-size:14px; line-height:1.5; }
+  code { background:#222; padding:1px 5px; border-radius:3px; }
+  .steps { font-size:14px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>Real DOS session (js-dos / DOSBox-WASM)</h1>
+
+  <div class="note">
+    <b>This must be run from a local web server, not by double-clicking the file.</b>
+    Browsers block WebAssembly + worker loading over <code>file://</code>. From this folder run:
+    <br><code>python3 -m http.server 8080</code> (or <code>npx serve</code>)
+    <br>then open <code>http://localhost:8080/real-dos-jsdos.html</code>.
+  </div>
+
+  <div id="dos"></div>
+
+  <div class="note steps">
+    <b>What's actually booting here:</b> by default (no bundle URL set below) js-dos starts its own
+    built-in DOSBox shell — a real, DOS-compatible command interpreter (<code>Z:\&gt;</code> prompt), not
+    literally FreeDOS or PC DOS. It's genuinely DOS-compatible (runs real 16-bit .EXE/.COM files, real
+    SmartDrive/QuickMenu/GW-BASIC binaries if you supply them) but it isn't a full installed OS image.
+    <br><br>
+    <b>To boot an actual FreeDOS (or PC DOS) disk image instead:</b>
+    <ol>
+      <li>Go to <a href="https://dos.zone" style="color:#ffb000" target="_blank">dos.zone</a> and use
+      their "Game Studio" / bundle search for a FreeDOS boot disk bundle (search "FreeDOS"). Grab the
+      <code>.jsdos</code> URL it gives you.</li>
+      <li>Paste that URL into the <code>BUNDLE_URL</code> constant below, replacing <code>null</code>.</li>
+      <li>Reload the page — js-dos will boot that image instead of the built-in shell.</li>
+    </ol>
+    <b>To add QuickMenu / SmartDrive / GW-BASIC yourself:</b> once the shell is running, use the
+    js-dos on-screen menu (gear/upload icon in the player UI) to drag and drop real DOS-era files you
+    legally own onto the C: drive, then run them normally (<code>SMARTDRV.EXE</code>,
+    <code>QUICKMENU.EXE</code>, <code>GWBASIC.EXE</code>). I can't fetch or bundle those binaries myself —
+    they're commercial/copyrighted software, same as MS-DOS or PC DOS itself.
+  </div>
+</div>
+
+<script>
+  // Set this to a real .jsdos bundle URL (e.g. from dos.zone) to boot FreeDOS or a specific program.
+  // Leave as null to just get the built-in DOSBox shell.
+  const BUNDLE_URL = null;
+
+  const el = document.getElementById("dos");
+  if (BUNDLE_URL) {
+    Dos(el, { url: BUNDLE_URL });
+  } else {
+    Dos(el); // built-in shell, no bundle
+  }
+</script>
+</body>
+</html>

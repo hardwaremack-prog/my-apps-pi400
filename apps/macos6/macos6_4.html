@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>System 6.0.8</title>
+<style>
+  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: bold;
+    font-size: 12px;
+    -webkit-font-smoothing: none;
+    text-rendering: optimizeSpeed;
+    letter-spacing: 0.1px;
+  }
+
+  /* ============ BOOT SCREEN ============ */
+  #boot {
+    position: fixed; inset: 0; background: #ccc; z-index: 99999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #boot .happymac { width: 96px; height: 96px; pointer-events: none; }
+  #boot .bootlabel { margin-top: 18px; font-size: 13px; pointer-events: none; }
+  #boot .hint { margin-top: 40px; font-size: 11px; font-weight: normal; color: #444; pointer-events: none; }
+  #boot.hidden { display: none; }
+
+  /* ============ SHUTDOWN SCREEN ============ */
+  #shutdown {
+    position: fixed; inset: 0; background: #000; color: #fff; z-index: 99999;
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    font-size: 14px; cursor: pointer;
+  }
+  #shutdown.show { display: flex; }
+  #shutdown .icon { width: 48px; height: 48px; margin-bottom: 18px; }
+
+  #desktop {
+    position: relative;
+    width: 100%; height: 100vh;
+    background-color: #999;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4'><rect width='4' height='4' fill='%23a8a8a8'/><rect width='2' height='2' fill='%23949494'/><rect x='2' y='2' width='2' height='2' fill='%23949494'/></svg>");
+    background-repeat: repeat;
+    overflow: hidden;
+    cursor: default;
+  }
+  #desktop.drop-hover::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.15);
+    border: 3px dashed #fff;
+    pointer-events: none;
+  }
+
+  /* ---------- Menu Bar ---------- */
+  #menubar {
+    position: absolute; top: 0; left: 0; right: 0; height: 20px;
+    background: #fff;
+    border-bottom: 1px solid #000;
+    display: flex; align-items: center;
+    padding: 0 6px;
+    z-index: 5000;
+  }
+  #menubar .apple-logo { width: 16px; height: 16px; margin-right: 12px; cursor: pointer; }
+  .menu-item { position: relative; padding: 2px 8px; cursor: pointer; height: 100%; display:flex; align-items:center; }
+  .menu-item:hover, .menu-item.open { background: #000; color: #fff; }
+  .menu-dropdown {
+    display: none;
+    position: absolute; top: 20px; left: 0;
+    background: #fff; border: 1px solid #000; box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+    min-width: 180px; z-index: 6000;
+  }
+  .menu-item.open .menu-dropdown { display: block; }
+  .menu-option { padding: 3px 20px 3px 14px; white-space: nowrap; cursor: pointer; font-weight: normal; display:flex; justify-content:space-between; }
+  .menu-option .key { color: #888; font-size: 10px; }
+  .menu-option:hover { background: #000; color: #fff; }
+  .menu-option:hover .key { color: #ccc; }
+  .menu-option.disabled { color: #aaa; cursor: default; }
+  .menu-option.disabled:hover { background: none; color: #aaa; }
+  .menu-sep { border-top: 1px solid #999; margin: 3px 0; }
+  #clock { margin-left: auto; font-weight: normal; padding-right: 4px; }
+
+  /* ---------- Desktop Icons ---------- */
+  .icon {
+    position: absolute;
+    width: 76px;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 4px;
+    cursor: default;
+    z-index: 10;
+  }
+  .icon .glyph { width: 34px; height: 34px; filter: drop-shadow(0 1px 0 rgba(0,0,0,0.25)); pointer-events:none; }
+  .icon .glyph img { width: 32px; height: 32px; object-fit: cover; border: 1px solid #000; background:#fff; }
+  .icon .label {
+    margin-top: 3px; color: #000; background: transparent;
+    padding: 1px 4px; text-align: center; font-size: 11px; font-weight: normal;
+    max-width: 76px; word-wrap: break-word; pointer-events:none;
+  }
+  .icon.selected .label { background: #000; color: #fff; }
+  .icon.dragging { opacity: 0.55; }
+
+  /* ---------- Windows ---------- */
+  .window {
+    position: absolute;
+    display: none;
+    background: #ddd;
+    border: 1px solid #000;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+    min-width: 180px;
+    min-height: 90px;
+    flex-direction: column;
+  }
+  .window.active-window { display: flex; }
+  .window.shaded { height: 20px !important; overflow: hidden; }
+  .titlebar {
+    height: 19px; flex-shrink: 0;
+    background: repeating-linear-gradient(to bottom, #fff 0px, #fff 1px, #000 1px, #000 2px);
+    border-bottom: 1px solid #000;
+    display: flex; align-items: center;
+    padding: 0 4px;
+    cursor: grab;
+    position: relative;
+  }
+  .titlebar .closebox {
+    width: 12px; height: 12px; border: 1px solid #000; background: #fff;
+    margin-right: 6px; cursor: pointer; flex-shrink: 0; position:relative; z-index:2;
+  }
+  .titlebar .zoombox {
+    width: 12px; height: 12px; border: 1px solid #000; background: #fff;
+    margin-left: 6px; cursor: pointer; flex-shrink: 0; position:relative; z-index:2;
+  }
+  .titlebar .zoombox::after {
+    content:""; position:absolute; top:2px; left:2px; width:6px; height:6px; border:1px solid #000;
+  }
+  .titlebar .titletext {
+    background: #ddd;
+    padding: 0 8px;
+    font-weight: bold;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+  }
+  .win-content {
+    flex: 1;
+    background: #fff;
+    overflow: auto;
+    padding: 10px;
+    position: relative;
+    font-weight: normal;
+  }
+  .win-statusbar {
+    border-top: 1px solid #000;
+    background: #ddd;
+    font-size: 11px;
+    padding: 2px 8px;
+    font-weight: normal;
+    flex-shrink: 0;
+  }
+  .resize-handle {
+    position: absolute; right: 0; bottom: 0; width: 14px; height: 14px;
+    cursor: nwse-resize;
+    background:
+      linear-gradient(135deg, transparent 0 2px, #000 2px 3px, transparent 3px 5px, #000 5px 6px, transparent 6px 8px, #000 8px 9px, transparent 9px 11px, #000 11px 12px);
+    z-index: 10;
+  }
+
+  /* ---------- Finder window icon grid ---------- */
+  .finder-grid { display: flex; flex-wrap: wrap; gap: 16px; align-content: flex-start; height:100%; }
+  .finder-item { width: 72px; display:flex; flex-direction:column; align-items:center; cursor:pointer; text-align:center;}
+  .finder-item .glyph { width: 32px; height: 32px; }
+  .finder-item .label { font-size: 11px; margin-top: 3px; }
+  .finder-item:hover .label { background:#000; color:#fff; }
+
+  /* ---------- Picture Viewer ---------- */
+  .pv-dropzone {
+    border: 2px dashed #888;
+    padding: 10px;
+    text-align: center;
+    color: #555;
+    margin-bottom: 10px;
+    cursor: pointer;
+  }
+  .pv-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .pv-thumb { width: 72px; text-align: center; cursor: grab; }
+  .pv-thumb img { width: 64px; height: 64px; object-fit: cover; border: 1px solid #000; background: #eee; }
+  .pv-thumb .label { font-size: 10px; word-wrap: break-word; }
+
+  /* ---------- Image full view window ---------- */
+  .imgview-content { display:flex; align-items:center; justify-content:center; background:#888; }
+  .imgview-content img { max-width: 100%; image-rendering: auto; }
+
+  /* ---------- Calculator ---------- */
+  .calc-display {
+    background: #fff; border: 1px solid #000; text-align: right;
+    font-size: 20px; padding: 6px; margin-bottom: 6px; font-family: monospace; font-weight:bold;
+  }
+  .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .calc-btn {
+    background: #ccc; border: 1px solid #000; padding: 8px 0; text-align:center;
+    cursor: pointer; font-weight: bold;
+  }
+  .calc-btn:active { background: #000; color: #fff; }
+
+  /* ---------- MacPaint ---------- */
+  .paint-toolbar { display:flex; gap:4px; margin-bottom:6px; align-items:center; flex-wrap: wrap; }
+  .paint-tool { border:1px solid #000; padding:4px 7px; cursor:pointer; background:#ccc; font-size:11px; font-weight:bold; }
+  .paint-tool.active { background:#000; color:#fff; }
+  canvas#paintCanvas { border: 1px solid #000; background: #fff; cursor: crosshair; display:block; }
+
+  /* ---------- MacWrite ---------- */
+  .mw-toolbar { display:flex; gap:4px; margin-bottom:8px; }
+  .mw-btn { border:1px solid #000; background:#ccc; width:26px; height:22px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; }
+  .mw-btn:active { background:#000; color:#fff; }
+  .mw-page {
+    background:#fff; border:1px solid #000; min-height:260px; padding:20px;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.3); font-weight: normal; font-size: 13px; line-height:1.5;
+    outline: none;
+  }
+
+  /* ---------- Excel ---------- */
+  .xl-toolbar { font-size:11px; font-weight:normal; color:#555; margin-bottom:6px; }
+  table.xl-table { border-collapse: collapse; font-weight: normal; font-size: 11px; }
+  table.xl-table th {
+    background:#ddd; border:1px solid #999; padding:2px 4px; min-width: 56px; position: sticky; top:0;
+  }
+  table.xl-table th.xl-corner { min-width: 28px; }
+  table.xl-table td { border:1px solid #ccc; padding:0; }
+  .xl-cell {
+    min-width: 56px; height: 18px; padding: 2px 4px; outline: none; white-space: nowrap; overflow:hidden;
+  }
+  .xl-cell:focus { background: #ffe; box-shadow: inset 0 0 0 2px #000; }
+
+  /* ---------- Puzzle ---------- */
+  #puzzle-grid {
+    display: grid; grid-template-columns: repeat(4, 56px); grid-template-rows: repeat(4, 56px); gap: 4px;
+    background: #999; padding: 6px; border: 1px solid #000; width: fit-content;
+  }
+  .puzzle-tile {
+    background: #fff; border: 1px solid #000; display:flex; align-items:center; justify-content:center;
+    font-size: 18px; font-weight: bold; cursor: pointer;
+  }
+  .puzzle-tile.blank { background: transparent; border: none; cursor: default; }
+  .puzzle-controls { margin-top: 10px; }
+
+  /* ---------- About dialog ---------- */
+  .about-content { text-align: center; padding: 10px; }
+  .about-content .big-apple { width: 56px; height: 56px; margin: 0 auto; }
+  .mem-bar-row { display:flex; align-items:center; gap:6px; margin: 4px 0; font-size:11px; }
+  .mem-bar-outer { flex:1; height:10px; border:1px solid #000; background:#fff; }
+  .mem-bar-inner { height:100%; background: repeating-linear-gradient(45deg,#000,#000 2px,#fff 2px,#fff 4px); }
+
+  ::-webkit-scrollbar { width: 15px; height: 15px; }
+  ::-webkit-scrollbar-track { background: #fff repeating-linear-gradient(45deg,#eee,#eee 2px,#fff 2px,#fff 4px); }
+  ::-webkit-scrollbar-thumb { background: #ccc; border: 1px solid #000; }
+  ::-webkit-scrollbar-corner { background: #ddd; }
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <svg class="happymac" viewBox="0 0 64 64">
+    <rect x="6" y="4" width="52" height="42" rx="3" fill="#fff" stroke="#000" stroke-width="2"/>
+    <rect x="12" y="10" width="40" height="26" fill="#fff" stroke="#000" stroke-width="2"/>
+    <circle cx="24" cy="21" r="2.2" fill="#000"/>
+    <circle cx="40" cy="21" r="2.2" fill="#000"/>
+    <path d="M21 27 Q32 36 43 27" stroke="#000" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <rect x="26" y="46" width="12" height="5" fill="#000"/>
+    <rect x="16" y="51" width="32" height="4" fill="#000"/>
+  </svg>
+  <div class="bootlabel">Welcome to Macintosh.</div>
+  <div class="hint">click the happy mac to start</div>
+</div>
+
+<div id="shutdown">
+  <svg class="icon" viewBox="0 0 64 64">
+    <rect x="6" y="4" width="52" height="42" rx="3" fill="none" stroke="#fff" stroke-width="2"/>
+    <rect x="12" y="10" width="40" height="26" fill="none" stroke="#fff" stroke-width="2"/>
+    <rect x="26" y="46" width="12" height="5" fill="#fff"/>
+    <rect x="16" y="51" width="32" height="4" fill="#fff"/>
+  </svg>
+  <div id="shutdown-text">It is now safe to turn off your computer.</div>
+  <div style="font-size:11px; margin-top:14px; opacity:0.7;">(click to restart)</div>
+</div>
+
+<div id="desktop">
+
+  <div id="menubar">
+    <svg class="apple-logo" viewBox="0 0 32 32" onclick="toggleMenu(event,'menu-apple')">
+      <defs><clipPath id="appleClip"><path d="M17 5c-0.5-2.4-2.8-3.6-4.8-2.4c1.6-0.4 3 0.4 3 2c0 0.3-0.05 0.5-0.1 0.7c-4.6 0.4-8.1 4.7-8.1 10c0 6.4 4.2 13.7 7.3 13.7c1.6 0 2-0.9 3.6-0.9s2 0.9 3.6 0.9c3.1 0 7.3-7.3 7.3-13.4c0-3.6-1.6-6.5-4-8c0.7-1 0.9-2.6-0.2-3.8c-1-1.1-2.7-0.7-3.1 0.1z"/></clipPath></defs>
+      <g clip-path="url(#appleClip)">
+        <rect y="2" width="32" height="5.5" fill="#61bb46"/>
+        <rect y="7.5" width="32" height="5.5" fill="#fdb827"/>
+        <rect y="13" width="32" height="5.5" fill="#f5821f"/>
+        <rect y="18.5" width="32" height="5.5" fill="#e03a3e"/>
+        <rect y="24" width="32" height="5.5" fill="#963d97"/>
+        <rect y="29.5" width="32" height="5.5" fill="#009ddc"/>
+      </g>
+    </svg>
+
+    <div class="menu-item" id="menu-apple" onclick="toggleMenu(event,'menu-apple')">
+      <div class="menu-dropdown">
+        <div class="menu-option" onclick="openWindow('win-about')">About This Macintosh...</div>
+        <div class="menu-sep"></div>
+        <div class="menu-option" onclick="openWindow('win-calc')">Calculator</div>
+        <div class="menu-option disabled">Chooser</div>
+        <div class="menu-option disabled">Control Panel</div>
+        <div class="menu-option disabled">Key Caps</div>
+      </div>
+    </div>
+
+    <div class="menu-item" id="menu-file" onclick="toggleMenu(event,'menu-file')">File
+      <div class="menu-dropdown">
+        <div class="menu-option disabled">New Folder<span class="key">&#8984;N</span></div>
+        <div class="menu-option" onclick="openWindow('win-finder')">Open<span class="key">&#8984;O</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-option" onclick="closeActiveWindow()">Close Window<span class="key">&#8984;W</span></div>
+        <div class="menu-option disabled">Get Info<span class="key">&#8984;I</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-option disabled">Print</div>
+      </div>
+    </div>
+
+    <div class="menu-item" id="menu-edit" onclick="toggleMenu(event,'menu-edit')">Edit
+      <div class="menu-dropdown">
+        <div class="menu-option disabled">Undo<span class="key">&#8984;Z</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-option disabled">Cut<span class="key">&#8984;X</span></div>
+        <div class="menu-option disabled">Copy<span class="key">&#8984;C</span></div>
+        <div class="menu-option disabled">Paste<span class="key">&#8984;V</span></div>
+        <div class="menu-option disabled">Clear</div>
+      </div>
+    </div>
+
+    <div class="menu-item" id="menu-view" onclick="toggleMenu(event,'menu-view')">View
+      <div class="menu-dropdown">
+        <div class="menu-option">by Icon</div>
+        <div class="menu-option">by Name</div>
+        <div class="menu-option">by Kind</div>
+      </div>
+    </div>
+
+    <div class="menu-item" id="menu-special" onclick="toggleMenu(event,'menu-special')">Special
+      <div class="menu-dropdown">
+        <div class="menu-option" onclick="emptyTrash()">Empty Trash...</div>
+        <div class="menu-sep"></div>
+        <div class="menu-option disabled">Erase Disk...</div>
+        <div class="menu-option" onclick="restartMachine()">Restart</div>
+        <div class="menu-option" onclick="shutDown()">Shut Down</div>
+      </div>
+    </div>
+
+    <div id="clock">12:00 PM</div>
+  </div>
+
+  <!-- Desktop Icons -->
+  <div class="icon" style="top:36px; left: calc(100% - 96px);" ondblclick="openWindow('win-finder')" onmousedown="startIconDrag(event,this)">
+    <div class="glyph" id="icon-harddisk"></div>
+    <div class="label">Macintosh HD</div>
+  </div>
+
+  <div class="icon" style="top:126px; left: calc(100% - 96px);" ondblclick="openWindow('win-pv')" onmousedown="startIconDrag(event,this)">
+    <div class="glyph" id="icon-pv"></div>
+    <div class="label">Picture Viewer</div>
+  </div>
+
+  <div class="icon" style="top:216px; left: calc(100% - 96px);" ondblclick="openWindow('win-calc')" onmousedown="startIconDrag(event,this)">
+    <div class="glyph" id="icon-calc"></div>
+    <div class="label">Calculator</div>
+  </div>
+
+  <div class="icon" style="top:306px; left: calc(100% - 96px);" ondblclick="openWindow('win-paint')" onmousedown="startIconDrag(event,this)">
+    <div class="glyph" id="icon-paint"></div>
+    <div class="label">MacPaint</div>
+  </div>
+
+  <div class="icon" style="top:396px; left: calc(100% - 96px);" ondblclick="openWindow('win-write')" onmousedown="startIconDrag(event,this)">
+    <div class="glyph" id="icon-write"></div>
+    <div class="label">MacWrite</div>
+  </div>
+
+  <div class="icon" style="top:486px; left: calc(100% - 96px);" ondblclick="openWindow('win-excel')" onmousedown="startIconDrag(event,this)">
+    <div class="glyph" id="icon-excel"></div>
+    <div class="label">Excel</div>
+  </div>
+
+  <div class="icon" style="top:576px; left: calc(100% - 96px);" ondblclick="openWindow('win-puzzle')" onmousedown="startIconDrag(event,this)">
+    <div class="glyph" id="icon-puzzle"></div>
+    <div class="label">Puzzle</div>
+  </div>
+
+  <div class="icon" id="trash-icon" style="bottom:20px; left: calc(100% - 96px); top:auto;" ondblclick="openTrashInfo()" onmousedown="startIconDrag(event,this)">
+    <div class="glyph" id="icon-trash"></div>
+    <div class="label">Trash</div>
+  </div>
+
+  <!-- ============ Finder Window ============ -->
+  <div class="window" id="win-finder" style="top:60px; left:80px; width:460px; height:320px;">
+    <div class="titlebar" onmousedown="startDrag(event,'win-finder')" ondblclick="toggleShade(event,'win-finder')">
+      <div class="closebox" onclick="closeWindow('win-finder')"></div>
+      <div class="titletext">Macintosh HD</div>
+      <div class="zoombox" onclick="toggleZoom(event,'win-finder')"></div>
+    </div>
+    <div class="win-content">
+      <div class="finder-grid">
+        <div class="finder-item" ondblclick="openWindow('win-pv')">
+          <div class="glyph" data-icon="pv"></div><div class="label">Picture Viewer</div>
+        </div>
+        <div class="finder-item" ondblclick="openWindow('win-calc')">
+          <div class="glyph" data-icon="calc"></div><div class="label">Calculator</div>
+        </div>
+        <div class="finder-item" ondblclick="openWindow('win-paint')">
+          <div class="glyph" data-icon="paint"></div><div class="label">MacPaint</div>
+        </div>
+        <div class="finder-item" ondblclick="openWindow('win-write')">
+          <div class="glyph" data-icon="write"></div><div class="label">MacWrite</div>
+        </div>
+        <div class="finder-item" ondblclick="openWindow('win-excel')">
+          <div class="glyph" data-icon="excel"></div><div class="label">Excel</div>
+        </div>
+        <div class="finder-item" ondblclick="openWindow('win-puzzle')">
+          <div class="glyph" data-icon="puzzle"></div><div class="label">Puzzle</div>
+        </div>
+        <div class="finder-item" ondblclick="openWindow('win-about')">
+          <div class="glyph" data-icon="apple"></div><div class="label">About This Macintosh</div>
+        </div>
+      </div>
+    </div>
+    <div class="win-statusbar">7 items&nbsp;&nbsp;&nbsp;12,458K in disk&nbsp;&nbsp;&nbsp;3,214K available</div>
+    <div class="resize-handle" onmousedown="startResize(event,'win-finder')"></div>
+  </div>
+
+  <!-- ============ About Window ============ -->
+  <div class="window" id="win-about" style="top:100px; left:220px; width:320px;">
+    <div class="titlebar" onmousedown="startDrag(event,'win-about')" ondblclick="toggleShade(event,'win-about')">
+      <div class="closebox" onclick="closeWindow('win-about')"></div>
+      <div class="titletext">About This Macintosh</div>
+      <div class="zoombox" onclick="toggleZoom(event,'win-about')"></div>
+    </div>
+    <div class="win-content">
+      <div class="about-content">
+        <div class="big-apple" data-icon="apple"></div>
+        <p><b>System Software 6.0.8</b><br>Total Memory: 4,096K</p>
+        <div class="mem-bar-row"><span style="width:96px;text-align:left;">System</span><div class="mem-bar-outer"><div class="mem-bar-inner" style="width:22%"></div></div></div>
+        <div class="mem-bar-row"><span style="width:96px;text-align:left;">Finder</span><div class="mem-bar-outer"><div class="mem-bar-inner" style="width:12%"></div></div></div>
+        <div class="mem-bar-row"><span style="width:96px;text-align:left;">Largest Unused</span><div class="mem-bar-outer"><div class="mem-bar-inner" style="width:66%"></div></div></div>
+        <p style="font-size:10px; color:#555; font-weight:normal;">A tribute recreation running in your browser — not an emulator, no ROM or original software included.</p>
+      </div>
+    </div>
+    <div class="resize-handle" onmousedown="startResize(event,'win-about')"></div>
+  </div>
+
+  <!-- ============ Picture Viewer Window ============ -->
+  <div class="window" id="win-pv" style="top:70px; left:140px; width:430px; height:340px;">
+    <div class="titlebar" onmousedown="startDrag(event,'win-pv')" ondblclick="toggleShade(event,'win-pv')">
+      <div class="closebox" onclick="closeWindow('win-pv')"></div>
+      <div class="titletext">Picture Viewer</div>
+      <div class="zoombox" onclick="toggleZoom(event,'win-pv')"></div>
+    </div>
+    <div class="win-content">
+      <div class="pv-dropzone" id="pv-dropzone">Drag &amp; drop image files here<br>(or click to choose files)</div>
+      <input type="file" id="pv-file-input" accept="image/*" multiple style="display:none;">
+      <div class="pv-grid" id="pv-grid"></div>
+      <p style="font-size:10px;color:#777;">tip: drag a picture onto the Trash to delete it</p>
+    </div>
+    <div class="win-statusbar" id="pv-status">0 pictures</div>
+    <div class="resize-handle" onmousedown="startResize(event,'win-pv')"></div>
+  </div>
+
+  <!-- ============ Calculator Window ============ -->
+  <div class="window" id="win-calc" style="top:120px; left:420px; width:200px;">
+    <div class="titlebar" onmousedown="startDrag(event,'win-calc')" ondblclick="toggleShade(event,'win-calc')">
+      <div class="closebox" onclick="closeWindow('win-calc')"></div>
+      <div class="titletext">Calculator</div>
+    </div>
+    <div class="win-content">
+      <div class="calc-display" id="calc-display">0</div>
+      <div class="calc-grid" id="calc-grid"></div>
+    </div>
+  </div>
+
+  <!-- ============ MacPaint Window ============ -->
+  <div class="window" id="win-paint" style="top:80px; left:260px; width:440px;">
+    <div class="titlebar" onmousedown="startDrag(event,'win-paint')" ondblclick="toggleShade(event,'win-paint')">
+      <div class="closebox" onclick="closeWindow('win-paint')"></div>
+      <div class="titletext">MacPaint</div>
+      <div class="zoombox" onclick="toggleZoom(event,'win-paint')"></div>
+    </div>
+    <div class="win-content">
+      <div class="paint-toolbar">
+        <div class="paint-tool active" data-tool="pencil" onclick="setPaintTool('pencil',this)">Pencil</div>
+        <div class="paint-tool" data-tool="brush" onclick="setPaintTool('brush',this)">Brush</div>
+        <div class="paint-tool" data-tool="line" onclick="setPaintTool('line',this)">Line</div>
+        <div class="paint-tool" data-tool="rect" onclick="setPaintTool('rect',this)">Rect</div>
+        <div class="paint-tool" data-tool="oval" onclick="setPaintTool('oval',this)">Oval</div>
+        <div class="paint-tool" data-tool="bucket" onclick="setPaintTool('bucket',this)">Fill</div>
+        <div class="paint-tool" data-tool="eraser" onclick="setPaintTool('eraser',this)">Eraser</div>
+        <div class="paint-tool" onclick="clearPaint()">Clear</div>
+      </div>
+      <canvas id="paintCanvas" width="400" height="230"></canvas>
+    </div>
+    <div class="resize-handle" onmousedown="startResize(event,'win-paint')"></div>
+  </div>
+
+  <!-- ============ MacWrite Window ============ -->
+  <div class="window" id="win-write" style="top:65px; left:180px; width:440px; height:380px;">
+    <div class="titlebar" onmousedown="startDrag(event,'win-write')" ondblclick="toggleShade(event,'win-write')">
+      <div class="closebox" onclick="closeWindow('win-write')"></div>
+      <div class="titletext">Untitled - MacWrite</div>
+      <div class="zoombox" onclick="toggleZoom(event,'win-write')"></div>
+    </div>
+    <div class="win-content">
+      <div class="mw-toolbar">
+        <div class="mw-btn" onclick="mwCmd('bold')"><b>B</b></div>
+        <div class="mw-btn" onclick="mwCmd('italic')"><i>I</i></div>
+        <div class="mw-btn" onclick="mwCmd('underline')"><u>U</u></div>
+        <div class="mw-btn" onclick="mwCmd('justifyLeft')">&#8676;</div>
+        <div class="mw-btn" onclick="mwCmd('justifyCenter')">&#8646;</div>
+        <div class="mw-btn" onclick="mwCmd('justifyRight')">&#8677;</div>
+      </div>
+      <div class="mw-page" contenteditable="true">Click here and start typing...</div>
+    </div>
+    <div class="resize-handle" onmousedown="startResize(event,'win-write')"></div>
+  </div>
+
+  <!-- ============ Excel Window ============ -->
+  <div class="window" id="win-excel" style="top:75px; left:150px; width:480px; height:380px;">
+    <div class="titlebar" onmousedown="startDrag(event,'win-excel')" ondblclick="toggleShade(event,'win-excel')">
+      <div class="closebox" onclick="closeWindow('win-excel')"></div>
+      <div class="titletext">Sheet1 - Excel</div>
+      <div class="zoombox" onclick="toggleZoom(event,'win-excel')"></div>
+    </div>
+    <div class="win-content">
+      <div class="xl-toolbar">Try: <code>=A1+A2</code> or <code>=SUM(A1:A5)</code></div>
+      <table class="xl-table" id="xl-table"></table>
+    </div>
+    <div class="resize-handle" onmousedown="startResize(event,'win-excel')"></div>
+  </div>
+
+  <!-- ============ Puzzle Window ============ -->
+  <div class="window" id="win-puzzle" style="top:90px; left:300px; width:290px;">
+    <div class="titlebar" onmousedown="startDrag(event,'win-puzzle')" ondblclick="toggleShade(event,'win-puzzle')">
+      <div class="closebox" onclick="closeWindow('win-puzzle')"></div>
+      <div class="titletext">Puzzle</div>
+    </div>
+    <div class="win-content">
+      <div id="puzzle-grid"></div>
+      <div class="puzzle-controls">
+        <div class="paint-tool" style="display:inline-block;" onclick="initPuzzle()">Shuffle</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ================= Icon art (1-bit classic-style SVGs) ================= */
+const ICONS = {
+  harddisk: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<rect x="3" y="10" width="26" height="16" rx="1" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<rect x="3" y="10" width="26" height="4" fill="#ccc" stroke="#000" stroke-width="1.4"/>' +
+    '<circle cx="24" cy="20" r="2" fill="#fff" stroke="#000" stroke-width="1.2"/>' +
+    '<line x1="7" y1="20" x2="18" y2="20" stroke="#000" stroke-width="1"/>' +
+    '</svg>',
+  trash_empty: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<path d="M9 11h14l-1.5 16h-11z" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<rect x="7" y="8" width="18" height="3" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<rect x="13" y="5" width="6" height="3" fill="#fff" stroke="#000" stroke-width="1.2"/>' +
+    '<line x1="13" y1="13" x2="14" y2="24" stroke="#000" stroke-width="1"/>' +
+    '<line x1="16" y1="13" x2="16" y2="24" stroke="#000" stroke-width="1"/>' +
+    '<line x1="19" y1="13" x2="18" y2="24" stroke="#000" stroke-width="1"/>' +
+    '</svg>',
+  trash_full: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<path d="M9 11h14l-1.5 16h-11z" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<rect x="7" y="8" width="18" height="3" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<rect x="13" y="5" width="6" height="3" fill="#fff" stroke="#000" stroke-width="1.2"/>' +
+    '<path d="M11 11 L9 3 M16 11 L16 2 M21 11 L23 3" stroke="#000" stroke-width="1.3" fill="none"/>' +
+    '</svg>',
+  pv: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<rect x="4" y="6" width="24" height="20" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<circle cx="11" cy="13" r="2.4" fill="#fff" stroke="#000" stroke-width="1.2"/>' +
+    '<path d="M6 24 L13 15 L18 20 L22 14 L26 24 Z" fill="#ccc" stroke="#000" stroke-width="1.2"/>' +
+    '</svg>',
+  calc: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<rect x="7" y="3" width="18" height="26" rx="1" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<rect x="9.5" y="6" width="13" height="5" fill="#eee" stroke="#000" stroke-width="1"/>' +
+    '<rect x="9.5" y="14" width="3" height="3" fill="#000"/>' +
+    '<rect x="14.5" y="14" width="3" height="3" fill="#000"/>' +
+    '<rect x="19.5" y="14" width="3" height="3" fill="#000"/>' +
+    '<rect x="9.5" y="19" width="3" height="3" fill="#000"/>' +
+    '<rect x="14.5" y="19" width="3" height="3" fill="#000"/>' +
+    '<rect x="19.5" y="19" width="3" height="3" fill="#000"/>' +
+    '<rect x="9.5" y="24" width="13" height="3" fill="#000"/>' +
+    '</svg>',
+  paint: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<rect x="4" y="4" width="24" height="20" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<path d="M22 6 L27 11 L14 24 L9 24 L9 19 Z" fill="#fff" stroke="#000" stroke-width="1.3"/>' +
+    '<line x1="19" y1="9" x2="24" y2="14" stroke="#000" stroke-width="1"/>' +
+    '</svg>',
+  write: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<path d="M8 3h12l4 4v22h-16z" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<path d="M20 3v4h4" fill="none" stroke="#000" stroke-width="1.2"/>' +
+    '<line x1="11" y1="14" x2="21" y2="14" stroke="#000" stroke-width="1"/>' +
+    '<line x1="11" y1="18" x2="21" y2="18" stroke="#000" stroke-width="1"/>' +
+    '<line x1="11" y1="22" x2="17" y2="22" stroke="#000" stroke-width="1"/>' +
+    '</svg>',
+  excel: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<rect x="4" y="5" width="24" height="22" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<line x1="4" y1="12" x2="28" y2="12" stroke="#000" stroke-width="1"/>' +
+    '<line x1="4" y1="19" x2="28" y2="19" stroke="#000" stroke-width="1"/>' +
+    '<line x1="12" y1="5" x2="12" y2="27" stroke="#000" stroke-width="1"/>' +
+    '<line x1="20" y1="5" x2="20" y2="27" stroke="#000" stroke-width="1"/>' +
+    '</svg>',
+  puzzle: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<rect x="4" y="4" width="24" height="24" fill="#fff" stroke="#000" stroke-width="1.4"/>' +
+    '<line x1="16" y1="4" x2="16" y2="28" stroke="#000" stroke-width="1"/>' +
+    '<line x1="4" y1="16" x2="28" y2="16" stroke="#000" stroke-width="1"/>' +
+    '<text x="9" y="13" font-size="7" font-weight="bold">1</text>' +
+    '<text x="21" y="13" font-size="7" font-weight="bold">2</text>' +
+    '<text x="9" y="25" font-size="7" font-weight="bold">3</text>' +
+    '</svg>',
+  apple: '<svg viewBox="0 0 32 32" width="34" height="34">' +
+    '<defs><clipPath id="a2"><path d="M17 5c-0.5-2.4-2.8-3.6-4.8-2.4c1.6-0.4 3 0.4 3 2c0 0.3-0.05 0.5-0.1 0.7c-4.6 0.4-8.1 4.7-8.1 10c0 6.4 4.2 13.7 7.3 13.7c1.6 0 2-0.9 3.6-0.9s2 0.9 3.6 0.9c3.1 0 7.3-7.3 7.3-13.4c0-3.6-1.6-6.5-4-8c0.7-1 0.9-2.6-0.2-3.8c-1-1.1-2.7-0.7-3.1 0.1z"/></clipPath></defs>' +
+    '<g clip-path="url(#a2)">' +
+    '<rect y="2" width="32" height="5.5" fill="#61bb46"/>' +
+    '<rect y="7.5" width="32" height="5.5" fill="#fdb827"/>' +
+    '<rect y="13" width="32" height="5.5" fill="#f5821f"/>' +
+    '<rect y="18.5" width="32" height="5.5" fill="#e03a3e"/>' +
+    '<rect y="24" width="32" height="5.5" fill="#963d97"/>' +
+    '<rect y="29.5" width="32" height="5.5" fill="#009ddc"/>' +
+    '</g></svg>'
+};
+document.getElementById('icon-harddisk').innerHTML = ICONS.harddisk;
+document.getElementById('icon-pv').innerHTML = ICONS.pv;
+document.getElementById('icon-calc').innerHTML = ICONS.calc;
+document.getElementById('icon-paint').innerHTML = ICONS.paint;
+document.getElementById('icon-write').innerHTML = ICONS.write;
+document.getElementById('icon-excel').innerHTML = ICONS.excel;
+document.getElementById('icon-puzzle').innerHTML = ICONS.puzzle;
+document.getElementById('icon-trash').innerHTML = ICONS.trash_empty;
+document.querySelectorAll('[data-icon]').forEach(function(el){
+  el.innerHTML = ICONS[el.getAttribute('data-icon')];
+});
+
+/* ================= Boot sequence ================= */
+function playChime(){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctx();
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C E G C - original synthesized arpeggio
+    notes.forEach(function(f, i){
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      const start = ctx.currentTime + i*0.09;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.18, start+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start+0.9);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(start); osc.stop(start+1);
+    });
+  } catch(e){ /* audio unavailable, silently continue */ }
+}
+const bootEl = document.getElementById('boot');
+bootEl.addEventListener('click', function(){
+  playChime();
+  setTimeout(function(){ bootEl.classList.add('hidden'); }, 450);
+});
+
+/* ================= Shutdown / restart easter egg ================= */
+function shutDown(){
+  document.getElementById('shutdown-text').textContent = 'It is now safe to turn off your computer.';
+  document.getElementById('shutdown').classList.add('show');
+}
+function restartMachine(){
+  document.getElementById('shutdown-text').textContent = 'Restarting...';
+  document.getElementById('shutdown').classList.add('show');
+  setTimeout(function(){ location.reload(); }, 1200);
+}
+document.getElementById('shutdown').addEventListener('click', function(){ location.reload(); });
+
+/* ---------------- Clock ---------------- */
+function updateClock(){
+  const d = new Date();
+  let h = d.getHours(); const m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  document.getElementById('clock').textContent =
+    h + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+}
+updateClock(); setInterval(updateClock, 1000*10);
+
+/* ---------------- Menus ---------------- */
+function toggleMenu(e, id){
+  e.stopPropagation();
+  const el = document.getElementById(id);
+  const wasOpen = el.classList.contains('open');
+  document.querySelectorAll('.menu-item').forEach(function(m){ m.classList.remove('open'); });
+  if(!wasOpen) el.classList.add('open');
+}
+document.addEventListener('click', function(){
+  document.querySelectorAll('.menu-item').forEach(function(m){ m.classList.remove('open'); });
+});
+
+let trashItems = [];
+function emptyTrash(){
+  trashItems = [];
+  document.getElementById('icon-trash').innerHTML = ICONS.trash_empty;
+  alert('There are no items in the Trash.');
+}
+function openTrashInfo(){
+  alert(trashItems.length ? trashItems.length + ' item(s) in the Trash.' : 'The Trash is empty.');
+}
+
+/* ---------------- Window Management ---------------- */
+let zTop = 100;
+function bringToFront(id){
+  zTop++;
+  document.getElementById(id).style.zIndex = zTop;
+  window._activeWin = id;
+}
+function openWindow(id){
+  const w = document.getElementById(id);
+  w.classList.add('active-window');
+  bringToFront(id);
+}
+function closeWindow(id){
+  document.getElementById(id).classList.remove('active-window');
+}
+function closeActiveWindow(){
+  if(window._activeWin) closeWindow(window._activeWin);
+}
+function toggleShade(e, id){
+  e.stopPropagation();
+  document.getElementById(id).classList.toggle('shaded');
+}
+const zoomState = {};
+function toggleZoom(e, id){
+  e.stopPropagation();
+  const w = document.getElementById(id);
+  if(!zoomState[id]){
+    zoomState[id] = { top:w.style.top, left:w.style.left, width:w.style.width, height:w.style.height };
+    w.style.top = '24px'; w.style.left = '10px';
+    w.style.width = 'calc(100% - 20px)'; w.style.height = 'calc(100% - 40px)';
+  } else {
+    Object.assign(w.style, zoomState[id]);
+    delete zoomState[id];
+  }
+}
+
+/* Draggable windows */
+function startDrag(e, id){
+  if(e.target.classList.contains('closebox') || e.target.classList.contains('zoombox')) return;
+  bringToFront(id);
+  const w = document.getElementById(id);
+  const startX = e.clientX, startY = e.clientY;
+  const rect = w.getBoundingClientRect();
+  const parentRect = w.parentElement.getBoundingClientRect();
+  const origLeft = rect.left - parentRect.left;
+  const origTop = rect.top - parentRect.top;
+
+  function onMove(ev){
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+    w.style.left = (origLeft + dx) + 'px';
+    w.style.top = Math.max(20, origTop + dy) + 'px';
+    w.style.bottom = 'auto';
+  }
+  function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function startResize(e, id){
+  e.stopPropagation();
+  bringToFront(id);
+  const w = document.getElementById(id);
+  const startX = e.clientX, startY = e.clientY;
+  const rect = w.getBoundingClientRect();
+  const startW = rect.width, startH = rect.height;
+  function onMove(ev){
+    const dw = ev.clientX - startX;
+    const dh = ev.clientY - startY;
+    w.style.width = Math.max(180, startW + dw) + 'px';
+    w.style.height = Math.max(90, startH + dh) + 'px';
+  }
+  function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+document.querySelectorAll('.window').forEach(function(w){
+  w.addEventListener('mousedown', function(){ bringToFront(w.id); });
+});
+
+/* ---------------- Desktop icon dragging + selection ---------------- */
+function startIconDrag(e, el){
+  document.querySelectorAll('.icon').forEach(function(i){ i.classList.remove('selected'); });
+  el.classList.add('selected');
+  const startX = e.clientX, startY = e.clientY;
+  const rect = el.getBoundingClientRect();
+  const parentRect = el.parentElement.getBoundingClientRect();
+  const origLeft = rect.left - parentRect.left;
+  const origTop = rect.top - parentRect.top;
+  let moved = false;
+
+  function onMove(ev){
+    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    if(Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    if(moved){
+      el.classList.add('dragging');
+      el.style.left = (origLeft + dx) + 'px';
+      el.style.top = (origTop + dy) + 'px';
+      el.style.bottom = 'auto';
+    }
+  }
+  function onUp(ev){
+    el.classList.remove('dragging');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if(moved){
+      const trash = document.getElementById('trash-icon').getBoundingClientRect();
+      if(ev.clientX > trash.left && ev.clientX < trash.right && ev.clientY > trash.top && ev.clientY < trash.bottom){
+        el.style.left = origLeft + 'px';
+        el.style.top = origTop + 'px';
+      }
+    }
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+  e.stopPropagation();
+}
+document.getElementById('desktop').addEventListener('mousedown', function(e){
+  if(e.target.id === 'desktop'){
+    document.querySelectorAll('.icon').forEach(function(i){ i.classList.remove('selected'); });
+  }
+});
+
+/* ---------------- Picture Viewer ---------------- */
+let picCount = 0;
+const pvGrid = document.getElementById('pv-grid');
+const pvStatus = document.getElementById('pv-status');
+const pvDropzone = document.getElementById('pv-dropzone');
+const pvFileInput = document.getElementById('pv-file-input');
+
+pvDropzone.addEventListener('click', function(){ pvFileInput.click(); });
+pvFileInput.addEventListener('change', function(e){ handleFiles(e.target.files); });
+
+function handleFiles(fileList){
+  Array.prototype.slice.call(fileList).forEach(function(file){
+    if(!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = function(ev){ addPicture(file.name, ev.target.result); };
+    reader.readAsDataURL(file);
+  });
+}
+
+function addPicture(name, dataUrl){
+  picCount++;
+  const thumbId = 'pv-thumb-' + picCount;
+
+  const thumb = document.createElement('div');
+  thumb.className = 'pv-thumb';
+  thumb.id = thumbId;
+  thumb.draggable = true;
+
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.textContent = name;
+
+  thumb.appendChild(img);
+  thumb.appendChild(label);
+  thumb.addEventListener('dblclick', function(){ openImageWindow(name, dataUrl); });
+  thumb.addEventListener('dragstart', function(e){
+    e.dataTransfer.setData('text/plain', thumbId);
+  });
+  pvGrid.appendChild(thumb);
+  refreshPvStatus();
+  openWindow('win-pv');
+}
+function refreshPvStatus(){
+  const n = pvGrid.children.length;
+  pvStatus.textContent = n + (n===1 ? ' picture' : ' pictures');
+}
+
+let imgWinCount = 0;
+function openImageWindow(name, dataUrl){
+  imgWinCount++;
+  const id = 'win-img-' + imgWinCount;
+
+  const win = document.createElement('div');
+  win.className = 'window active-window';
+  win.id = id;
+  win.style.top = (90 + imgWinCount*18) + 'px';
+  win.style.left = (200 + imgWinCount*18) + 'px';
+  win.style.width = '340px';
+
+  const titlebar = document.createElement('div');
+  titlebar.className = 'titlebar';
+  titlebar.addEventListener('mousedown', function(e){ startDrag(e, id); });
+
+  const closebox = document.createElement('div');
+  closebox.className = 'closebox';
+  closebox.addEventListener('click', function(){ win.remove(); });
+
+  const titletext = document.createElement('div');
+  titletext.className = 'titletext';
+  titletext.textContent = name;
+
+  titlebar.appendChild(closebox);
+  titlebar.appendChild(titletext);
+
+  const content = document.createElement('div');
+  content.className = 'win-content imgview-content';
+  const fullImg = document.createElement('img');
+  fullImg.src = dataUrl;
+  content.appendChild(fullImg);
+
+  win.appendChild(titlebar);
+  win.appendChild(content);
+  document.getElementById('desktop').appendChild(win);
+  win.addEventListener('mousedown', function(){ bringToFront(id); });
+  bringToFront(id);
+}
+
+/* Trash drop target for picture thumbnails */
+const trashIcon = document.getElementById('trash-icon');
+trashIcon.addEventListener('dragover', function(e){ e.preventDefault(); });
+trashIcon.addEventListener('drop', function(e){
+  e.preventDefault();
+  const thumbId = e.dataTransfer.getData('text/plain');
+  const thumb = document.getElementById(thumbId);
+  if(thumb){
+    thumb.remove();
+    trashItems.push(thumbId);
+    document.getElementById('icon-trash').innerHTML = ICONS.trash_full;
+    refreshPvStatus();
+  }
+});
+
+/* Desktop-wide drag & drop -> Picture Viewer */
+const desktop = document.getElementById('desktop');
+['dragover','dragenter'].forEach(function(evt){
+  desktop.addEventListener(evt, function(e){
+    e.preventDefault();
+    desktop.classList.add('drop-hover');
+  });
+});
+['dragleave','drop'].forEach(function(evt){
+  desktop.addEventListener(evt, function(e){
+    if(evt==='drop') e.preventDefault();
+    desktop.classList.remove('drop-hover');
+  });
+});
+desktop.addEventListener('drop', function(e){
+  e.preventDefault();
+  if(e.dataTransfer.getData('text/plain')) return; // internal thumb->trash drag, ignore here
+  const files = e.dataTransfer.files;
+  if(files && files.length){
+    handleFiles(files);
+  }
+});
+
+/* ---------------- Calculator ---------------- */
+const calcDisplay = document.getElementById('calc-display');
+const calcGrid = document.getElementById('calc-grid');
+const calcKeys = ['C','\u00b1','%','\u00f7','7','8','9','\u00d7','4','5','6','\u2212','1','2','3','+','0','.','='];
+let calcState = { current: '0', prev: null, op: null, resetNext: false };
+
+calcKeys.forEach(function(k){
+  const btn = document.createElement('div');
+  btn.className = 'calc-btn';
+  btn.textContent = k;
+  if(k === '0') btn.style.gridColumn = 'span 2';
+  btn.onclick = function(){ calcPress(k); };
+  calcGrid.appendChild(btn);
+});
+
+function calcPress(k){
+  if(!isNaN(k) || k==='.'){
+    if(calcState.resetNext || calcState.current==='0'){
+      calcState.current = (k==='.') ? '0.' : k;
+      calcState.resetNext = false;
+    } else {
+      if(k==='.' && calcState.current.includes('.')) return;
+      calcState.current += k;
+    }
+  } else if(k === 'C'){
+    calcState = { current:'0', prev:null, op:null, resetNext:false };
+  } else if(k === '\u00b1'){
+    calcState.current = String(parseFloat(calcState.current) * -1);
+  } else if(k === '%'){
+    calcState.current = String(parseFloat(calcState.current) / 100);
+  } else if(['\u00f7','\u00d7','\u2212','+'].includes(k)){
+    calcState.prev = parseFloat(calcState.current);
+    calcState.op = k;
+    calcState.resetNext = true;
+  } else if(k === '='){
+    if(calcState.op !== null){
+      const a = calcState.prev, b = parseFloat(calcState.current);
+      let r = 0;
+      switch(calcState.op){
+        case '\u00f7': r = a / b; break;
+        case '\u00d7': r = a * b; break;
+        case '\u2212': r = a - b; break;
+        case '+': r = a + b; break;
+      }
+      calcState.current = String(r);
+      calcState.op = null;
+      calcState.resetNext = true;
+    }
+  }
+  calcDisplay.textContent = calcState.current;
+}
+
+/* ---------------- MacPaint ---------------- */
+const canvas = document.getElementById('paintCanvas');
+const ctx = canvas.getContext('2d');
+ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+let painting = false;
+let paintTool = 'pencil';
+let paintStart = null;
+let paintSnapshot = null;
+
+function setPaintTool(tool, el){
+  paintTool = tool;
+  document.querySelectorAll('.paint-tool[data-tool]').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active');
+}
+function clearPaint(){
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+function getPos(e){
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+function colorsMatch(a,b){ return a[0]===b[0] && a[1]===b[1] && a[2]===b[2] && a[3]===b[3]; }
+function floodFill(startX, startY){
+  const w = canvas.width, h = canvas.height;
+  const img = ctx.getImageData(0,0,w,h);
+  const data = img.data;
+  const sx = Math.max(0, Math.min(w-1, Math.floor(startX)));
+  const sy = Math.max(0, Math.min(h-1, Math.floor(startY)));
+  const idx = function(x,y){ return (y*w+x)*4; };
+  const si = idx(sx,sy);
+  const startColor = [data[si],data[si+1],data[si+2],data[si+3]];
+  const fill = [0,0,0,255];
+  if(colorsMatch(startColor, fill)) return;
+  const stack = [[sx,sy]];
+  let guard = 0;
+  while(stack.length && guard < 200000){
+    guard++;
+    const p = stack.pop();
+    const x = p[0], y = p[1];
+    if(x<0||y<0||x>=w||y>=h) continue;
+    const i = idx(x,y);
+    if(!colorsMatch([data[i],data[i+1],data[i+2],data[i+3]], startColor)) continue;
+    data[i]=fill[0]; data[i+1]=fill[1]; data[i+2]=fill[2]; data[i+3]=fill[3];
+    stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+  }
+  ctx.putImageData(img,0,0);
+}
+canvas.addEventListener('mousedown', function(e){
+  const p = getPos(e);
+  if(paintTool === 'bucket'){
+    floodFill(p.x, p.y);
+    return;
+  }
+  painting = true;
+  paintStart = p;
+  paintSnapshot = ctx.getImageData(0,0,canvas.width,canvas.height);
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+});
+canvas.addEventListener('mousemove', function(e){
+  if(!painting) return;
+  const p = getPos(e);
+  if(paintTool==='pencil' || paintTool==='brush' || paintTool==='eraser'){
+    ctx.lineWidth = paintTool==='brush' ? 6 : (paintTool==='eraser' ? 16 : 2);
+    ctx.strokeStyle = paintTool==='eraser' ? '#fff' : '#000';
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  } else if(paintTool==='line' || paintTool==='rect' || paintTool==='oval'){
+    ctx.putImageData(paintSnapshot,0,0);
+    ctx.lineWidth = 2; ctx.strokeStyle = '#000';
+    ctx.beginPath();
+    if(paintTool==='line'){
+      ctx.moveTo(paintStart.x, paintStart.y);
+      ctx.lineTo(p.x, p.y);
+    } else if(paintTool==='rect'){
+      ctx.rect(Math.min(paintStart.x,p.x), Math.min(paintStart.y,p.y), Math.abs(p.x-paintStart.x), Math.abs(p.y-paintStart.y));
+    } else if(paintTool==='oval'){
+      const rx = Math.abs(p.x-paintStart.x)/2, ry = Math.abs(p.y-paintStart.y)/2;
+      ctx.ellipse((paintStart.x+p.x)/2, (paintStart.y+p.y)/2, Math.max(rx,0.01), Math.max(ry,0.01), 0, 0, 2*Math.PI);
+    }
+    ctx.stroke();
+  }
+});
+window.addEventListener('mouseup', function(){ painting = false; });
+
+/* ---------------- MacWrite ---------------- */
+function mwCmd(cmd){
+  document.execCommand(cmd, false, null);
+}
+
+/* ---------------- Excel ---------------- */
+const sheetData = {};
+function colLetter(i){ return String.fromCharCode(64+i); }
+function colIndex(letters){ return letters.toUpperCase().charCodeAt(0) - 64; }
+function splitRef(ref){
+  const m = ref.match(/^([A-Za-z]+)(\d+)$/);
+  return [colIndex(m[1]), parseInt(m[2],10)];
+}
+function cellsInRange(a,b){
+  const p1 = splitRef(a), p2 = splitRef(b);
+  const c0 = Math.min(p1[0],p2[0]), c1 = Math.max(p1[0],p2[0]);
+  const r0 = Math.min(p1[1],p2[1]), r1 = Math.max(p1[1],p2[1]);
+  const list = [];
+  for(let c=c0;c<=c1;c++){
+    for(let r=r0;r<=r1;r++){
+      list.push(colLetter(c)+r);
+    }
+  }
+  return list;
+}
+function getValue(id, visiting){
+  visiting = visiting || new Set();
+  if(visiting.has(id)) return 0;
+  const raw = (sheetData[id] || '').trim();
+  if(raw.charAt(0) === '='){
+    visiting.add(id);
+    const v = evalFormula(raw.slice(1).toUpperCase(), visiting);
+    visiting.delete(id);
+    return (typeof v === 'number' && !isNaN(v)) ? v : 0;
+  }
+  const f = parseFloat(raw);
+  return isNaN(f) ? 0 : f;
+}
+function evalFormula(expr, visiting){
+  expr = expr.replace(/SUM\(([A-Z]+\d+):([A-Z]+\d+)\)/g, function(m,a,b){
+    const ids = cellsInRange(a,b);
+    let s = 0;
+    ids.forEach(function(id){ s += getValue(id, visiting); });
+    return s;
+  });
+  expr = expr.replace(/[A-Z]+\d+/g, function(ref){
+    return getValue(ref, visiting);
+  });
+  if(!/^[0-9+\-*/(). ]*$/.test(expr)) return 0;
+  try {
+    return Function('"use strict"; return (' + expr + ')')();
+  } catch(e){ return 0; }
+}
+function getDisplay(id){
+  const raw = sheetData[id] || '';
+  if(raw.trim().charAt(0) === '='){
+    const v = getValue(id);
+    return String(Math.round(v*1000)/1000);
+  }
+  return raw;
+}
+function recalcExcel(){
+  document.querySelectorAll('.xl-cell').forEach(function(cell){
+    if(document.activeElement === cell) return;
+    const id = cell.getAttribute('data-id');
+    cell.textContent = getDisplay(id);
+  });
+}
+function initExcel(){
+  const rows = 15, cols = 8;
+  const table = document.getElementById('xl-table');
+  let html = '<tr><th class="xl-corner"></th>';
+  for(let c=1;c<=cols;c++) html += '<th>'+colLetter(c)+'</th>';
+  html += '</tr>';
+  for(let r=1;r<=rows;r++){
+    html += '<tr><th>'+r+'</th>';
+    for(let c=1;c<=cols;c++){
+      const id = colLetter(c)+r;
+      html += '<td><div class="xl-cell" contenteditable="true" data-id="'+id+'"></div></td>';
+    }
+    html += '</tr>';
+  }
+  table.innerHTML = html;
+  table.querySelectorAll('.xl-cell').forEach(function(cell){
+    cell.addEventListener('focus', function(){
+      const id = cell.getAttribute('data-id');
+      cell.textContent = sheetData[id] || '';
+    });
+    cell.addEventListener('blur', function(){
+      const id = cell.getAttribute('data-id');
+      sheetData[id] = cell.textContent;
+      recalcExcel();
+    });
+    cell.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); cell.blur(); }
+    });
+  });
+}
+initExcel();
+
+/* ---------------- Puzzle ---------------- */
+let puzzleState = [];
+function getNeighbors(idx){
+  const row = Math.floor(idx/4), col = idx%4;
+  const list = [];
+  if(row>0) list.push(idx-4);
+  if(row<3) list.push(idx+4);
+  if(col>0) list.push(idx-1);
+  if(col<3) list.push(idx+1);
+  return list;
+}
+function shufflePuzzle(){
+  let blankIdx = puzzleState.indexOf(0);
+  for(let i=0;i<300;i++){
+    const neighbors = getNeighbors(blankIdx);
+    const swapIdx = neighbors[Math.floor(Math.random()*neighbors.length)];
+    const tmp = puzzleState[blankIdx];
+    puzzleState[blankIdx] = puzzleState[swapIdx];
+    puzzleState[swapIdx] = tmp;
+    blankIdx = swapIdx;
+  }
+}
+function renderPuzzle(){
+  const grid = document.getElementById('puzzle-grid');
+  grid.innerHTML = '';
+  puzzleState.forEach(function(val, idx){
+    const tile = document.createElement('div');
+    tile.className = 'puzzle-tile' + (val===0 ? ' blank' : '');
+    tile.textContent = val === 0 ? '' : val;
+    tile.addEventListener('click', function(){ tryMove(idx); });
+    grid.appendChild(tile);
+  });
+}
+function tryMove(idx){
+  const blankIdx = puzzleState.indexOf(0);
+  const neighbors = getNeighbors(blankIdx);
+  if(neighbors.includes(idx)){
+    const tmp = puzzleState[blankIdx];
+    puzzleState[blankIdx] = puzzleState[idx];
+    puzzleState[idx] = tmp;
+    renderPuzzle();
+    checkWin();
+  }
+}
+function checkWin(){
+  const solved = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0];
+  const won = puzzleState.every(function(v,i){ return v === solved[i]; });
+  if(won){
+    setTimeout(function(){ alert('You solved the puzzle!'); }, 100);
+  }
+}
+function initPuzzle(){
+  puzzleState = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0];
+  shufflePuzzle();
+  renderPuzzle();
+}
+initPuzzle();
+
+/* Open Finder by default */
+openWindow('win-finder');
+</script>
+
+</body>
+</html>

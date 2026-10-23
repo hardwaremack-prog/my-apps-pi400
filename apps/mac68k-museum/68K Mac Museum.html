@@ -1,0 +1,1053 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="68k-mac-museum-icon.png">
+</head>
+<body>
+<title>68K Mac Museum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&family=Chivo:wght@600;700&family=Instrument+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: System 7 windows hung as exhibits, one gallery per CPU, a to-scale timeline as the floor plan */
+:root{
+  --bg:#E4E4E0; --panel:#F8F8F6; --ink:#141518; --muted:#55575E; --line:#141518; --plinth:#D3D3CE; --soft:#C9C9C3;
+  --c000:#3B9A36; --c020:#C98E00; --c030:#D9650C; --c040:#2677C9; --warn:#C8322B;
+  --case-beige:#E2D7BD; --case-beigeD:#BFB291; --case-plat:#DEDCD5; --case-platD:#B5B2A8;
+  --case-dark:#54565B; --case-darkD:#36383C; --case-black:#2A2A2D; --case-blackD:#151517; --case-gray:#6A6C71; --case-grayD:#45474B;
+  --f-disp:"Chivo","Geneva",system-ui,sans-serif;
+  --f-pixel:"Pixelify Sans","Chicago",system-ui,sans-serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#131417; --panel:#1E1F23; --ink:#E8E8E4; --muted:#A2A4AA; --line:#C9CAC5; --plinth:#2B2C31; --soft:#3A3B41;
+  --c000:#5DBB4F; --c020:#F0B428; --c030:#F28A3A; --c040:#55A0EC; --warn:#F06A5F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131417; --panel:#1E1F23; --ink:#E8E8E4; --muted:#A2A4AA; --line:#C9CAC5; --plinth:#2B2C31; --soft:#3A3B41;
+  --c000:#5DBB4F; --c020:#F0B428; --c030:#F28A3A; --c040:#55A0EC; --warn:#F06A5F; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:1120px;margin:0 auto}
+a{color:var(--c040)}
+:focus-visible{outline:2px solid var(--c040);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-disp);font-weight:700;text-wrap:balance;margin:0;line-height:1.1}
+
+/* menu bar */
+.menubar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;margin-inline:-16px;padding:6px 16px;background:var(--panel);border-bottom:1.5px solid var(--line);display:flex;gap:18px;align-items:center;font-family:var(--f-disp);font-size:15px;overflow-x:auto;white-space:nowrap}
+.menubar .stripes{display:flex;height:14px;width:14px;flex:none;flex-direction:column;border-radius:3px;overflow:hidden}
+.menubar .stripes i{flex:1}
+.menubar a{color:var(--ink);text-decoration:none}
+.menubar a:hover{text-decoration:underline}
+
+.rainbow{display:flex;height:6px}
+.rainbow i{flex:1}
+.s1{background:#61BB46}.s2{background:#FDB827}.s3{background:#F5821F}.s4{background:#E03A3E}.s5{background:#963D97}.s6{background:#009DDC}
+
+/* hero */
+header.hero{padding-block:48px 28px;display:grid;gap:18px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.hero h1{font-family:var(--f-pixel);font-size:clamp(40px,8vw,84px);letter-spacing:-.01em}
+.hero p{max-width:62ch;margin:0;font-size:18px;color:var(--muted)}
+.hero p strong{color:var(--ink);font-weight:600}
+
+/* window */
+.win{background:var(--panel);border:1.5px solid var(--line);box-shadow:4px 4px 0 var(--line);min-width:0}
+.tbar{display:flex;align-items:center;gap:10px;height:24px;padding:0 8px;border-bottom:1.5px solid var(--line);
+  background:repeating-linear-gradient(to bottom,transparent 0 5px,var(--line) 5px 6px,transparent 6px 8px) 0 4px/100% 15px no-repeat}
+.tbar .box{width:13px;height:13px;border:1.5px solid var(--line);background:var(--panel);flex:none}
+.tbar .t{margin:0 auto;background:var(--panel);padding:0 10px;font-family:var(--f-disp);font-size:15px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80%}
+.tbar .sp{width:13px;flex:none}
+
+/* timeline */
+.floor .inner{padding:14px 16px 10px;overflow-x:auto}
+.floor svg{display:block;min-width:720px;width:100%;height:auto}
+.floor text{font-family:var(--f-mono);font-size:11px;fill:var(--muted)}
+.floor .lane-label{font-family:var(--f-disp);font-size:13px;fill:var(--ink)}
+.floor circle{cursor:pointer;stroke:var(--panel);stroke-width:1.5}
+.floor circle:hover{stroke:var(--ink)}
+.floor .cap{font-size:12px;color:var(--muted);padding:0 16px 12px}
+
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;padding:14px 16px}
+.group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.group > span{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.chip{font:14px var(--f-disp);color:var(--ink);background:var(--panel);border:1.5px solid var(--line);border-radius:7px;padding:3px 11px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+#q{font:15px var(--f-body);color:var(--ink);background:var(--panel);border:1.5px solid var(--line);border-radius:0;padding:5px 10px;width:220px;max-width:100%}
+.count{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-left:auto}
+
+/* galleries */
+.gallery{margin-top:56px;display:grid;gap:28px}
+.ghead{display:grid;gap:6px;border-top:1.5px solid var(--line);padding-top:14px}
+.ghead h2{font-size:clamp(28px,4.5vw,40px);display:flex;align-items:center;gap:14px}
+.ghead h2 .sw{width:22px;height:22px;border:1.5px solid var(--line)}
+.ghead p{margin:0;max-width:65ch;color:var(--muted)}
+
+.exhibit .body{display:grid;grid-template-columns:300px minmax(0,1fr);gap:0}
+.plate{background:var(--plinth);border-right:1.5px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:18px 14px 12px;gap:10px}
+.plate svg{width:100%;max-width:260px;height:auto}
+.acc{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;text-align:center}
+.placard{padding:20px 24px 22px;display:grid;gap:16px;min-width:0}
+.ptop{display:grid;gap:6px}
+.ptop h3{font-size:28px}
+.aka{font-size:14px;color:var(--muted)}
+.cpuTag{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-mono);font-size:12px;border:1.5px solid var(--line);padding:1px 8px;border-radius:999px;width:max-content}
+.cpuTag i{width:8px;height:8px;border-radius:50%}
+.blurb{margin:0;max-width:65ch}
+dl.specs{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--soft);border:1px solid var(--soft)}
+dl.specs div{background:var(--panel);padding:7px 10px;min-width:0}
+dt{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+dd{margin:0;font-size:14px;font-variant-numeric:tabular-nums}
+.repair h4{margin:0 0 8px;font-family:var(--f-disp);font-weight:600;font-size:17px;display:flex;align-items:center;gap:8px}
+.repair h4::before{content:"";width:12px;height:12px;background:var(--warn);border:1.5px solid var(--line)}
+.repair ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.repair li{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;padding-left:14px;border-left:3px solid var(--soft)}
+.repair b{font-weight:600}
+.repair span{color:var(--muted);font-size:15px;max-width:72ch}
+
+/* lab */
+.lab{margin-top:72px;display:grid;gap:24px}
+.labgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+.labgrid .win .in{padding:16px 18px;display:grid;gap:8px}
+.labgrid h3{font-size:19px}
+.labgrid p{margin:0;font-size:15px;color:var(--muted)}
+.codes{overflow-x:auto}
+.codes table{border-collapse:collapse;width:100%;min-width:480px;font-size:14px}
+.codes th,.codes td{text-align:left;padding:7px 12px;border-bottom:1px solid var(--soft);vertical-align:top}
+.codes th{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.codes td:first-child{font-family:var(--f-mono);white-space:nowrap}
+footer{margin-top:64px;color:var(--muted);font-size:14px;display:grid;gap:8px;max-width:70ch}
+.empty{padding:28px;text-align:center;font-family:var(--f-disp);font-size:18px}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px 20px}
+.fact h5{margin:0 0 4px;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.fact p,.fact ul{margin:0;font-size:14.5px}
+.fact ul{padding-left:18px}
+.fact .big{font-family:var(--f-disp);font-weight:700;font-size:20px;display:block;line-height:1.2}
+.hd-yes{background:color-mix(in srgb,var(--c000) 22%,transparent)}.hd-mount,.hd-maybe{background:color-mix(in srgb,var(--c020) 22%,transparent)}.hd-no{background:color-mix(in srgb,var(--warn) 22%,transparent)}
+.rar{display:inline-block;font-family:var(--f-mono);font-size:11px;border:1.5px solid var(--line);padding:0 6px;margin-right:6px}
+.coll{width:100%;display:grid;gap:6px;margin-top:auto;padding-top:14px}
+.coll label{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.coll select,.coll textarea,.sel{font:14px var(--f-body);color:var(--ink);background:var(--panel);border:1.5px solid var(--line);padding:4px 6px;width:100%}
+.coll textarea{min-height:44px;resize:vertical}
+.exhibit[data-status="working"] .plate,.exhibit[data-status="restored"] .plate{box-shadow:inset 0 0 0 3px var(--c000)}
+.exhibit[data-status="repair"] .plate{box-shadow:inset 0 0 0 3px var(--warn)}
+.exhibit[data-status="wish"] .plate{box-shadow:inset 0 0 0 3px var(--c040)}
+.wing{margin-top:72px;display:grid;gap:20px}
+.pad{padding:16px 18px;display:grid;gap:12px}
+.fine{font-size:13px;color:var(--muted);margin:0}
+.tablewrap,.chartwrap{overflow-x:auto}
+.chartwrap svg{display:block;width:100%;min-width:560px;height:auto}
+.chartwrap .ax{font:11px var(--f-mono);fill:var(--muted)}
+.chartwrap .lb{font:12.5px var(--f-body);fill:var(--ink)}
+.chartwrap .lb.sm{font-size:11.5px}
+.chartwrap .vl{font:11px var(--f-mono);fill:var(--ink)}
+table.cmp,table.ctab{border-collapse:collapse;width:100%;min-width:620px;font-size:14px}
+.cmp th,.cmp td,.ctab th,.ctab td{text-align:left;vertical-align:top;padding:7px 10px;border-bottom:1px solid var(--soft)}
+.cmp tbody th,.ctab thead th{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;white-space:nowrap}
+.cmp thead th{font-family:var(--f-disp);font-size:16px}
+.cmp tr.diff td{background:color-mix(in srgb,var(--c020) 14%,transparent)}
+#cmpsel{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.tiles{display:flex;flex-wrap:wrap;gap:10px}
+.tiles div{border:1.5px solid var(--line);padding:6px 12px;font-size:13px;color:var(--muted);min-width:96px}
+.tiles span{display:block;font-family:var(--f-disp);font-weight:700;font-size:26px;color:var(--ink);font-variant-numeric:tabular-nums}
+.st{font-family:var(--f-mono);font-size:12px;padding:1px 6px;border:1.5px solid var(--line)}
+.st-working,.st-restored{background:color-mix(in srgb,var(--c000) 22%,transparent)}
+.st-repair{background:color-mix(in srgb,var(--warn) 22%,transparent)}
+.st-wish{background:color-mix(in srgb,var(--c040) 22%,transparent)}
+.collempty{border:1.5px dashed var(--line);padding:18px;font-size:15px}
+.diag{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+#sadin{font:16px var(--f-mono);color:var(--ink);background:var(--panel);border:1.5px solid var(--line);padding:6px 10px;width:100%;letter-spacing:.05em}
+.dx{border-left:4px solid var(--warn);padding:4px 0 4px 12px;display:grid;gap:4px}
+.dx p{margin:0;font-size:15px}
+code{font-family:var(--f-mono);font-size:.92em}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:0}
+
+.accgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px}
+.acc-card{display:flex;flex-direction:column}
+.accplate{border-right:0;border-bottom:1.5px solid var(--line)}
+.accplate svg{max-width:240px}
+.ghost{font:11px var(--f-mono);fill:var(--muted)}
+.lbl{margin:0 0 6px;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.works{display:flex;flex-wrap:wrap;gap:6px}
+.wchip{display:inline-flex;align-items:center;gap:5px;font-size:13px;border:1.5px solid var(--line);border-radius:999px;padding:1px 9px;color:var(--ink);text-decoration:none}
+a.wchip:hover{background:var(--ink);color:var(--panel)}
+.wchip i{width:7px;height:7px;border-radius:50%}
+.parts{border:1.5px solid var(--line);padding:14px 16px;display:grid;gap:8px;background:color-mix(in srgb,var(--c000) 7%,var(--panel))}
+.parts h4{margin:0;font-family:var(--f-disp);font-weight:700;font-size:17px}
+.parts p{margin:0;font-size:15px}
+.ptab{border-collapse:collapse;width:100%;font-size:14px}
+.ptab th,.ptab td{text-align:left;padding:5px 10px;border-bottom:1px solid var(--soft)}
+.ptab th{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.ptab td:last-child{font-family:var(--f-mono)}
+.pwarn{border-left:4px solid var(--warn);padding-left:10px}
+.ocfig{margin:10px 0 0;display:grid;gap:6px;max-width:320px}
+.ocfig img{width:100%;height:auto;border:1.5px solid var(--line);background:#fff}
+.ocfig figcaption{font-size:13px;color:var(--muted)}
+.tips h4{margin:0 0 8px;font-family:var(--f-disp);font-weight:700;font-size:17px;display:flex;align-items:center;gap:8px}
+.tips h4::before{content:"";width:12px;height:12px;background:var(--c020);border:1.5px solid var(--line)}
+.tips ul{margin:0;padding-left:20px;display:grid;gap:6px;font-size:15px}
+@media (max-width:760px){
+  .exhibit .body{grid-template-columns:minmax(0,1fr)}
+  .plate{border-right:0;border-bottom:1.5px solid var(--line)}
+  .placard{padding:16px}
+  .count{margin-left:0}
+}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="dith" width="2" height="2" patternUnits="userSpaceOnUse"><rect width="2" height="2" fill="#E9E9E6"/><rect width="1" height="1" fill="#1A1A1A"/><rect x="1" y="1" width="1" height="1" fill="#1A1A1A"/></pattern>
+    <pattern id="lcd" width="2" height="2" patternUnits="userSpaceOnUse"><rect width="2" height="2" fill="#B4BAA6"/><rect width="1" height="1" fill="#4D5446"/><rect x="1" y="1" width="1" height="1" fill="#4D5446"/></pattern>
+    <pattern id="keysL" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#9B9890"/><rect x=".8" y=".8" width="6.4" height="6.4" rx="1" fill="#EEECE6"/></pattern>
+    <pattern id="keysD" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#1E1F22"/><rect x=".8" y=".8" width="6.4" height="6.4" rx="1" fill="#3E4045"/></pattern>
+    <pattern id="grill" width="4" height="4" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r=".9" fill="#00000055"/></pattern>
+  </defs>
+</svg>
+
+<div class="menubar" role="navigation" aria-label="Sections">
+  <span class="stripes" aria-hidden="true"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i><i class="s5"></i><i class="s6"></i></span>
+  <a href="#g68000">68000</a><a href="#g68020">68020</a><a href="#g68030">68030</a><a href="#g68040">68040</a><a href="#collection">My Collection</a><a href="#compare">Compare</a><a href="#speed">Speed</a><a href="#software">Software</a><a href="#diagnose">Diagnose</a><a href="#accessories">Accessories</a><a href="#lab">Conservation Lab</a>
+</div>
+
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">Permanent collection · January 1984 – August 1995</div>
+  <h1>The 68K Mac Museum</h1>
+  <p>Every Macintosh built on Motorola's 680x0 processors, from the <strong>128K</strong> that started it to the <strong>PowerBook 190</strong> that closed the line. Each exhibit lists the specs, what the machine meant, and what fails on it today and how to fix it. The museum stops at the 68040. The PowerPC wing is somebody else's problem.</p>
+</header>
+
+<section class="win floor" aria-label="Timeline">
+  <div class="tbar"><span class="box"></span><span class="t">Floor Plan: Launch Dates</span><span class="sp"></span></div>
+  <div class="inner"><svg id="tl" viewBox="0 0 1000 200" role="img" aria-label="Timeline of 68K Mac launches by processor"></svg></div>
+  <div class="cap">Each dot is a launch, plotted to the month. Select one to jump to its exhibit.</div>
+</section>
+
+<section class="win" style="margin-top:24px" aria-label="Filters">
+  <div class="tbar"><span class="box"></span><span class="t">Find a Machine</span><span class="sp"></span></div>
+  <div class="controls">
+    <div class="group" id="fcpu"><span>CPU</span></div>
+    <div class="group" id="ffam"><span>Family</span></div>
+    <label class="group"><span>Search</span><input id="q" type="search" placeholder="SE/30, Performa 476…"></label>
+    <div class="count" id="count"></div>
+  </div>
+</section>
+
+<main id="galleries"></main>
+<section class="wing" id="collection">
+  <div class="ghead"><h2><span class="sw" style="background:var(--c000)"></span>My Collection</h2><p>Mark what you own, what needs work, and what you're hunting for using the menu on each exhibit. Your list is private to you.</p></div>
+  <div class="win"><div class="tbar"><span class="box"></span><span class="t">My Shelf</span><span class="sp"></span></div><div class="pad" id="collbody"></div></div>
+</section>
+
+<section class="wing" id="compare">
+  <div class="ghead"><h2><span class="sw" style="background:var(--c020)"></span>Compare</h2><p>Pick up to three machines. Rows where they differ are highlighted.</p></div>
+  <div class="win"><div class="tbar"><span class="box"></span><span class="t">Side by Side</span><span class="sp"></span></div>
+    <div class="pad"><div id="cmpsel"><select class="sel" id="cmp1" aria-label="First machine"></select><select class="sel" id="cmp2" aria-label="Second machine"></select><select class="sel" id="cmp3" aria-label="Third machine"></select></div>
+    <div class="tablewrap" id="cmpout"></div></div></div>
+</section>
+
+<section class="wing" id="speed">
+  <div class="ghead"><h2><span class="sw" style="background:var(--c030)"></span>Speed</h2><p>Measured CPU scores from Speedometer, the standard Mac benchmark of the era. Bigger is faster. Select a bar to open that exhibit.</p></div>
+  <div class="win"><div class="tbar"><span class="box"></span><span class="t">Speedometer 3.06 · CPU</span><span class="sp"></span></div>
+    <div class="pad"><div class="legend"><span><i style="background:var(--c000)"></i>68000</span><span><i style="background:var(--c020)"></i>68020</span><span><i style="background:var(--c030)"></i>68030</span><span><i style="background:var(--c040)"></i>68040</span></div><div class="chartwrap" id="sp3"></div><p class="fine">The 8 MHz Classic scores about 1.0, so each number reads roughly as "times a Classic." The Quadra 650 and Centris 650 share a logic board; this score is the 33 MHz Quadra 650.</p></div></div>
+  <div class="win"><div class="tbar"><span class="box"></span><span class="t">Speedometer 4.02 · CPU</span><span class="sp"></span></div>
+    <div class="pad"><div class="legend"><span><i style="background:var(--c000)"></i>68000</span><span><i style="background:var(--c020)"></i>68020</span><span><i style="background:var(--c030)"></i>68030</span><span><i style="background:var(--c040)"></i>68040</span></div><div class="chartwrap" id="sp4"></div><p class="fine">Speedometer 4 won't run on 68000 Macs and uses a different scale from version 3, so compare within one chart only. Machines without a bar weren't in the published test runs.</p></div></div>
+</section>
+
+<section class="wing" id="software">
+  <div class="ghead"><h2><span class="sw" style="background:var(--c040)"></span>Software</h2><p>Each bar runs from the system the Mac shipped with to the last release Apple supported on it. The best version for each machine is listed on its exhibit.</p></div>
+  <div class="win"><div class="tbar"><span class="box"></span><span class="t">System Support</span><span class="sp"></span></div>
+    <div class="pad"><div class="legend"><span><i style="background:var(--c000)"></i>68000</span><span><i style="background:var(--c020)"></i>68020</span><span><i style="background:var(--c030)"></i>68030</span><span><i style="background:var(--c040)"></i>68040</span></div><div class="chartwrap" id="oschart"></div><p class="fine">System 7 wants at least 2 MB of RAM and a hard disk to be comfortable. Mac OS 8 and 8.1 run only on 68040 Macs. Versions are grouped: 6.0 covers 6.0 through 6.0.7.</p></div></div>
+</section>
+
+<section class="wing" id="diagnose">
+  <div class="ghead"><h2><span class="sw" style="background:var(--warn)"></span>Diagnose</h2><p>Decode a Sad Mac or work out what a startup sound means.</p></div>
+  <div class="diag">
+    <div class="win"><div class="tbar"><span class="box"></span><span class="t">Sad Mac Decoder</span><span class="sp"></span></div>
+      <div class="pad"><label for="sadin" class="fine">Code under the Sad Mac icon</label><input id="sadin" autocomplete="off" spellcheck="false" placeholder="0000000F 00000003"><div id="sadout"></div></div></div>
+    <div class="win"><div class="tbar"><span class="box"></span><span class="t">What Did It Do?</span><span class="sp"></span></div>
+      <div class="pad"><label for="sndsel" class="fine">At power-on, the Mac…</label><select id="sndsel" class="sel"></select><div id="sndout"></div></div></div>
+  </div>
+</section>
+
+
+<section class="wing" id="accessories">
+  <div class="ghead"><h2><span class="sw" style="background:var(--c000)"></span>Accessories</h2><p>Drives, disks, keyboards, printers and cards, and which Macs each one works with. Select a machine to open its exhibit.</p></div>
+  <div class="accgrid" id="accgrid"></div>
+</section>
+
+<section class="lab" id="lab">
+  <div class="ghead"><h2><span class="sw" style="background:var(--warn)"></span>Conservation Lab</h2>
+  <p>Problems almost every 68K Mac shares. Read this before you plug in anything that has sat in a closet since the 1990s.</p></div>
+  <div class="labgrid" id="labgrid"></div>
+  <div class="win">
+    <div class="tbar"><span class="box"></span><span class="t">Sad Mac Codes</span><span class="sp"></span></div>
+    <div class="codes"><table>
+      <thead><tr><th>Class code</th><th>Meaning</th><th>Usual cause</th></tr></thead>
+      <tbody>
+        <tr><td>01 / 0001</td><td>ROM checksum failed</td><td>Dirty or failed ROM, bad ROM SIMM contact, damaged trace</td></tr>
+        <tr><td>02 / 0002</td><td>RAM data bus test failed</td><td>Bad SIMM, dirty socket, leaked-cap corrosion</td></tr>
+        <tr><td>03 / 0003</td><td>RAM byte-write test failed</td><td>Bad SIMM or mismatched SIMMs in a bank</td></tr>
+        <tr><td>04 / 0004</td><td>RAM mod-3 address test failed</td><td>Bad SIMM, wrong RAM-size resistors (Plus/SE)</td></tr>
+        <tr><td>05 / 0005</td><td>RAM address uniqueness failed</td><td>Bad SIMM or address line damage</td></tr>
+        <tr><td>0F / 000F</td><td>CPU exception during startup</td><td>Usually software: corrupted System file or bad boot disk</td></tr>
+      </tbody>
+    </table></div>
+    <div style="padding:10px 16px 14px;font-size:14px;color:var(--muted)">68000 compacts show one six-digit code; the first two digits are the class. 68020 and later Macs show two eight-digit lines; the last four digits of the first line are the class.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="rainbow" aria-hidden="true"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i><i class="s5"></i><i class="s6"></i></div>
+  <p>Prices are US list prices at launch where known. "Last OS" is the last Apple system release that officially supported the machine. Workgroup Server and Performa models are listed under the Macs they were built from. Illustrations are drawn for this page and are not to scale. Benchmark scores come from Low End Mac's published Speedometer results. Collector values are a rough guide for working units and swing widely with condition; check recent sold listings before buying or selling.</p>
+</footer>
+</div>
+
+<script>
+const M = [
+/* ---------- 68000 ---------- */
+{n:"Macintosh 128K",d:"1984-01",g:"68000",f:"compact",art:{t:"compact",c:"beige"},cpu:"68000, 7.83 MHz",ram:"128 KB (soldered)",disp:"9″ mono CRT, 512×342",stor:"400K floppy",exp:"None",price:"$2,495",os:"System 3.x",
+ blurb:"The original. Launched with the \"1984\" Super Bowl ad and a demo where it introduced itself in a synthesized voice. No fan, no slots, and barely enough memory for MacWrite. The design team's signatures are molded inside the back case.",
+ iss:[["Single vertical line or no picture","Cracked solder joints on the analog board, mostly around the flyback transformer and the J3 power connector. Reflow every joint in that area; decades of fanless heat cycling crack them."],["Floppy won't eject or grinds","The 400K Sony drive's original grease has hardened. Clean the eject gears and rails with isopropyl alcohol and relube lightly with synthetic grease."],["Garbled screen, Simasimac, or a Sad Mac with class 02–05","The 128K is known for failing RAM. Its sixteen 4164 DRAM chips (64K×1) die with age. The Sad Mac detail digits point to the failing bit, which maps to one chip. Desolder it, fit a socket, and drop in a replacement rated 150 ns or faster: TI TMS4164, Micron MT4264, Samsung KM4164B, NEC µPD4164, Motorola MCM6665 or Mitsubishi M5K4164. These are still sold as new-old-stock or tested pulls by vintage parts sellers and on eBay. Buy spares; once one has failed, others often follow."],["Want more memory while you're in there","The same board takes 41256 chips (256K×1, 150 ns). Replace all sixteen, set the board for 512K, and you have the classic Fat Mac upgrade."]]},
+{n:"Macintosh 512K",aka:"\"Fat Mac\"",d:"1984-09",g:"68000",f:"compact",art:{t:"compact",c:"beige"},cpu:"68000, 7.83 MHz",ram:"512 KB (soldered)",disp:"9″ mono CRT, 512×342",stor:"400K floppy",exp:"None",price:"$3,195",os:"System 4.x",
+ blurb:"Same machine with four times the memory, which finally made Switcher, Excel and real desktop publishing practical. Otherwise identical to the 128K.",
+ iss:[["Collapsed or shrinking picture","Same analog board weakness as the 128K. Reflow the flyback area, then replace dried electrolytic capacitors on the analog board."],["Garbled screen or Sad Mac 02–05","One of the sixteen 41256 DRAM chips (256K×1) has failed. The Sad Mac detail digits point to the bad bit. Replace it with a 150 ns or faster 41256: Samsung KM41256, Hitachi HM50256, NEC µPD41256, TI TMS4256 or Micron MT1259, all still available as new-old-stock or pulls. Socket the replacement."],["Can't read 800K disks","Fit the official 512Ke upgrade (128K ROMs and an 800K drive) or move files through a modern floppy emulator like a FloppyEmu."],["Gummy floppy eject","Clean and relube the 400K drive mechanism. Never force a stuck disk out with tools against the head."]]},
+{n:"Macintosh Plus",d:"1986-01",g:"68000",f:"compact",art:{t:"compact",c:"plat"},cpu:"68000, 7.83 MHz",ram:"1 MB / 4 MB (30-pin SIMMs)",disp:"9″ mono CRT, 512×342",stor:"800K floppy, external SCSI",exp:"SCSI port",price:"$2,599",os:"System 7.5.5",
+ blurb:"First Mac with SCSI, SIMM memory, and arrow keys on the keyboard. Sold until October 1990, longer than any other Mac. Beige at launch, platinum from 1987.",
+ iss:[["One bright horizontal line","Vertical deflection failure. Reflow the yoke connector and flyback joints on the analog board, then check the vertical deflection IC and the capacitors around it."],["Checkerboard (Simasimac) at power-on","The board can't finish startup. Reseat and clean ROMs and SIMMs, make sure the RAM-size resistors on the logic board match the SIMMs fitted, then hunt for a failed RAM or logic chip."],["Clock and settings reset every boot","The 4.5 V battery sits behind a door on the back and old ones leak into the holder. Clean the contacts and fit a fresh cell."]]},
+{n:"Macintosh 512Ke",d:"1986-04",g:"68000",f:"compact",art:{t:"compact",c:"beige"},cpu:"68000, 7.83 MHz",ram:"512 KB (soldered)",disp:"9″ mono CRT, 512×342",stor:"800K floppy",exp:"None",price:"—",os:"System 6.0.8",
+ blurb:"A 512K with the Plus's 128K ROMs and the double-sided 800K drive. Sold as the budget model beside the Plus. The \"e\" stands for enhanced.",
+ iss:[["No hard disk option","There's no SCSI port. Use an HD20-compatible floppy-port emulator or move files by floppy."],["Analog board failures","Same as the 128K and 512K: reflow and recap the analog board."]]},
+{n:"Macintosh SE",aka:"SE FDHD / SE SuperDrive (1989)",d:"1987-03",g:"68000",f:"compact",art:{t:"compact",c:"plat",two:true},cpu:"68000, 7.83 MHz",ram:"1 MB / 4 MB (30-pin SIMMs)",disp:"9″ mono CRT, 512×342",stor:"800K floppy (one or two), optional 20/40 MB SCSI HD; 1.4 MB SuperDrive from 1989",exp:"1 PDS slot",price:"$2,898",os:"System 7.5.5",
+ blurb:"The compact grows up: an internal hard disk bay, a fan, ADB keyboard and mouse, and one expansion slot. The ROM hides a photo of the engineering team, reachable from the debugger.",
+ iss:[["Leaking PRAM battery","A 3.6 V lithium battery is soldered to the logic board and leaks onto the traces around it. Desolder it, clean with isopropyl, and fit a socketed holder."],["Sad Mac or Simasimac","Usually RAM, the RAM-size resistors, or a trace eaten by battery leakage. Clean the SIMMs and sockets and inspect the area near the battery."],["Noisy or dead fan","Replace the 12 V fan with a quiet modern equivalent. Don't remove it; the analog board depends on the airflow."],["Picture shrinks or wobbles","Dried capacitors and cracked joints on the analog board. Recap it and reflow the flyback area."]]},
+{n:"Macintosh Portable",aka:"Backlit Portable (1991)",d:"1989-09",g:"68000",f:"portable",art:{t:"portable",c:"plat"},cpu:"68HC000, 16 MHz",ram:"1 MB / 9 MB",disp:"9.8″ active-matrix mono LCD, 640×400",stor:"1.4 MB floppy, optional 40 MB SCSI HD",exp:"RAM, modem and PDS slots",price:"$6,500",os:"System 7.5.5",
+ blurb:"Sixteen pounds of Mac with a lead-acid battery good for up to ten hours. The active-matrix screen was beautiful and unlit until the 1991 backlit model. The trackball could sit on either side of the keyboard.",
+ iss:[["Won't start even on the AC adapter","The Portable needs a charged battery installed to boot; the adapter alone can't start it. Rebuild the dead lead-acid pack with new sealed lead-acid cells."],["Leaking capacitors","Surface-mount caps on the logic and power boards leak, causing power and sound faults. Recap and clean both boards."],["Missing lines on the screen","Reseat the display cable. Lines caused by failed LCD bonding need a donor screen."]]},
+{n:"Macintosh Classic",d:"1990-10",g:"68000",f:"compact",art:{t:"compact",c:"plat"},cpu:"68000, 7.83 MHz",ram:"1 MB / 4 MB",disp:"9″ mono CRT, 512×342",stor:"1.4 MB SuperDrive, optional 40 MB SCSI HD",exp:"Memory card only",price:"$999",os:"System 7.5.5",
+ blurb:"The first Mac under $1,000. SE performance on a cheaper board. Hold Command-Option-X-O at startup and it boots System 6.0.3 from a disk image in ROM.",
+ iss:[["No sound, no boot, or garbled video","Surface-mount electrolytic capacitors on the logic board leak. Recap the board and clean the electrolyte off before it eats traces."],["Dim or unstable picture","Recap the analog board and reflow the flyback and yoke connector joints."],["Floppy won't take or eject disks","Hardened grease in the SuperDrive. Clean and relube the eject mechanism."]]},
+{n:"PowerBook 100",d:"1991-10",g:"68000",f:"portable",art:{t:"pb",c:"gray",ball:true,small:true},cpu:"68HC000, 15.67 MHz",ram:"2 MB / 8 MB",disp:"9″ passive-matrix mono LCD, 640×400",stor:"External floppy, 20/40 MB SCSI HD",exp:"RAM and modem slots",price:"$2,300",os:"System 7.5.5",
+ blurb:"Built with Sony around a shrunken Portable logic board. With the 140 and 170 it set the laptop layout everyone copied: keyboard pushed back, pointing device and palm rest in front.",
+ iss:[["Dead after years in storage","Reset the Power Manager with the reset and interrupt buttons on the back, then try a known-good battery. The original lead-acid pack is almost certainly finished."],["Leaking capacitors","Recap the logic board; the surface-mount caps leak and corrode nearby traces."],["Faint or streaky screen","Check the contrast and brightness sliders and reseat the display cable before blaming the LCD."]]},
+
+/* ---------- 68020 ---------- */
+{n:"Macintosh II",d:"1987-03",g:"68020",f:"ii",art:{t:"desk",k:"ii",c:"plat",scr:"color"},cpu:"68020, 15.67 MHz + 68881 FPU",ram:"1 MB / 8 MB (more with SuperDrive ROM upgrade)",disp:"External, color via NuBus video card",stor:"800K floppy (one or two), optional 40/80 MB SCSI HD",exp:"6 NuBus slots",price:"$5,498",os:"System 7.5.5",
+ blurb:"The first color Mac and the first one you could open without special tools. Six NuBus slots made it a real workstation.",
+ iss:[["Leaking batteries","Two 3.6 V lithium cells on the logic board. Remove them, clean the residue, and fit new cells or holders."],["Chimes of death at startup","The II plays a car-crash chord when the hardware test fails. Usually bad or mismatched SIMMs in bank A; test one bank at a time."],["No virtual memory","The 68020 has no MMU. Install a 68851 PMMU in the socket next to the CPU."],["Stuck at 8 MB","The ROM isn't 32-bit clean. Install MODE32 and the SuperDrive ROM upgrade for larger SIMMs."]]},
+{n:"Macintosh LC",d:"1990-10",g:"68020",f:"lc",art:{t:"desk",k:"pizza",c:"plat",scr:"color",mon:"12"},cpu:"68020, 15.67 MHz",ram:"2 MB / 10 MB",disp:"External; built-in color, 512×384 (640×480 with VRAM upgrade)",stor:"1.4 MB SuperDrive, 40/80 MB SCSI HD",exp:"1 LC PDS slot",price:"$2,400",os:"System 7.5.5",
+ blurb:"Affordable color in a pizza-box case. With the Apple IIe Card in its slot it ran Apple II software, which made it a school-lab favorite.",
+ iss:[["No startup sound or no boot","Electrolytic capacitors on the logic board leak. Recap and clean the board."],["Won't power on","Recap the power supply; its caps dry out and it stops starting."],["Out of memory at 10 MB","10 MB is the hard ceiling: 2 MB onboard plus two 4 MB SIMMs. Nothing else fits."]]},
+
+/* ---------- 68030 ---------- */
+{n:"Macintosh IIx",d:"1988-09",g:"68030",f:"ii",art:{t:"desk",k:"ii",c:"plat",scr:"color"},cpu:"68030, 15.67 MHz + 68882 FPU",ram:"1 MB / 128 MB (needs 32-bit addressing)",disp:"External via NuBus video card",stor:"800K floppy (1.4 MB SuperDrive from 1989), optional 40/80 MB HD",exp:"6 NuBus slots",price:"$7,769",os:"System 7.5.5",
+ blurb:"The Mac II chassis with a 68030, whose built-in MMU made virtual memory standard, and the faster 68882 FPU.",
+ iss:[["Leaking batteries","Replace both 3.6 V cells and clean the board around them."],["Power supply won't start","The large supply's capacitors are tired. Recap it or replace it with a tested unit."],["Can't address big SIMMs","The ROM isn't 32-bit clean. Use MODE32 with System 7."]]},
+{n:"Macintosh SE/30",d:"1989-01",g:"68030",f:"compact",art:{t:"compact",c:"plat"},cpu:"68030, 15.67 MHz + 68882 FPU",ram:"1 MB / 128 MB",disp:"9″ mono CRT, 512×342",stor:"1.4 MB SuperDrive, 40/80 MB SCSI HD",exp:"1 PDS slot (030 Direct)",price:"$4,369",os:"System 7.5.5 (7.6.1 with a 32-bit clean ROM)",
+ blurb:"IIx power in the compact case. Many collectors call it the best Mac ever made. It runs A/UX and even Linux with enough RAM.",
+ iss:[["No sound, Simasimac, or Sad Mac","The classic SE/30 failure: surface-mount caps leak, and the electrolyte corrodes the sound and video traces. Recap, clean thoroughly, and repair any eaten traces with jumper wire."],["Leaking PRAM battery","Remove the 3.6 V battery and clean the area. Fit a socketed holder."],["Dim screen, one line, or a whine","Recap the analog board and reflow the flyback, yoke and power connector joints."],["Only 8 MB usable","Install MODE32, or swap in a 32-bit clean ROM SIMM (a IIsi ROM or a modern replacement)."]]},
+{n:"Macintosh IIcx",d:"1989-03",g:"68030",f:"ii",art:{t:"desk",k:"cx",c:"plat",scr:"color"},cpu:"68030, 15.67 MHz + 68882 FPU",ram:"1 MB / 128 MB",disp:"External via NuBus card",stor:"1.4 MB SuperDrive, 40/80 MB SCSI HD",exp:"3 NuBus slots",price:"$5,369",os:"System 7.5.5",
+ blurb:"Mac II power at a third of the size, built to snap together with one screw. Could lie flat or stand on its side.",
+ iss:[["Leaking battery","Replace the 3.6 V cell and clean the corrosion."],["Dead or ticking power supply","Recap the power supply."],["Won't turn on from the keyboard","Check the power key on the ADB keyboard and the ADB cable, or use the rear power button."]]},
+{n:"Macintosh IIci",d:"1989-09",g:"68030",f:"ii",art:{t:"desk",k:"cx",c:"plat",scr:"color"},cpu:"68030, 25 MHz + 68882 FPU",ram:"1 MB / 128 MB",disp:"Built-in video to 640×480 at 8-bit (uses main RAM), plus NuBus",stor:"1.4 MB SuperDrive, 40/80 MB SCSI HD",exp:"3 NuBus + cache slot",price:"$6,269",os:"System 7.6.1",
+ blurb:"The first Mac with a 32-bit clean ROM and built-in video. A workhorse that many offices ran for most of the decade.",
+ iss:[["No chime or no sound","Surface-mount caps leak on the logic board. Recap and clean."],["Leaking battery","Replace the 3.6 V cell and inspect for corrosion."],["Garbled built-in video","The onboard video lives in bank A RAM. Fill bank A with matching SIMMs."],["Slower than expected","Add a cache card in the cache slot for a sizable speed gain."]]},
+{n:"Macintosh IIfx",aka:"\"Wicked fast\"",d:"1990-03",g:"68030",f:"ii",art:{t:"desk",k:"ii",c:"plat",scr:"color"},cpu:"68030, 40 MHz + 68882 FPU",ram:"4 MB / 128 MB (64-pin SIMMs)",disp:"External via NuBus card",stor:"1.4 MB SuperDrive, 80/160 MB SCSI HD",exp:"6 NuBus + 030 PDS",price:"$8,969",os:"System 7.6.1",
+ blurb:"Apple's fastest Mac until the Quadra, with two dedicated I/O processors handling the serial ports and floppy. It cost as much as a car.",
+ iss:[["Won't boot at all","Dead batteries can keep the IIfx from starting. Replace both 3.6 V cells."],["RAM won't work","It needs IIfx-specific 64-pin SIMMs. Standard 30-pin SIMMs don't fit."],["External SCSI devices misbehave","Use the black IIfx terminator at the end of the external chain."]]},
+{n:"Macintosh IIsi",d:"1990-10",g:"68030",f:"ii",art:{t:"desk",k:"si",c:"plat",scr:"color",mon:"12"},cpu:"68030, 20 MHz (FPU optional)",ram:"1 MB onboard / 65 MB",disp:"Built-in video to 640×480 (uses main RAM)",stor:"1.4 MB SuperDrive, 40/80 MB SCSI HD",exp:"1 PDS (NuBus via adapter)",price:"$3,769",os:"System 7.6.1",
+ blurb:"A cheaper, slimmer IIci. The single slot takes a PDS card or an adapter that adds one NuBus slot and an FPU.",
+ iss:[["No sound","Leaking surface-mount caps on the logic board. Recap and clean."],["Dead power supply","The IIsi supply is a known failure point. Recap it."],["Sluggish screen","Built-in video shares main RAM. Fit faster SIMMs or a NuBus video card."]]},
+{n:"Macintosh Classic II",aka:"Performa 200",d:"1991-10",g:"68030",f:"compact",art:{t:"compact",c:"plat"},cpu:"68030, 15.67 MHz",ram:"2 MB / 10 MB",disp:"9″ mono CRT, 512×342",stor:"1.4 MB SuperDrive, 40/80 MB SCSI HD",exp:"FPU slot",price:"$1,900",os:"System 7.6.1",
+ blurb:"A 68030 in the Classic case. Its 16-bit data bus makes it slower than the SE/30 it replaced.",
+ iss:[["No sound, no boot, or Sad Mac","Its caps leak more aggressively than almost any other Mac. Recap, clean and check for corroded traces."],["Picture problems","Recap the analog board and reflow the flyback area."],["Stuck floppy","Clean and relube the SuperDrive."]]},
+{n:"PowerBook 140",d:"1991-10",g:"68030",f:"portable",art:{t:"pb",c:"gray",ball:true},cpu:"68030, 15.67 MHz",ram:"2 MB / 8 MB",disp:"10″ passive-matrix mono LCD, 640×400",stor:"1.4 MB floppy, 20/40 MB SCSI HD",exp:"RAM and modem slots",price:"$2,900",os:"System 7.6.1",
+ blurb:"Designed in-house by Apple. The mid-range model of the first PowerBook trio.",
+ iss:[["Cracked hinges","The plastic hinge posts inside the lid break. Reinforce with epoxy or fit replacement hinges and covers."],["Battery dead","The NiCad pack can be rebuilt with new cells."],["Leaking capacitors","Recap the logic and power boards."]]},
+{n:"PowerBook 170",d:"1991-10",g:"68030",f:"portable",art:{t:"pb",c:"gray",ball:true},cpu:"68030, 25 MHz + 68882 FPU",ram:"4 MB / 8 MB",disp:"10″ active-matrix mono LCD, 640×400",stor:"1.4 MB floppy, 40 MB SCSI HD",exp:"RAM and modem slots",price:"$4,600",os:"System 7.6.1",
+ blurb:"The flagship of the first PowerBooks: active-matrix screen, FPU, and a built-in modem.",
+ iss:[["Cracked hinges","Same weak hinge posts as the 140. Reinforce or replace."],["Leaking capacitors","Recap the boards before the electrolyte spreads."],["Battery won't hold charge","Rebuild the NiCad pack."]]},
+{n:"Macintosh LC II",aka:"Performa 400 / 405 / 410 / 430",d:"1992-03",g:"68030",f:"lc",art:{t:"desk",k:"pizza",c:"plat",scr:"color",mon:"12"},cpu:"68030, 15.67 MHz",ram:"4 MB / 10 MB",disp:"External; built-in color video",stor:"1.4 MB SuperDrive, 40/80 MB SCSI HD",exp:"1 LC PDS slot",price:"$1,700",os:"System 7.6.1",
+ blurb:"An LC with a 68030. The 16-bit bus kept it barely faster than the LC it replaced.",
+ iss:[["No sound or no boot","Recap the logic board."],["Only 10 MB of RAM","Like the LC, 10 MB is the ceiling."],["Won't power up","Recap the power supply."]]},
+{n:"PowerBook 145",aka:"PowerBook 145B (1993)",d:"1992-08",g:"68030",f:"portable",art:{t:"pb",c:"gray",ball:true},cpu:"68030, 25 MHz",ram:"2–4 MB / 8 MB",disp:"10″ passive-matrix mono LCD, 640×400",stor:"1.4 MB floppy, 40/80 MB SCSI HD",exp:"RAM and modem slots",price:"$2,150",os:"System 7.6.1",
+ blurb:"A faster 140 at a lower price. The 145B was a cost-reduced version with 4 MB standard.",
+ iss:[["Cracked hinges","Reinforce the hinge posts."],["Leaking capacitors","Recap."],["Dead battery","Rebuild the NiCad pack."]]},
+{n:"PowerBook 160 / 180",aka:"PowerBook 165 (1993)",d:"1992-10",g:"68030",f:"portable",art:{t:"pb",c:"gray",ball:true,scr:"lcdg"},cpu:"68030, 25 MHz (160) / 33 MHz + FPU (180)",ram:"4 MB / 14 MB",disp:"10″ grayscale LCD, 640×400: passive (160), active-matrix (180)",stor:"1.4 MB floppy, 40–120 MB SCSI HD",exp:"RAM, modem; external video port",price:"$2,470 / $4,100",os:"System 7.6.1",
+ blurb:"Grayscale screens and an external monitor port. The 180's active-matrix display was the best mobile screen of its day.",
+ iss:[["Cracked hinges","Same hinge design as the 140. Reinforce early."],["Leaking capacitors","Recap the logic board."],["Dead battery","Rebuild the NiCad pack."]]},
+{n:"PowerBook Duo 210 / 230 / 250 / 270c",d:"1992-10",g:"68030",f:"portable",art:{t:"duo",c:"gray"},cpu:"68030, 25 MHz (210), 33 MHz (230, 250, 270c + FPU)",ram:"4 MB / 24 MB (32 MB on 270c)",disp:"9.1″ grayscale LCD; 8.4″ active-matrix color on 270c",stor:"Internal SCSI HD; floppy via dock",exp:"Duo Dock or MiniDock",price:"$2,250 (210)",os:"System 7.6.1",
+ blurb:"A 4.2-pound subnotebook that slid into a Duo Dock to become a desktop with floppy, NuBus slots and a big monitor. The 250 and 270c followed in October 1993.",
+ iss:[["Screen flickers or goes blank","The display flex cable frays where it passes through the hinge. Replace the cable."],["Duo Dock won't take or eject","The motorized mechanism jams. Clean and relube the gears, and check the lock key."],["Battery dead","Duo NiMH packs (Type I, II, III) can be rebuilt with new cells."]]},
+{n:"Macintosh IIvx",aka:"IIvi (limited markets), Performa 600",d:"1992-10",g:"68030",f:"ii",art:{t:"desk",k:"vx",c:"plat",scr:"color"},cpu:"68030, 32 MHz (IIvi: 16 MHz) + FPU",ram:"4 MB / 68 MB",disp:"Built-in video, plus NuBus",stor:"1.4 MB SuperDrive, CD-ROM bay, 80/230 MB SCSI HD",exp:"3 NuBus + PDS",price:"$2,949",os:"System 7.6.1",
+ blurb:"The last Mac II, in a metal case with a CD-ROM bay. Its 16 MHz bus throttled the 32 MHz CPU, and the Centris 650 replaced it in four months.",
+ iss:[["Leaking battery","Replace the 3.6 V cell and clean the holder."],["CD tray won't open","The AppleCD 300i tray belt slips. Replace the belt."],["Won't power on","Recap the power supply."]]},
+{n:"Macintosh Color Classic",aka:"Performa 250; Color Classic II (Asia, 33 MHz)",d:"1993-02",g:"68030",f:"compact",art:{t:"compact",c:"plat",cc:true},cpu:"68030, 15.67 MHz",ram:"4 MB / 10 MB",disp:"10″ Sony Trinitron color CRT, 512×384",stor:"1.4 MB SuperDrive, 40/80/160 MB SCSI HD",exp:"LC PDS slot",price:"$1,389",os:"System 7.6.1",
+ blurb:"The only color compact Mac. Hobbyists still transplant faster boards into it; the LC 575 board swap is called the \"Mystic\" upgrade.",
+ iss:[["Won't turn on from the keyboard","Soft power runs through the logic board. Leaking caps break it first. Recap the board."],["Faded or off-color picture","Recap the analog board and check the flyback for cracks."],["No sound","Logic board cap leakage. Recap and clean."]]},
+{n:"Macintosh LC III",aka:"LC III+ (Oct 1993), Performa 450 / 460 / 466 / 467",d:"1993-02",g:"68030",f:"lc",art:{t:"desk",k:"pizza",c:"plat",scr:"color",mon:"12"},cpu:"68030, 25 MHz (III+: 33 MHz)",ram:"4 MB / 36 MB",disp:"External; built-in color video",stor:"1.4 MB SuperDrive, 80/160 MB SCSI HD",exp:"1 LC III PDS",price:"$1,349",os:"System 7.6.1",
+ blurb:"The LC finally got a full 32-bit bus. A solid, cheap machine that sold in many Performa versions.",
+ iss:[["No sound","Recap the logic board."],["Leaking battery","Replace the 3.6 V cell."],["Dead power supply","Recap it."]]},
+{n:"PowerBook 165c / 180c",d:"1993-02",g:"68030",f:"portable",art:{t:"pb",c:"gray",ball:true,scr:"color"},cpu:"68030, 33 MHz + 68882 FPU",ram:"4 MB / 14 MB",disp:"Color LCD: passive 640×400 (165c), active-matrix 640×480 (180c)",stor:"1.4 MB floppy, 80–160 MB SCSI HD",exp:"RAM, modem; external video",price:"$3,400 (165c)",os:"System 7.6.1",
+ blurb:"The first color PowerBooks. The 180c followed in June 1993 with an active-matrix screen.",
+ iss:[["Cracked hinges","Reinforce the hinge posts."],["Leaking capacitors","Recap."],["Dead battery","Rebuild the pack."]]},
+{n:"Macintosh LC 520",aka:"LC 550 (1994), Performa 550 / 560",d:"1993-06",g:"68030",f:"lc",art:{t:"aio",c:"plat"},cpu:"68030, 25 MHz (550: 33 MHz)",ram:"5 MB / 36 MB",disp:"14″ Sony Trinitron color CRT, 640×480",stor:"CD-ROM, 1.4 MB SuperDrive, 80/160 MB SCSI HD",exp:"LC PDS",price:"—",os:"System 7.6.1",
+ blurb:"An all-in-one with a big color screen, CD-ROM and stereo speakers. Built for schools and families.",
+ iss:[["No picture or high-pitched whine","Analog board capacitors and the flyback. This board holds lethal voltage; discharge the CRT before working."],["CD tray won't open","Replace the drive belt."],["No sound or no boot","Recap the logic board."]]},
+{n:"Macintosh TV",d:"1993-10",g:"68030",f:"lc",art:{t:"aio",c:"black"},cpu:"68030, 32 MHz",ram:"5 MB / 8 MB",disp:"14″ Sony Trinitron, 640×480, with TV tuner",stor:"CD-ROM, 1.4 MB SuperDrive, 160 MB SCSI HD",exp:"None",price:"≈$2,100",os:"System 7.6.1",
+ blurb:"A black LC 520 with a cable-ready TV tuner and remote. About 10,000 were made, which makes it a collector's piece.",
+ iss:[["Memory tops out at 8 MB","It's a hard limit. Keep System 7.1 or 7.5 lean."],["No picture","Same analog board failures as the LC 520. Recap with care."],["Remote doesn't work","Check the remote's batteries and the IR window. Replacements are rare; buy spares when you see them."]]},
+{n:"PowerBook 150",d:"1994-07",g:"68030",f:"portable",art:{t:"pb",c:"gray",ball:true,scr:"lcdg"},cpu:"68030, 33 MHz",ram:"4 MB / 40 MB",disp:"9.8″ passive grayscale LCD, 640×480",stor:"1.4 MB floppy, IDE hard disk",exp:"None",price:"—",os:"System 7.6.1",
+ blurb:"A budget PowerBook in the old 100-series case, with an IDE drive and no ADB port.",
+ iss:[["Hard disk failed","Replace the IDE drive with a CompactFlash or SD adapter."],["Cracked hinges","Same case, same hinge problem. Reinforce."],["No way to plug in an ADB mouse","The 150 has no ADB port. Use the trackball, or a serial device."]]},
+
+/* ---------- 68040 ---------- */
+{n:"Macintosh Quadra 700",d:"1991-10",g:"68040",f:"quadra",art:{t:"upright",c:"plat"},cpu:"68040, 25 MHz",ram:"4 MB / 68 MB",disp:"Built-in video (more colors with VRAM upgrade)",stor:"1.4 MB SuperDrive, 80/160/400 MB SCSI HD",exp:"2 NuBus + PDS",price:"$5,700",os:"Mac OS 8.1",
+ blurb:"The first 68040 Mac. It used a IIci-size case designed to stand upright beside the monitor, and that vertical look became its signature. A crystal swap overclocks it to 33 MHz.",
+ iss:[["Leaking battery","Replace the 3.6 V cell and clean the board."],["Won't power on","Recap the power supply."],["Unstable after an overclock","Return to the stock crystal or add a heatsink to the 68040."]]},
+{n:"Macintosh Quadra 900",d:"1991-10",g:"68040",f:"quadra",art:{t:"tower",c:"plat"},cpu:"68040, 25 MHz",ram:"4 MB / 256 MB",disp:"Built-in video, plus NuBus",stor:"1.4 MB SuperDrive, room for 4 drives",exp:"5 NuBus + PDS",price:"$7,200",os:"Mac OS 8.1",
+ blurb:"Apple's first tower, with a front key switch for power, secure and restart modes.",
+ iss:[["Keyboard and mouse ignored","The key switch is in the secure position. Turn it to on."],["Leaking battery","Replace it and inspect the board."],["Power supply failure","Recap or replace the supply."]]},
+{n:"Macintosh Quadra 950",aka:"Workgroup Server 95",d:"1992-05",g:"68040",f:"quadra",art:{t:"tower",c:"plat"},cpu:"68040, 33 MHz",ram:"8 MB / 256 MB",disp:"Built-in video, plus NuBus",stor:"1.4 MB SuperDrive, room for 4 drives",exp:"5 NuBus + PDS",price:"$7,200",os:"Mac OS 8.1",
+ blurb:"A faster Quadra 900 that stayed on sale into 1995. Server and publishing shops ran them for years.",
+ iss:[["Leaking battery","Replace the cell."],["Power supply failure","The large supply ages badly. Recap it."],["Drives vanish","It has two SCSI buses. Terminate each one and give every device a unique ID."]]},
+{n:"Macintosh Centris 610",aka:"Quadra 610 (Oct 1993), Workgroup Server 60",d:"1993-02",g:"68040",f:"quadra",art:{t:"desk",k:"low",c:"plat",scr:"color"},cpu:"68LC040, 20 MHz (Q610: 68040, 25 MHz)",ram:"4 MB / 68 MB (72-pin SIMMs)",disp:"Built-in video",stor:"1.4 MB SuperDrive, 80–230 MB SCSI HD, optional CD-ROM",exp:"1 PDS (NuBus via adapter)",price:"$1,860",os:"Mac OS 8.1",
+ blurb:"A wide, low case with a pop-up drive bay. Renamed Quadra 610 in October 1993 with a faster full 68040.",
+ iss:[["Leaking battery","Replace the 3.6 V cell. Leakage here damages the logic board fast."],["No FPU","The 68LC040 lacks one. Drop in a full 68040."],["Chimes of death after a RAM upgrade","Use 72-pin SIMMs of 80 ns or faster."]]},
+{n:"Macintosh Centris 650",aka:"Quadra 650 (Oct 1993)",d:"1993-02",g:"68040",f:"quadra",art:{t:"desk",k:"vx",c:"plat",scr:"color"},cpu:"68040, 25 MHz (Q650: 33 MHz); base C650 used a 68LC040",ram:"4 MB / 136 MB",disp:"Built-in video",stor:"1.4 MB SuperDrive, CD-ROM bay, 80–500 MB SCSI HD",exp:"3 NuBus + PDS",price:"$2,700",os:"Mac OS 8.1",
+ blurb:"The IIvx case with a 68040 and a proper bus. One of the best expandable 68K desktops.",
+ iss:[["Leaking battery","Replace the 3.6 V cell."],["Won't power on","Recap the power supply."],["No FPU on base model","Swap the 68LC040 for a full 68040."]]},
+{n:"Macintosh Quadra 800",aka:"Workgroup Server 80",d:"1993-02",g:"68040",f:"quadra",art:{t:"mini",c:"plat"},cpu:"68040, 33 MHz",ram:"8 MB / 136 MB",disp:"Built-in video",stor:"1.4 MB SuperDrive, CD-ROM, 230–1000 MB SCSI HD",exp:"3 NuBus + PDS",price:"$4,680",os:"Mac OS 8.1",
+ blurb:"A mini tower with fast memory that outran the Quadra 950 in many tests.",
+ iss:[["Broken case tabs","The plastic clips are brittle. Open the case slowly and keep spare tabs."],["Leaking battery","Replace the cell."],["Dead power supply","Recap it."]]},
+{n:"Centris 660AV",aka:"Quadra 660AV (Oct 1993)",d:"1993-07",g:"68040",f:"quadra",art:{t:"desk",k:"low",c:"plat",scr:"color"},cpu:"68040, 25 MHz + AT&T 3210 DSP",ram:"4 MB / 68 MB",disp:"Built-in video, plus composite and S-video in and out",stor:"1.4 MB SuperDrive, CD-ROM, 80–500 MB SCSI HD",exp:"1 PDS (NuBus via adapter)",price:"$2,489",os:"Mac OS 8.1",
+ blurb:"The AV Macs added a DSP, video capture, GeoPort and speech recognition.",
+ iss:[["AV features missing","The DSP and video features need System 7.1 AV or 7.5 with the AV extensions installed."],["Leaking battery","Replace the cell."],["Video out not working","Check the S-video cable and the Monitors control panel settings."]]},
+{n:"Macintosh Quadra 840AV",d:"1993-07",g:"68040",f:"quadra",art:{t:"mini",c:"plat"},cpu:"68040, 40 MHz + AT&T 3210 DSP",ram:"8 MB / 128 MB",disp:"Built-in video, plus composite and S-video in and out",stor:"1.4 MB SuperDrive, CD-ROM, 230–1000 MB SCSI HD",exp:"3 NuBus",price:"—",os:"Mac OS 8.1",
+ blurb:"The fastest 68K Mac Apple ever made.",
+ iss:[["Leaking battery","Replace the cell."],["Overheating","Keep the case fan clean and check the CPU heatsink."],["Power supply failure","Recap or replace it."]]},
+{n:"Macintosh LC 475",aka:"Quadra 605, Performa 475 / 476",d:"1993-10",g:"68040",f:"lc",art:{t:"desk",k:"pizza605",c:"plat",scr:"color",mon:"12"},cpu:"68LC040, 25 MHz",ram:"4 MB / 36 MB",disp:"External; built-in video",stor:"1.4 MB SuperDrive, 80/160 MB SCSI HD",exp:"1 LC III PDS",price:"—",os:"Mac OS 8.1",
+ blurb:"A Quadra in a tiny pizza box for under $1,000. A favorite for cheap overclocks to 33 MHz.",
+ iss:[["Crashes in math-heavy software","Early 68LC040 chips have a bug that crashes software FPU emulators. Swap in a full 68040 or a later mask revision."],["No sound","Recap the logic board."],["Lid clips snap off","Use care opening it; the clips are brittle."]]},
+{n:"Macintosh LC 575",aka:"Performa 575 / 577 / 578",d:"1994-02",g:"68040",f:"lc",art:{t:"aio",c:"plat"},cpu:"68LC040, 33 MHz",ram:"5 MB / 36 MB",disp:"14″ Sony Trinitron color CRT, 640×480",stor:"CD-ROM, 1.4 MB SuperDrive, 160/320 MB SCSI HD",exp:"LC III PDS + comm slot",price:"—",os:"Mac OS 8.1",
+ blurb:"The LC 520 shape with a 68LC040. Its logic board is the one Color Classic owners covet.",
+ iss:[["No picture","Analog board caps and flyback. Discharge the CRT first."],["CD tray stuck","Replace the belt."],["No sound","Recap the logic board."]]},
+{n:"PowerBook Duo 280 / 280c",d:"1994-05",g:"68040",f:"portable",art:{t:"duo",c:"gray"},cpu:"68LC040, 33 MHz",ram:"4 MB / 40 MB",disp:"9.1″ grayscale or 8.4″ color active-matrix LCD",stor:"Internal SCSI HD",exp:"Duo Dock or MiniDock",price:"—",os:"Mac OS 8.1",
+ blurb:"The last and fastest 68K Duos.",
+ iss:[["Screen flicker","Replace the frayed hinge flex cable."],["Dead battery","Rebuild the Type III pack."],["Dock problems","Clean and relube the Duo Dock mechanism."]]},
+{n:"PowerBook 520 / 540",aka:"520c, 540c",d:"1994-05",g:"68040",f:"portable",art:{t:"pb5",c:"dark"},cpu:"68LC040, 25 MHz (520) / 33 MHz (540)",ram:"4 MB / 36 MB",disp:"9.5″ grayscale LCD (passive on 520, active on 540); color on c models",stor:"1.4 MB floppy, 160–320 MB SCSI HD",exp:"PDS (PowerPC upgrade), optional PC Card cage",price:"$2,269 (520)",os:"Mac OS 8.1",
+ blurb:"The first laptop with a trackpad, plus stereo speakers, Ethernet and two battery bays.",
+ iss:[["Batteries won't charge","These are smart NiMH packs with a controller board. Rebuild with new cells, keeping the board."],["Won't power on","Reset the Power Manager, then try one battery at a time."],["Dim or flickering screen","Check the backlight inverter and display cable."]]},
+{n:"Macintosh Quadra 630",aka:"LC 630, Performa 630 / 631 / 635 / 636 / 637 / 638 / 640",d:"1994-07",g:"68040",f:"quadra",art:{t:"desk",k:"q630",c:"plat",scr:"color"},cpu:"68040, 33 MHz (LC/Performa: 68LC040)",ram:"4 MB / 36 MB",disp:"Built-in video",stor:"1.4 MB SuperDrive, CD-ROM, IDE hard disk",exp:"LC III PDS, comm slot, video-in and TV tuner slots",price:"$1,199",os:"Mac OS 8.1",
+ blurb:"The first Mac with an IDE hard drive. Sold as a business Quadra and a dozen home Performas.",
+ iss:[["Hard disk failed","Replace the IDE drive with a CF or SD adapter."],["No sound or no boot","Recap the logic board."],["Won't power on","Recap the power supply."]]},
+{n:"Macintosh LC 580",aka:"Performa 580CD / 588CD",d:"1995-04",g:"68040",f:"lc",art:{t:"aio",c:"plat"},cpu:"68LC040, 33 MHz",ram:"8 MB / 52 MB",disp:"14″ color CRT, 640×480",stor:"CD-ROM, 1.4 MB SuperDrive, IDE hard disk",exp:"LC PDS, comm slot, video and TV slots",price:"—",os:"Mac OS 8.1",
+ blurb:"The last 68K all-in-one, built on Quadra 630 parts.",
+ iss:[["No picture","Recap the analog board. Discharge the CRT first."],["Hard disk failed","Use a CF or SD IDE adapter."],["No sound","Recap the logic board."]]},
+{n:"PowerBook 190",aka:"PowerBook 190cs",d:"1995-08",g:"68040",f:"portable",art:{t:"pb5",c:"dark"},cpu:"68LC040, 33 MHz",ram:"4 MB / 40 MB",disp:"9.5″ passive grayscale (190); 10.4″ passive color (190cs)",stor:"1.4 MB floppy, IDE hard disk",exp:"2 PC Card slots",price:"—",os:"Mac OS 8.1",
+ blurb:"The last 68K Mac. It shares the PowerBook 5300 case, and Apple offered a logic board upgrade to PowerPC.",
+ iss:[["Case cracks near the hinges","The plastic is brittle. Reinforce the hinge mounts from inside."],["Hard disk failed","Replace the IDE drive with a CF or SD adapter."],["Battery dead","Rebuild the NiMH pack."]]}
+];
+/* per-model extras: rh = how to reach max RAM, up = upgrades, ship/sweet = OS, os = [shipIdx,lastIdx], rar/val = collector guide, app = well-known app that ran well */
+const X = {
+"Macintosh 128K":{rh:"Sixteen 4164 DRAM chips (64K×1, 150 ns) soldered to the board. Fitting 41256 chips and setting the board for 512K turns it into a Fat Mac.",up:["DIY 512K upgrade with 41256 chips (same board)","Apple 512K or Plus logic board swap","FloppyEmu for disk images"],ship:"System 1.0",sweet:"System 1.1 / 2.0",os:[0,2],rar:"Very rare",val:"$1,500–4,000+",app:"MacPaint and MacWrite, the two programs it shipped with"},
+"Macintosh 512K":{rh:"Sixteen 41256 DRAM chips (256K×1, 150 ns) soldered to the board. Third-party kits took it to 1–2 MB.",up:["Apple 512Ke kit (128K ROMs + 800K drive)","Apple Plus logic board swap","FloppyEmu"],ship:"System 1.1",sweet:"System 3.2",os:[0,3],rar:"Rare",val:"$1,000–2,500",app:"Aldus PageMaker 1.0, which needed 512K and started desktop publishing"},
+"Macintosh Plus":{rh:"Four 30-pin SIMM slots. 4 × 1 MB = 4 MB; 2.5 MB mixes 1 MB and 256K SIMMs. Set the RAM-size resistors to match.",up:["16 MHz accelerator (Brainstorm and similar)","External BlueSCSI or ZuluSCSI drive","FloppyEmu"],ship:"System 3.0",sweet:"System 6.0.8",os:[2,10],rar:"Common",val:"$250–600",app:"HyperCard, bundled free from 1987"},
+"Macintosh 512Ke":{rh:"512 KB soldered (41256 chips). Third-party kits added more.",up:["Plus logic board swap","FloppyEmu"],ship:"System 3.0",sweet:"System 3.2 / 4.1",os:[2,6],rar:"Uncommon",val:"$500–1,200",app:"Microsoft Excel 1.0"},
+"Macintosh SE":{rh:"Four 30-pin SIMM slots, 4 × 1 MB = 4 MB. A jumper or resistor sets 256K vs 1 MB SIMMs.",up:["68030 PDS accelerators (Radius, Mobius and others)","SuperDrive upgrade kit (ROMs + 1.4 MB drive)","Internal BlueSCSI"],ship:"System 4.0",sweet:"System 6.0.8",os:[3,10],rar:"Common",val:"$200–500",app:"Dark Castle"},
+"Macintosh Portable":{rh:"1 MB onboard plus one low-power SRAM card slot; an 8 MB card gives 9 MB. Desktop SIMMs don't fit.",up:["Backlit screen retrofit","SD-based SCSI drive (low power matters here)"],ship:"System 6.0.4",sweet:"System 6.0.8 / 7.0.1",os:[5,10],rar:"Uncommon",val:"$400–1,000",app:"Microsoft Word 4"},
+"Macintosh Classic":{rh:"1 MB onboard. The memory card adds 1 MB and two 30-pin SIMM slots for 4 MB.",up:["Internal BlueSCSI","Fully loaded 4 MB memory card"],ship:"System 6.0.7",sweet:"System 6.0.8",os:[5,10],rar:"Common",val:"$150–350",app:"The Oregon Trail"},
+"PowerBook 100":{rh:"2 MB onboard plus a RAM card slot, up to 8 MB.",up:["SD-based SCSI drive","Battery rebuild","External floppy"],ship:"System 7.0.1",sweet:"System 7.1",os:[7,10],rar:"Uncommon",val:"$150–400",app:"Microsoft Word 5.1"},
+"Macintosh II":{rh:"Eight 30-pin SIMM slots. 1 MB SIMMs give 8 MB; larger SIMMs need the SuperDrive ROM upgrade and MODE32.",up:["68851 PMMU for virtual memory","SuperDrive upgrade kit","Apple IIx or IIfx logic board upgrade"],ship:"System 4.1",sweet:"System 7.1",os:[3,10],rar:"Uncommon",val:"$300–800",app:"Adobe Photoshop 1.0"},
+"Macintosh LC":{rh:"2 MB onboard plus two 30-pin SIMM slots. 2 × 4 MB = 10 MB, the hard limit.",up:["Apple IIe Card","LC II or LC III logic board swap"],ship:"System 6.0.7",sweet:"System 7.1",os:[5,10],rar:"Common",val:"$50–200",app:"Kid Pix"},
+"Macintosh IIx":{rh:"Eight 30-pin SIMM slots, 16 MB SIMMs for 128 MB. Beyond 8 MB needs MODE32.",up:["Apple IIfx logic board upgrade","NuBus video and accelerator cards"],ship:"System 6.0.2",sweet:"System 7.1",os:[5,10],rar:"Uncommon",val:"$300–700",app:"MacroMind Director"},
+"Macintosh SE/30":{rh:"Eight 30-pin SIMM slots. 8 × 16 MB = 128 MB. Past 8 MB you need System 7 with MODE32, or a 32-bit clean ROM.",up:["ROM-inator II: 32-bit clean ROM with a bootable ROM disk","030 PDS cards: Ethernet, color video, accelerators","Internal BlueSCSI"],ship:"System 6.0.3",sweet:"System 7.1 / 7.5.5",os:[5,10],rar:"Uncommon (high demand)",val:"$500–1,200",app:"A/UX, Apple's Unix, runs well with lots of RAM"},
+"Macintosh IIcx":{rh:"Eight 30-pin SIMM slots, 128 MB with 16 MB SIMMs and MODE32.",up:["Apple IIci logic board upgrade","030 accelerators in a NuBus slot"],ship:"System 6.0.3",sweet:"System 7.1",os:[5,10],rar:"Uncommon",val:"$200–500",app:"QuarkXPress 3"},
+"Macintosh IIci":{rh:"Eight 30-pin SIMM slots, 128 MB. Bank A must be filled for built-in video. 32-bit clean, no MODE32 needed.",up:["32 KB cache card","68040 cache-slot accelerators (DayStar)","Fast 80 ns SIMMs in bank A"],ship:"System 6.0.4",sweet:"System 7.5.5",os:[5,11],rar:"Uncommon",val:"$250–600",app:"Adobe Photoshop 2.0"},
+"Macintosh IIfx":{rh:"Eight 64-pin IIfx SIMM slots, 8 × 16 MB = 128 MB.",up:["NuBus 24-bit video cards","Fast SCSI cards"],ship:"System 6.0.5",sweet:"System 7.5.5",os:[5,11],rar:"Rare",val:"$600–1,500",app:"Adobe Premiere 1.0"},
+"Macintosh IIsi":{rh:"1 MB onboard plus four 30-pin SIMM slots. 4 × 16 MB + 1 = 65 MB.",up:["PDS-to-NuBus adapter with FPU","Cache card","Faster SIMMs for video"],ship:"System 6.0.7",sweet:"System 7.1",os:[5,11],rar:"Common",val:"$100–300",app:"Microsoft Excel 4"},
+"Macintosh Classic II":{rh:"2 MB onboard plus two 30-pin SIMM slots. 2 × 4 MB = 10 MB.",up:["FPU card","Internal BlueSCSI"],ship:"System 7.0.1",sweet:"System 7.1",os:[7,11],rar:"Common",val:"$150–350",app:"SimCity Classic"},
+"PowerBook 140":{rh:"2 MB onboard plus a RAM card slot, up to 8 MB.",up:["SD-based SCSI drive","Battery rebuild"],ship:"System 7.0.1",sweet:"System 7.1",os:[7,11],rar:"Common",val:"$100–250",app:"ClarisWorks 1.0"},
+"PowerBook 170":{rh:"Onboard RAM plus a RAM card slot, up to 8 MB.",up:["SD-based SCSI drive","Battery rebuild"],ship:"System 7.0.1",sweet:"System 7.1",os:[7,11],rar:"Uncommon",val:"$150–400",app:"Microsoft Word 5.1"},
+"Macintosh LC II":{rh:"4 MB onboard plus two 30-pin SIMM slots. Only 10 MB is usable even with bigger SIMMs.",up:["LC III logic board swap","LC PDS Ethernet card"],ship:"System 7.0.1",sweet:"System 7.1",os:[7,11],rar:"Common",val:"$50–150",app:"Mavis Beacon Teaches Typing"},
+"PowerBook 145":{rh:"2 MB onboard (4 MB on 145B) plus a RAM card slot, up to 8 MB.",up:["SD-based SCSI drive","Battery rebuild"],ship:"System 7.0.1",sweet:"System 7.1",os:[7,11],rar:"Common",val:"$80–200",app:"ClarisWorks 2"},
+"PowerBook 160 / 180":{rh:"4 MB onboard plus a RAM card slot, up to 14 MB.",up:["SD-based SCSI drive","Battery rebuild","External monitor on the video port"],ship:"System 7.1",sweet:"System 7.5.5",os:[8,11],rar:"Common",val:"$100–300",app:"Eudora email"},
+"PowerBook Duo 210 / 230 / 250 / 270c":{rh:"4 MB onboard plus a RAM card slot, up to 24 MB (32 MB on the 270c).",up:["Duo Dock II (adds NuBus, floppy, video)","SD-based SCSI drive","Battery rebuild"],ship:"System 7.1",sweet:"System 7.5.5",os:[8,11],rar:"Uncommon",val:"$100–350",app:"America Online 2"},
+"Macintosh IIvx":{rh:"4 MB onboard plus four 30-pin SIMM slots. 4 × 16 MB + 4 = 68 MB.",up:["Apple Centris 650 logic board upgrade","NuBus video cards","Faster CD-ROM"],ship:"System 7.1",sweet:"System 7.5.5",os:[8,11],rar:"Uncommon",val:"$150–400",app:"Macromedia Director 4"},
+"Macintosh Color Classic":{rh:"4 MB onboard plus one 72-pin SIMM slot. Only 10 MB is addressable on the stock board.",up:["\"Mystic\": LC 575 logic board swap (68040, 36 MB)","640×480 display mod","Internal BlueSCSI"],ship:"System 7.1",sweet:"System 7.1",os:[8,11],rar:"Uncommon",val:"$350–800",app:"SimCity 2000"},
+"Macintosh LC III":{rh:"4 MB onboard plus one 72-pin SIMM slot. 32 + 4 = 36 MB.",up:["LC III PDS Ethernet card","33 MHz overclock"],ship:"System 7.1",sweet:"System 7.5.5",os:[8,11],rar:"Common",val:"$75–200",app:"Marathon"},
+"PowerBook 165c / 180c":{rh:"4 MB onboard plus a RAM card slot, up to 14 MB.",up:["SD-based SCSI drive","Battery rebuild"],ship:"System 7.1",sweet:"System 7.5.5",os:[8,11],rar:"Uncommon",val:"$150–400",app:"Spaceward Ho!"},
+"Macintosh LC 520":{rh:"4 MB onboard plus one 72-pin SIMM slot, up to 36 MB.",up:["LC 575 logic board swap (68040)","Tray-loading CD-ROM swap"],ship:"System 7.1",sweet:"System 7.5.5",os:[8,11],rar:"Common",val:"$150–400",app:"Myst"},
+"Macintosh TV":{rh:"4 MB onboard plus one SIMM slot. 8 MB is the hard limit.",up:["Few. Keep it original; it's the rare one"],ship:"System 7.1",sweet:"System 7.1 / 7.5",os:[8,11],rar:"Very rare",val:"$800–2,000",app:"Apple Video Player, for watching TV in a window"},
+"PowerBook 150":{rh:"4 MB onboard plus one memory slot, up to 40 MB.",up:["CF or SD card in place of the IDE drive","Battery rebuild"],ship:"System 7.1",sweet:"System 7.5.5",os:[8,11],rar:"Common",val:"$80–200",app:"Netscape Navigator 1"},
+"Macintosh Quadra 700":{rh:"4 MB onboard plus four 30-pin SIMM slots. 4 × 16 MB + 4 = 68 MB.",up:["Apple PowerPC Upgrade Card (601) in the PDS","33 MHz crystal overclock","VRAM upgrade"],ship:"System 7.0.1",sweet:"System 7.6.1",os:[7,12],rar:"Uncommon",val:"$250–600",app:"Adobe Photoshop 2.5"},
+"Macintosh Quadra 900":{rh:"Sixteen 30-pin SIMM slots. 16 × 16 MB = 256 MB.",up:["Apple PowerPC Upgrade Card","Quadra 950 logic board upgrade"],ship:"System 7.0.1",sweet:"System 7.6.1",os:[7,12],rar:"Uncommon",val:"$300–700",app:"Avid Media Composer"},
+"Macintosh Quadra 950":{rh:"Sixteen 30-pin SIMM slots. 16 × 16 MB = 256 MB.",up:["Apple PowerPC Upgrade Card","DayStar PowerPC accelerators","Fast SCSI cards"],ship:"System 7.0.1",sweet:"System 7.6.1",os:[7,12],rar:"Uncommon",val:"$400–900",app:"QuarkXPress 3.3"},
+"Macintosh Centris 610":{rh:"4 MB onboard plus two 72-pin SIMM slots. 2 × 32 MB + 4 = 68 MB. Use 80 ns or faster.",up:["Full 68040 in place of the 68LC040","Apple PowerPC Upgrade Card","PDS Ethernet"],ship:"System 7.1",sweet:"System 7.6.1",os:[8,12],rar:"Common",val:"$100–300",app:"Marathon"},
+"Macintosh Centris 650":{rh:"4 or 8 MB onboard plus four 72-pin SIMM slots, up to 136 MB.",up:["Full 68040 swap (base model)","Apple PowerPC Upgrade Card","NuBus video cards"],ship:"System 7.1",sweet:"System 7.6.1",os:[8,12],rar:"Uncommon",val:"$150–400",app:"Doom (Mac, 1994)"},
+"Macintosh Quadra 800":{rh:"8 MB onboard plus four 72-pin SIMM slots, up to 136 MB.",up:["Apple PowerPC Upgrade Card","NuBus video and SCSI cards"],ship:"System 7.1",sweet:"System 7.6.1",os:[8,12],rar:"Uncommon",val:"$200–500",app:"Adobe Premiere 4"},
+"Centris 660AV":{rh:"4 MB onboard plus two 72-pin SIMM slots, up to 68 MB.",up:["PDS-to-NuBus adapter","Faster VRAM for 16-bit video"],ship:"System 7.1 AV",sweet:"System 7.5.5",os:[8,12],rar:"Uncommon",val:"$150–400",app:"PlainTalk speech recognition"},
+"Macintosh Quadra 840AV":{rh:"Four 72-pin SIMM slots, 4 × 32 MB = 128 MB.",up:["NuBus video and SCSI cards","Faster VRAM"],ship:"System 7.1 AV",sweet:"System 7.6.1",os:[8,12],rar:"Uncommon",val:"$400–1,000",app:"Adobe Photoshop with DSP-accelerated plug-ins"},
+"Macintosh LC 475":{rh:"4 MB onboard plus one 72-pin SIMM slot. 32 + 4 = 36 MB.",up:["33 MHz overclock by swapping two SMT resistors","Full 68040 swap","LC III PDS Ethernet"],ship:"System 7.1",sweet:"System 7.6.1",os:[8,12],rar:"Common",val:"$100–300",app:"Marathon 2"},
+"Macintosh LC 575":{rh:"4 MB onboard plus one 72-pin SIMM slot, up to 36 MB.",up:["Full 68040 swap","Comm slot Ethernet card"],ship:"System 7.1",sweet:"System 7.6.1",os:[8,12],rar:"Uncommon",val:"$200–500",app:"Myst"},
+"PowerBook Duo 280 / 280c":{rh:"4 MB onboard plus a RAM card slot, up to 40 MB.",up:["Duo Dock II","SD-based SCSI drive","Battery rebuild"],ship:"System 7.1",sweet:"System 7.6.1",os:[8,12],rar:"Uncommon",val:"$150–400",app:"Netscape Navigator"},
+"PowerBook 520 / 540":{rh:"4 MB onboard plus a RAM card slot, up to 36 MB.",up:["PowerPC 603e upgrade card","PC Card cage","Battery rebuild"],ship:"System 7.1.1",sweet:"System 7.6.1",os:[8,12],rar:"Common",val:"$150–400",app:"Marathon"},
+"Macintosh Quadra 630":{rh:"4 MB onboard plus one 72-pin SIMM slot, up to 36 MB.",up:["CF or SD card in place of the IDE drive","Apple TV Tuner and Video Input cards","Comm slot Ethernet"],ship:"System 7.1",sweet:"System 7.6.1",os:[8,12],rar:"Common",val:"$100–300",app:"Doom II"},
+"Macintosh LC 580":{rh:"72-pin SIMM slots, up to 52 MB.",up:["CF or SD card in place of the IDE drive","Comm slot Ethernet"],ship:"System 7.5",sweet:"System 7.6.1",os:[9,12],rar:"Uncommon",val:"$150–400",app:"Microsoft Encarta"},
+"PowerBook 190":{rh:"4 MB onboard plus a RAM card slot, up to 40 MB.",up:["PowerBook 5300 logic board upgrade (PowerPC)","CF or SD card in place of the IDE drive"],ship:"System 7.5.2",sweet:"System 7.6.1",os:[9,12],rar:"Common",val:"$100–300",app:"Netscape Navigator 2"}
+};
+/* Floppy Emu HD20 hard-disk emulation through the floppy port, per Big Mess o' Wires' compatibility list */
+const HD20={
+"Macintosh 512K":["yes","Works, but needs Apple's HD20 Init loaded from a boot floppy."],
+"Macintosh 512Ke":["yes","Works with no extra software."],
+"Macintosh Plus":["yes","Works with no extra software."],
+"Macintosh SE":["yes","Works with no extra software."],
+"Macintosh Classic":["yes","Works with no extra software."],
+"Macintosh Classic II":["mount","Listed as compatible. It may only mount the disk after booting from something else."],
+"Macintosh Portable":["yes","Works with no extra software."],
+"Macintosh IIci":["yes","Works with no extra software."],
+"Macintosh IIsi":["mount","Listed as compatible. It may only mount the disk after booting from something else."],
+"Macintosh LC":["yes","Works with no extra software."],
+"Macintosh 128K":["maybe","Not on the official list. The HD20 Init was written for the 128K and 512K, but expect limits with only 128 KB of RAM."],
+"Macintosh SE/30":["no","The SE/30 ROM has no HD20 driver; use the Floppy Emu as a floppy, or SCSI."]
+};
+/* ---------- tidbits: hands-on tricks per model ---------- */
+const TIPS={
+"Macintosh 128K":["Fit a programmer's switch (the plastic clip on the left side) to get reset and interrupt buttons without pulling the plug.","The case needs a long T15 Torx driver and a case cracker. The signatures are molded on the inside of the back cover."],
+"Macintosh 512K":["A 512K with the Apple 512Ke kit (128K ROMs and 800K drive) runs System 6 and reads 800K disks.","Like the 128K, it takes a programmer's switch for reset and interrupt."],
+"Macintosh Plus":["The Plus doesn't supply SCSI termination power. A jumper wire on the logic board from +5 V to the SCSI TERMPWR pin fixes that, which helps BlueSCSI and modern terminators; most people add a diode and fuse in line for safety.","Turn external SCSI drives on before the Mac. The Plus doesn't wait long for slow drives to spin up.","The external SCSI port is DB-25, not Centronics 50; use a Mac-specific cable."],
+"Macintosh 512Ke":["It's the cheapest way to get a 128K-ROM compact. Add a Floppy Emu in HD20 mode for a hard disk."],
+"Macintosh SE":["The SE's PDS slot is wired straight to the 68000, so period 68030 accelerator cards drop right in.","The ROM holds a hidden photo of the design team, reachable from MacsBug.","It takes a programmer's switch for reset and interrupt."],
+"Macintosh Portable":["Pull the main battery for long storage. A deep-discharged lead-acid pack rarely recovers.","The trackball and keypad module can swap sides for left-handed use."],
+"Macintosh Classic":["Hold Command-Option-X-O at power-on to boot System 6.0.3 from ROM. It's handy when you have no boot disk at all.","Without the memory card it boots with just 1 MB; the card is the only way to reach 4 MB."],
+"PowerBook 100":["It supports SCSI Disk Mode. With an HDI-30 SCSI disk adapter it shows up as a hard disk on another Mac. The 140, 145 and 170 can't do this.","Reset the Power Manager with the two recessed buttons on the back after it's been stored dead."],
+"Macintosh II":["The lid lifts off after two snaps at the back; the whole Mac II family is tool-free inside.","It takes a programmer's switch on the front left."],
+"Macintosh LC":["Upgrading VRAM from 256 KB to 512 KB gives 256 colors at 640×480 on a 13-inch monitor.","The LC PDS slot takes the Apple IIe Card and Ethernet cards; LC II and LC III cards generally work too."],
+"Macintosh IIx":["Apple sold a logic board upgrade from the IIx to the IIfx, so some IIx cases now hold IIfx boards. Check the board before buying."],
+"Macintosh SE/30":["Its ROM sits on a SIMM. Swap in a IIsi ROM or a ROM-inator II to make it 32-bit clean, so it uses all 128 MB without MODE32.","The logic board slides out the back after you remove the case. There's no need to touch the analog board.","PDS cards for it are specific to the SE/30's 030 slot; IIsi PDS cards won't fit."],
+"Macintosh IIcx":["The case is held by a single screw at the back. Apple's IIci logic board upgrade drops straight in."],
+"Macintosh IIci":["The built-in video uses bank A, so put your fastest SIMMs there for snappier graphics.","A cache card in the cache slot is the cheapest big speed boost. Some PowerCache cards add a 68040."],
+"Macintosh IIfx":["It needs the black IIfx SCSI terminator on external chains. Ordinary terminators can corrupt data.","Its SCSI and serial ports run through dedicated processors, so some period serial software misbehaves on it."],
+"Macintosh IIsi":["Replacing the 40 MHz oscillator with a 50 MHz one runs it at 25 MHz. Add a heatsink to the CPU when you do.","The PDS adapter card adds an FPU and one NuBus slot."],
+"Macintosh Classic II":["Its 16-bit bus means 30-pin SIMMs go in as a pair. Fit both slots with matching SIMMs."],
+"PowerBook 140":["There's no SCSI Disk Mode on the 140. Use an external SCSI cable and drive or an SD-based internal drive."],
+"PowerBook 170":["The 170's active-matrix screen is worth saving. Swap batteries and hinges, never the LCD unless it's dead."],
+"Macintosh LC II":["It reports up to 12 MB fitted but uses only 10 MB. Don't buy bigger SIMMs for it."],
+"PowerBook 145":["The 145 and 145B share the 140's case, so 140 hinges and plastics swap in."],
+"PowerBook 160 / 180":["They support SCSI Disk Mode with an HDI-30 SCSI disk adapter, and they drive an external monitor from the video port."],
+"PowerBook Duo 210 / 230 / 250 / 270c":["Keep the Duo Dock's key. Without it the dock can lock the Duo inside.","A MiniDock is a much smaller way to add floppy, SCSI, video and ADB."],
+"Macintosh IIvx":["Apple sold a Centris 650 logic board upgrade for it, which fixes the slow 16 MHz bus."],
+"Macintosh Color Classic":["The logic board slides out the back without opening the case.","The \"Mystic\" upgrade swaps in an LC 575 board for a 68040. A separate analog-board mod raises the screen to 640×480."],
+"Macintosh LC III":["It overclocks easily. Removing one resistor on the bottom of the logic board switches it to LC III+ speed, 33 MHz.","The LC III PDS takes Ethernet cards and the Apple IIe Card."],
+"PowerBook 165c / 180c":["The 180c's screen is the more desirable one, so check which model you're buying."],
+"Macintosh LC 520":["The logic board slides out the back, which makes recaps and board swaps easy.","An LC 575 board drops straight in for a 68040 upgrade."],
+"Macintosh TV":["The TV picture fills the whole screen; it can't show TV in a window like the AV Macs."],
+"PowerBook 150":["It has no ADB port. An external mouse or keyboard has to be a serial device or nothing."],
+"Macintosh Quadra 700":["It overclocks to 33 MHz with a faster crystal oscillator. Add a heatsink to the 68040 first.","Designed to stand upright, though it works lying flat with a monitor on top."],
+"Macintosh Quadra 900":["Turn the key fully to the right for a soft-power restart, and to the secure position to lock out the keyboard and mouse."],
+"Macintosh Quadra 950":["The 950 runs two SCSI buses: internal fast SCSI and external standard SCSI. Put fast drives inside."],
+"Macintosh Centris 610":["A full 68040 swaps in for the 68LC040 to add an FPU, and some run at 25 MHz with a crystal swap, Quadra 610 speed.","The PDS takes a NuBus adapter or Apple's PowerPC Upgrade Card."],
+"Macintosh Centris 650":["It shares its logic board with the Quadra 650. Built-in Ethernet was standard on most configurations."],
+"Macintosh Quadra 800":["Many overclock to 40 MHz with a crystal swap. Add a heatsink and test thoroughly."],
+"Centris 660AV":["GeoPort plus the right software turns a serial port into a modem and fax line."],
+"Macintosh Quadra 840AV":["PlainTalk speech recognition lets you open items by voice. Try \"Computer, open Control Panels.\""],
+"Macintosh LC 475":["The 33 MHz overclock is just two surface-mount resistors. Move them from their 25 MHz pads to the 33 MHz pads (see the diagram below); nothing else changes. It works the same on the Quadra 605 and Performa 475/476.","Pair it with a full 68040 to fix the early 68LC040 FPU-emulation bug and add an FPU, and fit a heatsink since the chip runs hotter at 33 MHz."],
+"Macintosh LC 575":["The logic board slides out the back. It's the donor board for the Color Classic Mystic upgrade."],
+"PowerBook Duo 280 / 280c":["The 280 and 280c are the only 68040 Duos, so they run Mac OS 8.1."],
+"PowerBook 520 / 540":["It runs on one battery in either bay. Rebuild one good pack before buying two.","The PowerPC upgrade card replaces the CPU daughterboard."],
+"Macintosh Quadra 630":["Its IDE bus takes ordinary ATA drives and CF or SD adapters. No special Apple drives are needed."],
+"Macintosh LC 580":["It uses the same IDE drives as the Quadra 630."],
+"PowerBook 190":["It shares parts with the 5300. 5300 screens, keyboards and cases fit."]
+};
+
+/* drop-in DRAM replacements for the soldered-RAM compacts */
+const PARTS={
+"Macintosh 128K":{title:"Keep it a 128K: drop-in replacement chips",
+ intro:"Any 4164-type DRAM works: 64K×1, 16-pin DIP, single +5 V supply, 150 ns or faster (-15, -12 or -10 suffix). Replace only the failed chip, socket it, and leave the board configured for 128K.",
+ rows:[["TI","TMS4164-15 (also -12)"],["Micron","MT4264-15"],["Samsung","KM4164B-15"],["NEC","µPD4164C-15"],["Motorola","MCM6665BP15"],["Mitsubishi","M5K4164ANP-15"],["Fujitsu","MB8264A-15"],["Oki","MSM3764-15"],["Hitachi","HM4864P-3"]],
+ warn:"Don't use 4116 chips. They look similar but are 16K and need +12 V and −5 V, which can damage the board. 41256 chips only work if you convert the whole board to 512K."},
+"Macintosh 512K":{title:"Drop-in replacement chips",
+ intro:"Any 41256-type DRAM works: 256K×1, 16-pin DIP, single +5 V, 150 ns or faster.",
+ rows:[["Samsung","KM41256-15"],["Hitachi","HM50256-15"],["NEC","µPD41256C-15"],["TI","TMS4256-15"],["Micron","MT1259-15"]],
+ warn:"Don't mix in 4164s. They're only 64K and the Mac will report the wrong memory size or fail its RAM test."}
+};
+const OCIMG={"Macintosh LC 475":{src:"data:image/png;base64,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",cap:"Q605 / LC 475 overclock: swap the two surface-mount resistors from the 25 MHz positions (top) to the 33 MHz positions (bottom). Diagram supplied by a museum visitor."}};
+const OSB=["1.0","2.0","3.x","4.x","5.0","6.0","6.0.8","7.0","7.1","7.5","7.5.5","7.6.1","8.1"];
+/* Speedometer CPU scores from Low End Mac's benchmark pages */
+const S3={"Macintosh Plus":0.87,"Macintosh SE":0.98,"Macintosh Classic":0.99,"Macintosh Portable":2.15,"Macintosh II":3.43,"Macintosh Classic II":4.00,"Macintosh IIcx":4.24,"Macintosh SE/30":4.25,"Macintosh IIsi":3.84,"PowerBook 170":3.37,"Macintosh LC III":6.92,"Macintosh IIfx":11.53,"Macintosh Quadra 700":16.22,"Macintosh Centris 650":21.90,"Macintosh Quadra 950":21.90};
+const S3L={"Macintosh Centris 650":"Quadra 650"};
+const S4={"Macintosh II":0.22,"Macintosh Classic II":0.25,"Macintosh SE/30":0.26,"Macintosh IIcx":0.26,"Macintosh IIsi":0.24,"Macintosh IIci":0.38,"PowerBook 170":0.40,"Macintosh LC III":0.43,"Macintosh IIfx":0.71,"Centris 660AV":0.89,"Macintosh LC 475":0.88,"PowerBook 520 / 540":1.17,"Macintosh Quadra 700":0.89,"Macintosh Quadra 630":1.18,"Macintosh Centris 650":1.19,"Macintosh Quadra 950":1.19};
+const S4L={"Macintosh LC 475":"Quadra 605","PowerBook 520 / 540":"PowerBook 540","Macintosh Centris 650":"Quadra 650","Centris 660AV":"Quadra 660AV"};
+
+const GAL = {
+ "68000":{t:"68000 Gallery",p:"The original 16/32-bit chip. Compact Macs, the first Portable and the PowerBook 100. Everything here tops out at System 7.5.5 or earlier."},
+ "68020":{t:"68020 Gallery",p:"A full 32-bit CPU. Only two Macs used it: the Mac II that brought color and the LC that brought color to schools."},
+ "68030":{t:"68030 Gallery",p:"Built-in memory management made virtual memory standard. The longest and busiest wing, from the IIx to the PowerBook 150."},
+ "68040":{t:"68040 Gallery",p:"Built-in FPU and cache, roughly twice the speed of an '030 at the same clock. The Quadras, Centrises and the last 68K PowerBooks. Mac OS 8.1 is as far as they go."}
+};
+const FAM = {compact:"Compact",ii:"Mac II",lc:"LC & all-in-one",quadra:"Quadra & Centris",portable:"Portables"};
+const CPUC = {"68000":"var(--c000)","68020":"var(--c020)","68030":"var(--c030)","68040":"var(--c040)"};
+const CASE = {beige:["var(--case-beige)","var(--case-beigeD)"],plat:["var(--case-plat)","var(--case-platD)"],dark:["var(--case-dark)","var(--case-darkD)"],black:["var(--case-black)","var(--case-blackD)"],gray:["var(--case-gray)","var(--case-grayD)"]};
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+
+/* ---------- illustrations ---------- */
+function screen(x,y,w,h,kind){
+  const fill = kind==="color" ? "#6E86A6" : kind==="lcd" ? "url(#lcd)" : kind==="lcdg" ? "#9DA395" : "url(#dith)";
+  const bar = kind==="lcd"||kind==="lcdg" ? "#C8CDBC" : "#F2F2F0";
+  const ww=w*.46, wh=h*.44, wx=x+w*.18, wy=y+h*.26;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.min(w,h)*.06}" fill="${fill}"/>
+  <rect x="${x}" y="${y}" width="${w}" height="${Math.max(3,h*.075)}" fill="${bar}"/>
+  ${kind==="color"?`<rect x="${x+w*.05}" y="${y+h*.012}" width="${h*.05}" height="${h*.05}" rx="1" fill="#E03A3E"/>`:""}
+  <rect x="${wx}" y="${wy}" width="${ww}" height="${wh}" fill="${bar}" stroke="#1A1A1A" stroke-width=".8"/>
+  <rect x="${wx}" y="${wy}" width="${ww}" height="${wh*.16}" fill="${bar}" stroke="#1A1A1A" stroke-width=".8"/>
+  ${[.25,.45,.65].map(f=>`<rect x="${wx+ww*.1}" y="${wy+wh*(f+.08)}" width="${ww*.6}" height="1.2" fill="#555"/>`).join("")}`;
+}
+function monitor(cx,base,w,h,c,kind){
+  const x=cx-w/2, y=base-h;
+  return `<rect x="${cx-w*.2}" y="${base-6}" width="${w*.4}" height="6" fill="${c[1]}"/>
+  <rect x="${x}" y="${y}" width="${w}" height="${h-6}" rx="5" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/>
+  <rect x="${x+w*.07}" y="${y+h*.07}" width="${w*.86}" height="${h*.72}" rx="4" fill="#26272A"/>
+  ${screen(x+w*.11,y+h*.11,w*.78,h*.62,kind)}`;
+}
+function shadow(cx,y,w){return `<ellipse cx="${cx}" cy="${y}" rx="${w/2}" ry="5" fill="#00000022"/>`}
+function slot(x,y,w){return `<rect x="${x}" y="${y}" width="${w}" height="3.6" rx="1.5" fill="#2A2A2A"/>`}
+function grooves(x,y,w,n,col){let s="";for(let i=0;i<n;i++)s+=`<rect x="${x}" y="${y+i*4}" width="${w}" height="1.2" fill="${col}"/>`;return s}
+
+function art(m){
+  const a=m.art, c=CASE[a.c]; let s="";
+  if(a.t==="compact" && a.cc){
+    /* Color Classic: rounded head, bulging chin, foot tucked underneath */
+    s+=shadow(120,180,116);
+    s+=`<rect x="80" y="160" width="80" height="16" rx="3" fill="${c[1]}"/>`;
+    s+=`<path d="M82 6 H158 Q176 6 176 24 L178 128 Q181 152 168 164 H72 Q59 152 62 128 L64 24 Q64 6 82 6 Z" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5" stroke-linejoin="round"/>`;
+    s+=`<rect x="72" y="16" width="96" height="84" rx="16" fill="${c[1]}"/>`;
+    s+=`<rect x="76" y="20" width="88" height="76" rx="14" fill="#26272A"/>`;
+    s+=screen(83,27,74,60,"color");
+    s+=`<path d="M63 112 Q120 103 177 112" fill="none" stroke="${c[1]}" stroke-width="1.5"/>`;
+    s+=slot(112,128,48);
+    s+=`<rect x="76" y="140" width="9" height="9" rx="2" fill="${c[1]}"/>`;
+    s+=`<rect x="146" y="142" width="14" height="10" rx="2" fill="url(#grill)"/>`;
+  } else if(a.t==="upright"){
+    /* Quadra 700: IIci-size case stood on end beside the monitor */
+    s+=shadow(120,184,214);
+    s+=monitor(82,180,132,118,c,"color");
+    s+=`<rect x="160" y="54" width="56" height="126" rx="3" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/>`;
+    s+=`<rect x="196" y="68" width="3.6" height="40" rx="1.5" fill="#2A2A2A"/>`;
+    s+=`<rect x="170" y="70" width="8" height="8" rx="2" fill="${c[1]}"/>`;
+    s+=grooves(168,130,40,9,c[1]);
+    s+=`<circle cx="174" cy="170" r="1.8" fill="#61BB46"/>`;
+  } else if(a.t==="compact"){
+    const r=7;
+    s+=shadow(120,176,124);
+    s+=`<rect x="66" y="160" width="108" height="12" rx="3" fill="${c[1]}"/>`;
+    s+=`<rect x="58" y="8" width="124" height="158" rx="${r}" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/>`;
+    s+=`<rect x="70" y="${a.cc?20:20}" width="100" height="${a.cc?82:78}" rx="${a.cc?12:6}" fill="${c[1]}"/>`;
+    s+=`<rect x="74" y="24" width="92" height="${a.cc?74:70}" rx="${a.cc?10:5}" fill="#26272A"/>`;
+    s+=screen(80,29,80,a.cc?62:58,a.cc?"color":"mono");
+    s+=slot(124,118,40); if(a.two) s+=slot(124,130,40);
+    s+=`<rect x="74" y="140" width="9" height="9" rx="2" fill="${c[1]}"/>`;
+    s+=grooves(96,146,22,3,c[1]);
+  } else if(a.t==="aio"){
+    /* LC 520 family: taller than wide (17.9 x 13.5 in), Color Classic shape scaled up, drives in the chin */
+    s+=shadow(120,184,150);
+    s+=`<rect x="72" y="166" width="96" height="16" rx="3" fill="${c[1]}"/>`;
+    s+=`<path d="M68 6 H172 Q190 6 190 24 L193 124 Q196 150 184 168 H56 Q44 150 47 124 L50 24 Q50 6 68 6 Z" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5" stroke-linejoin="round"/>`;
+    s+=`<path d="M49 118 Q120 108 191 118" fill="none" stroke="${c[1]}" stroke-width="1.5"/>`;
+    s+=`<rect x="60" y="16" width="120" height="94" rx="12" fill="${c[1]}"/>`;
+    s+=`<rect x="64" y="20" width="112" height="86" rx="10" fill="#26272A"/>`;
+    s+=screen(71,26,98,74,"color");
+    s+=`<rect x="56" y="124" width="22" height="30" rx="4" fill="url(#grill)"/><rect x="162" y="124" width="22" height="30" rx="4" fill="url(#grill)"/>`;
+    s+=`<rect x="86" y="128" width="68" height="9" rx="2" fill="${c[1]}"/><rect x="90" y="131.5" width="60" height="2" fill="#2A2A2A" opacity=".55"/>`;
+    s+=slot(110,146,44);
+    s+=`<rect x="86" y="144" width="8" height="8" rx="2" fill="${c[1]}"/><circle cx="120" cy="160" r="1.8" fill="#61BB46"/>`;
+  } else if(a.t==="desk"){
+    const K={ii:{x:16,w:208,h:50},cx:{x:56,w:128,h:46},si:{x:48,w:144,h:36},pizza:{x:38,w:164,h:26},pizza605:{x:58,w:124,h:24},low:{x:22,w:196,h:28},vx:{x:28,w:184,h:50},q630:{x:48,w:144,h:54}}[a.k];
+    const top=180-K.h;
+    s+=shadow(120,182,K.w+10);
+    s+=`<rect x="${K.x}" y="${top}" width="${K.w}" height="${K.h}" rx="3" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/>`;
+    if(a.k==="ii"){s+=slot(150,top+14,48)+slot(150,top+28,48)+grooves(28,top+10,70,6,c[1]);}
+    else if(a.k==="vx"||a.k==="q630"){s+=`<rect x="${K.x+12}" y="${top+12}" width="${K.w*.42}" height="10" rx="2" fill="${c[1]}"/>`+slot(K.x+K.w*.6,top+16,K.w*.3)+grooves(K.x+12,top+30,K.w*.42,4,c[1]);}
+    else if(a.k==="cx"){s+=slot(K.x+K.w*.55,top+16,K.w*.35)+grooves(K.x+10,top+12,K.w*.35,6,c[1]);}
+    else {s+=slot(K.x+K.w*.62,top+K.h*.45,K.w*.28)+`<rect x="${K.x+10}" y="${top+K.h*.42}" width="6" height="4" rx="1" fill="${c[1]}"/>`;}
+    const mw = a.mon==="12"?118:136, mh=a.mon==="12"?100:112;
+    s+=monitor(120,top,mw,Math.min(mh,top-4),c,a.scr||"color");
+  } else if(a.t==="tower"||a.t==="mini"){
+    const t=a.t==="tower", x=t?72:80, w=t?96:80, y=t?6:30, h=t?174:150;
+    s+=shadow(120,182,w+20);
+    s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/>`;
+    s+=`<rect x="${x+10}" y="${y+12}" width="${w-20}" height="14" rx="2" fill="${c[1]}"/>`;
+    s+=`<rect x="${x+10}" y="${y+32}" width="${w-20}" height="14" rx="2" fill="${c[1]}"/>`;
+    s+=slot(x+w*.3,y+58,w*.5);
+    if(t) s+=`<circle cx="${x+22}" cy="${y+86}" r="6" fill="${c[1]}"/><rect x="${x+20.5}" y="${y+81}" width="3" height="10" fill="${c[0]}"/>`;
+    s+=`<rect x="${x+12}" y="${y+h-58}" width="${w-24}" height="40" rx="3" fill="url(#grill)"/>`;
+  } else {
+    /* laptops */
+    const P={portable:{lx:34,lw:172,lh:92,sy:8,by:104,bw:216,dark:false},pb:{lx:a.small?54:46,lw:a.small?132:148,lh:a.small?86:94,sy:12,by:110,bw:a.small?176:192,dark:false},duo:{lx:56,lw:128,lh:82,sy:26,by:112,bw:164,dark:false},pb5:{lx:44,lw:152,lh:96,sy:10,by:110,bw:194,dark:true}}[a.t];
+    const kind = a.scr || (a.t==="pb5"?"lcdg":"lcd");
+    const bx=120-P.bw/2, bh=a.t==="duo"?60:72;
+    s+=shadow(120,186,P.bw+10);
+    s+=`<rect x="${P.lx}" y="${P.sy}" width="${P.lw}" height="${P.lh}" rx="${a.t==="pb5"?10:4}" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/>`;
+    s+=`<rect x="${P.lx+10}" y="${P.sy+8}" width="${P.lw-20}" height="${P.lh-18}" rx="3" fill="#1E1F21"/>`;
+    s+=screen(P.lx+15,P.sy+12,P.lw-30,P.lh-26,kind);
+    s+=`<path d="M${bx+12} ${P.by} H${bx+P.bw-12} L${bx+P.bw} ${P.by+bh} H${bx} Z" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5" stroke-linejoin="round"/>`;
+    const kx=bx+22, kw=P.bw-44;
+    if(a.t==="portable"){
+      s+=`<rect x="${kx}" y="${P.by+8}" width="${kw*.72}" height="${bh-22}" fill="url(#keysL)"/>`;
+      s+=`<circle cx="${kx+kw*.87}" cy="${P.by+bh*.42}" r="13" fill="#3A3B3E"/><circle cx="${kx+kw*.87}" cy="${P.by+bh*.42}" r="9" fill="#7C7E84"/>`;
+    } else {
+      const kh=a.t==="duo"?bh*.62:bh*.5;
+      s+=`<rect x="${kx}" y="${P.by+6}" width="${kw}" height="${kh}" fill="url(#${P.dark||a.c==="gray"?"keysD":"keysL"})"/>`;
+      const py=P.by+6+kh+(bh-6-kh)/2;
+      if(a.t==="pb5"){s+=`<rect x="104" y="${py-9}" width="32" height="14" rx="2" fill="${c[1]}"/><rect x="108" y="${py+7}" width="24" height="4" rx="2" fill="${c[1]}"/>`;}
+      else {const r=a.t==="duo"?5:8; s+=`<circle cx="120" cy="${py}" r="${r+3}" fill="${c[1]}"/><circle cx="120" cy="${py}" r="${r}" fill="#2B2C2F"/><rect x="${120-r-18}" y="${py+r+1}" width="${2*r+36}" height="3.5" rx="1.5" fill="${c[1]}"/>`;}
+    }
+  }
+  return `<svg viewBox="0 0 240 192" role="img" aria-label="Illustration of the ${m.n}">${s}</svg>`;
+}
+
+/* ---------- rendering ---------- */
+const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtDate = d => { const [y,mo]=d.split("-"); return months[+mo-1]+" "+y; };
+const esc = s => String(s).replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+M.forEach(m=>{m.id=slug(m.n);});
+
+function card(m){
+  const spec=[["Launched",fmtDate(m.d)],["Processor",m.cpu],["Memory (std / max)",m.ram],["Display",m.disp],["Storage",m.stor],["Expansion",m.exp],["Launch price",m.price],["Last OS",m.os]];
+  return `<article class="win exhibit" id="${m.id}">
+  <div class="tbar"><span class="box"></span><span class="t">${esc(m.n)}</span><span class="sp"></span></div>
+  <div class="body">
+    <div class="plate">${art(m)}<div class="acc">Object ${m.d.replace("-","·")} · ${FAM[m.f]}</div>
+      <div class="coll" data-coll="${m.id}"><label for="st-${m.id}">In my collection</label><select id="st-${m.id}">${STATUS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select><textarea id="nt-${m.id}" aria-label="Notes for ${esc(m.n)}" placeholder="Notes: serial, condition, what's been fixed"></textarea></div></div>
+    <div class="placard">
+      <div class="ptop">
+        <span class="cpuTag"><i style="background:${CPUC[m.g]}"></i>${m.g}</span>
+        <h3>${esc(m.n)}</h3>
+        ${m.aka?`<div class="aka">Also: ${esc(m.aka)}</div>`:""}
+      </div>
+      <p class="blurb">${esc(m.blurb)}</p>
+      <dl class="specs">${spec.map(([k,v])=>`<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
+      ${(()=>{const x=X[m.n]||{};const sp=[S3[m.n]!=null?`Speedometer 3: <b>${S3[m.n].toFixed(2)}</b>`:"",S4[m.n]!=null?`Speedometer 4: <b>${S4[m.n].toFixed(2)}</b>`:""].filter(Boolean).join(" · ");
+        return `<div class="facts">
+        <div class="fact"><h5>Maximum memory</h5><span class="big">${esc((m.ram.split("/")[1]||m.ram).trim())}</span><p>${esc(x.rh||"")}</p></div>
+        <div class="fact"><h5>Software</h5><p>Ships with ${esc(x.ship||"—")}. Best on <b>${esc(x.sweet||"—")}</b>. Last: ${esc(m.os)}.</p>${sp?`<p class="fine" style="margin-top:4px">${sp}</p>`:""}</div>
+        <div class="fact"><h5>Known for running</h5><p>${esc(x.app||"—")}</p></div>
+        <div class="fact"><h5>Upgrades</h5><ul>${(x.up||[]).map(u=>`<li>${esc(u)}</li>`).join("")}</ul></div>
+        ${HD20[m.n]?`<div class="fact"><h5>HD20 over the floppy port</h5><p><span class="rar hd-${HD20[m.n][0]}">${{yes:"Supported",mount:"Mount only",maybe:"Unofficial",no:"Not supported"}[HD20[m.n][0]]}</span>${esc(HD20[m.n][1])}</p></div>`:""}
+        <div class="fact"><h5>Collector guide</h5><p><span class="rar">${esc(x.rar||"—")}</span>${esc(x.val||"")}</p></div>
+        </div>`})()}
+      ${PARTS[m.n]?`<div class="parts"><h4>${esc(PARTS[m.n].title)}</h4><p>${esc(PARTS[m.n].intro)}</p><div class="tablewrap"><table class="ptab"><thead><tr><th>Maker</th><th>Part number</th></tr></thead><tbody>${PARTS[m.n].rows.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join("")}</tbody></table></div><p class="pwarn">${esc(PARTS[m.n].warn)}</p><p class="fine">Look for new-old-stock or tested pulls from vintage electronics sellers and on eBay. Buy a few spares; when one chip fails, others often follow.</p></div>`:""}
+      ${TIPS[m.n]?`<div class="tips"><h4>Tidbits</h4><ul>${TIPS[m.n].map(t=>`<li>${esc(t)}</li>`).join("")}</ul>${OCIMG[m.n]?`<figure class="ocfig"><img src="${OCIMG[m.n].src}" alt="Diagram of the two resistor positions for 25 MHz and 33 MHz on the LC 475 logic board"><figcaption>${esc(OCIMG[m.n].cap)}</figcaption></figure>`:""}</div>`:""}
+      <div class="repair"><h4>Repair notes</h4><ul>${m.iss.map(([p,f])=>`<li><b>${esc(p)}</b><span>${esc(f)}</span></li>`).join("")}</ul></div>
+    </div>
+  </div></article>`;
+}
+
+const state={cpu:"all",fam:"all",q:""};
+function render(){
+  const q=state.q.trim().toLowerCase();
+  const list=M.filter(m=>(state.cpu==="all"||m.g===state.cpu)&&(state.fam==="all"||m.f===state.fam)&&(!q||(m.n+" "+(m.aka||"")+" "+m.blurb+" "+m.cpu).toLowerCase().includes(q)));
+  let html="";
+  for(const g of Object.keys(GAL)){
+    const items=list.filter(m=>m.g===g).sort((a,b)=>a.d.localeCompare(b.d));
+    if(!items.length) continue;
+    html+=`<section class="gallery" id="g${g}"><div class="ghead"><h2><span class="sw" style="background:${CPUC[g]}"></span>${GAL[g].t}</h2><p>${GAL[g].p}</p></div>${items.map(card).join("")}</section>`;
+  }
+  document.getElementById("galleries").innerHTML = html || `<div class="win" style="margin-top:40px"><div class="empty">No machines match. Clear the search or pick another filter.</div></div>`;
+  document.getElementById("count").textContent = list.length+" of "+M.length+" exhibits";
+  if(typeof syncColl==="function") syncColl();
+}
+
+function chips(el,opts,key){
+  const box=document.getElementById(el);
+  opts.forEach(([v,label,col])=>{
+    const b=document.createElement("button"); b.className="chip"; b.type="button";
+    b.innerHTML=(col?`<span class="dot" style="background:${col}"></span>`:"")+label;
+    b.setAttribute("aria-pressed",v==="all");
+    b.onclick=()=>{state[key]=v;box.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===b));render();};
+    box.appendChild(b);
+  });
+}
+chips("fcpu",[["all","All"],["68000","68000",CPUC["68000"]],["68020","68020",CPUC["68020"]],["68030","68030",CPUC["68030"]],["68040","68040",CPUC["68040"]]],"cpu");
+chips("ffam",[["all","All"],...Object.entries(FAM)],"fam");
+document.getElementById("q").addEventListener("input",e=>{state.q=e.target.value;render();});
+
+/* ---------- timeline ---------- */
+(function(){
+  const svg=document.getElementById("tl"), X0=90, X1=980, Y0=1984, Y1=1996;
+  const xs=v=>X0+(v-Y0)/(Y1-Y0)*(X1-X0);
+  const lanes=["68000","68020","68030","68040"], ly=i=>36+i*38;
+  let s="";
+  for(let y=Y0;y<=Y1;y++){const x=xs(y);s+=`<line x1="${x}" y1="20" x2="${x}" y2="180" stroke="var(--soft)" stroke-width="1"/>`;if(y<Y1)s+=`<text x="${xs(y+.5)}" y="194" text-anchor="middle">${y}</text>`;}
+  lanes.forEach((g,i)=>{s+=`<text class="lane-label" x="8" y="${ly(i)+4}">${g}</text><line x1="${X0}" y1="${ly(i)}" x2="${X1}" y2="${ly(i)}" stroke="var(--soft)" stroke-width="1"/>`;});
+  const seen={};
+  M.forEach(m=>{
+    const [y,mo]=m.d.split("-").map(Number), v=y+(mo-.5)/12, li=lanes.indexOf(m.g);
+    const k=li+"-"+m.d, n=seen[k]=(seen[k]||0)+1;
+    const cy=ly(li)+(n-1)*9-(n>1?0:0);
+    s+=`<circle cx="${xs(v)}" cy="${cy}" r="5.5" fill="${CPUC[m.g]}" data-id="${m.id}" tabindex="0"><title>${m.n} · ${fmtDate(m.d)}</title></circle>`;
+  });
+  svg.innerHTML=s;
+  const go=id=>jumpTo(id);
+  svg.addEventListener("click",e=>{const id=e.target.getAttribute&&e.target.getAttribute("data-id");if(id)go(id);});
+  svg.addEventListener("keydown",e=>{if(e.key==="Enter"){const id=e.target.getAttribute("data-id");if(id)go(id);}});
+})();
+
+/* ---------- lab ---------- */
+const LAB=[
+ ["Pull every battery first","PRAM and clock batteries from the SE, Mac II series, LCs and Quadras leak and eat traces. Remove them before anything else, even if the machine works. Fit a socketed holder and a fresh cell later."],
+ ["Recap the surface-mount boards","Boards from 1989 to 1995 (SE/30, Classic, Classic II, IIci, IIsi, LCs, Color Classic, PowerBooks) used surface-mount electrolytic caps that leak. Symptoms: no chime, no sound, Sad Mac, fishy smell. Replace them with tantalum or polymer caps and wash off the electrolyte."],
+ ["Recap power supplies and analog boards","Through-hole caps dry out rather than leak. A clicking supply, a Mac that only starts after several tries, or a shrunken, dim picture all point here."],
+ ["Replacing bad RAM","128K and 512K Macs use soldered DRAM chips (4164 and 41256); new-old-stock and tested pulls are still easy to find, and you should socket whatever you replace. SIMM Macs take 30-pin SIMMs (Plus through IIvx, Quadra 700/900/950) or 72-pin SIMMs (LC III, Color Classic, Centris, later Quadras). New-production 30-pin SIMMs are sold by retro-computing shops, and 72-pin FPM SIMMs are common used. Fill each bank with matching SIMMs."],
+ ["Clean and relube floppy drives","The original grease hardens into glue, so disks won't load or eject. Remove the old grease from the rails and eject gears with isopropyl alcohol and apply a thin synthetic grease. Leave the heads alone apart from a gentle alcohol swab."],
+ ["HD20 through the floppy port","The Floppy Emu can pretend to be Apple's HD20, a 20 MB hard disk that plugged into the floppy port. That gives a hard disk to Macs with no SCSI port at all, like the 512K and 512Ke. Big Mess o' Wires lists the 512K, 512Ke, Plus, SE, Classic, Classic II, Portable, IIci, IIsi and LC as compatible. The 512K needs Apple's HD20 Init; the others need no software. The IIsi and Classic II may only mount the disk after booting from something else. The SE/30 isn't supported. Each compatible exhibit says which applies."],
+ ["Replace the hard disk","Old Quantum and Conner drives suffer stiction and dead bearings. A BlueSCSI or ZuluSCSI board replaces a SCSI drive with an SD card; IDE models (Quadra 630, LC 580, PowerBook 150 and 190) take CF or SD adapters."],
+ ["Treat the CRT with respect","Compact and all-in-one Macs hold lethal voltage in the CRT anode long after unplugging. Discharge it to chassis ground with an insulated screwdriver and a clip lead. You need a long T15 Torx driver to open the compacts."],
+ ["Get SCSI right","Every device needs a unique ID (the Mac is 7, the internal drive is usually 0) and the chain needs a terminator at its far end. Most \"disappearing drive\" problems are termination."],
+ ["Zap the PRAM","Hold Command-Option-P-R at startup until it chimes twice. Do it after replacing a battery or when settings act strange."],
+ ["Yellowed plastic","Bromine flame retardant yellows the case. Hydrogen peroxide and UV (Retr0bright) reverses it, but it can re-yellow and can weaken old plastic. It's optional, and many collectors skip it."]
+];
+document.getElementById("labgrid").innerHTML=LAB.map(([t,p])=>`<div class="win"><div class="tbar"><span class="box"></span><span class="t">${esc(t)}</span><span class="sp"></span></div><div class="in"><p>${esc(p)}</p></div></div>`).join("");
+
+/* ---------- collection (saved to the viewer's private store, browser fallback) ---------- */
+const COLL={data:{},mode:"local",ref:null};
+const STATUS=[["","Not in my collection"],["working","Own it: working"],["repair","Own it: needs repair"],["restored","Own it: recapped / restored"],["wish","Wishlist"]];
+const STLABEL=Object.fromEntries(STATUS);
+function loadLocal(){try{COLL.data=JSON.parse(localStorage.getItem("mac68k-coll")||"{}")}catch(e){COLL.data={}}}
+function saveLocal(){try{localStorage.setItem("mac68k-coll",JSON.stringify(COLL.data))}catch(e){}}
+loadLocal();
+(async()=>{
+  try{
+    if(!window.claude||!window.claude.use) return;
+    const db=await window.claude.use("db"), user=await window.claude.use("user");
+    if(!db||!user) return;
+    const uid=await user.id(); if(!uid) return;
+    COLL.ref=db.collection("data/users/"+uid);
+    COLL.ref.onSnapshot(snap=>{
+      const local=COLL.mode==="local"?{...COLL.data}:null;
+      COLL.mode="cloud"; COLL.data={};
+      snap.docs.forEach(d=>{COLL.data[d.id]=d.data();});
+      /* first sync: carry anything saved only in this browser into the account */
+      if(local) for(const [id,v] of Object.entries(local)) if(!COLL.data[id]&&(v.status||v.notes)){COLL.data[id]=v;COLL.ref.doc(id).set(v).catch(()=>{});}
+      syncColl();
+    },()=>{COLL.mode="local";syncColl();});
+  }catch(e){}
+})();
+function setColl(id,patch){
+  const cur={status:"",notes:"",...(COLL.data[id]||{}),...patch};
+  const empty=!cur.status&&!cur.notes.trim();
+  if(empty) delete COLL.data[id]; else COLL.data[id]={status:cur.status,notes:cur.notes};
+  if(COLL.mode==="cloud"&&COLL.ref){(empty?COLL.ref.doc(id).delete():COLL.ref.doc(id).set(COLL.data[id])).catch(()=>{});}
+  else saveLocal();
+  syncColl();
+}
+function syncColl(){
+  document.querySelectorAll("[data-coll]").forEach(el=>{
+    const id=el.getAttribute("data-coll"), v=COLL.data[id]||{status:"",notes:""};
+    const sel=el.querySelector("select"), ta=el.querySelector("textarea");
+    if(sel&&document.activeElement!==sel) sel.value=v.status||"";
+    if(ta&&document.activeElement!==ta) ta.value=v.notes||"";
+    el.closest(".exhibit")?.setAttribute("data-status",v.status||"");
+  });
+  renderCollSummary();
+}
+function renderCollSummary(){
+  const box=document.getElementById("collbody"); if(!box) return;
+  const rows=M.filter(m=>COLL.data[m.id]&&(COLL.data[m.id].status||COLL.data[m.id].notes));
+  const own=rows.filter(m=>["working","repair","restored"].includes(COLL.data[m.id].status));
+  const cnt=k=>rows.filter(m=>COLL.data[m.id].status===k).length;
+  const where=COLL.mode==="cloud"?"Saved to your account, so it follows you to other devices.":"Saved in this browser only.";
+  if(!rows.length){box.innerHTML=`<div class="collempty"><b>Your shelf is empty.</b> Use the "In my collection" menu on any exhibit to mark Macs you own or want. ${where}</div>`;return;}
+  box.innerHTML=`<div class="tiles">
+    <div><span>${own.length}</span>owned</div><div><span>${cnt("working")}</span>working</div><div><span>${cnt("repair")}</span>need repair</div><div><span>${cnt("restored")}</span>restored</div><div><span>${cnt("wish")}</span>wishlist</div></div>
+    <div class="tablewrap"><table class="ctab"><thead><tr><th>Machine</th><th>CPU</th><th>Status</th><th>Notes</th></tr></thead><tbody>
+    ${rows.sort((a,b)=>a.d.localeCompare(b.d)).map(m=>`<tr><td><a href="#${m.id}" data-jump="${m.id}">${esc(m.n)}</a></td><td>${m.g}</td><td><span class="st st-${COLL.data[m.id].status||"none"}">${esc(STLABEL[COLL.data[m.id].status||""]||"Note only")}</span></td><td>${esc(COLL.data[m.id].notes||"")}</td></tr>`).join("")}
+    </tbody></table></div><p class="fine">${where}</p>`;
+}
+document.addEventListener("change",e=>{const w=e.target.closest("[data-coll]");if(w&&e.target.tagName==="SELECT")setColl(w.getAttribute("data-coll"),{status:e.target.value});});
+document.addEventListener("focusout",e=>{const w=e.target.closest("[data-coll]");if(w&&e.target.tagName==="TEXTAREA")setColl(w.getAttribute("data-coll"),{notes:e.target.value});});
+
+/* ---------- jump helper ---------- */
+function jumpTo(id){state.cpu="all";state.fam="all";state.q="";document.getElementById("q").value="";
+  document.querySelectorAll(".controls .chip").forEach(c=>c.setAttribute("aria-pressed",c.textContent==="All"));
+  render();const el=document.getElementById(id);if(el)el.scrollIntoView({block:"start"});}
+document.addEventListener("click",e=>{const a=e.target.closest("[data-jump]");if(a){e.preventDefault();jumpTo(a.getAttribute("data-jump"));}});
+
+/* ---------- compare ---------- */
+function ramMaxMB(m){const t=m.ram.split("/")[1]||m.ram;const mm=t.match(/([\d.]+)\s*(MB|KB)/);if(!mm)return null;return mm[2]==="KB"?(+mm[1])/1024:+mm[1];}
+function initCompare(){
+  const sels=[...document.querySelectorAll("#cmpsel select")];
+  const opts=`<option value="">— none —</option>`+Object.keys(GAL).map(g=>`<optgroup label="${g}">${M.filter(m=>m.g===g).map(m=>`<option value="${m.id}">${esc(m.n)}</option>`).join("")}</optgroup>`).join("");
+  const def=["macintosh-se-30","macintosh-classic-ii","macintosh-color-classic"];
+  sels.forEach((s,i)=>{s.innerHTML=opts;s.value=def[i];s.addEventListener("change",drawCompare);});
+  drawCompare();
+}
+function drawCompare(){
+  const ids=[...document.querySelectorAll("#cmpsel select")].map(s=>s.value).filter(Boolean);
+  const ms=ids.map(id=>M.find(m=>m.id===id));
+  const rows=[["Launched",m=>fmtDate(m.d)],["CPU family",m=>m.g],["Processor",m=>m.cpu],["Memory (std / max)",m=>m.ram],["Getting to max RAM",m=>X[m.n]?.rh||"—"],["Display",m=>m.disp],["Storage",m=>m.stor],["Expansion",m=>m.exp],["Speedometer 3 CPU",m=>S3[m.n]!=null?S3[m.n].toFixed(2):"not tested"],["Speedometer 4 CPU",m=>S4[m.n]!=null?S4[m.n].toFixed(2):"not tested"],["Launch price",m=>m.price],["Ships with",m=>X[m.n]?.ship||"—"],["Best OS",m=>X[m.n]?.sweet||"—"],["Last OS",m=>m.os],["Known for",m=>X[m.n]?.app||"—"],["Rarity",m=>X[m.n]?.rar||"—"],["Rough value",m=>X[m.n]?.val||"—"]];
+  const box=document.getElementById("cmpout");
+  if(!ms.length){box.innerHTML=`<p class="fine" style="padding:16px">Pick at least one machine.</p>`;return;}
+  box.innerHTML=`<table class="cmp"><thead><tr><th></th>${ms.map(m=>`<th><a href="#${m.id}" data-jump="${m.id}">${esc(m.n)}</a></th>`).join("")}</tr></thead><tbody>${rows.map(([k,f])=>{const vals=ms.map(f);const diff=new Set(vals).size>1;return `<tr${diff?' class="diff"':""}><th>${k}</th>${vals.map(v=>`<td>${esc(v)}</td>`).join("")}</tr>`}).join("")}</tbody></table>`;
+}
+
+/* ---------- speed charts (to scale, labels from tokens) ---------- */
+function barChart(el,data,labels,max,fmt){
+  const rows=Object.entries(data).sort((a,b)=>b[1]-a[1]);
+  const W=720,L=170,R=60,rh=24,top=10,H=top+rows.length*rh+28;
+  const xs=v=>L+v/max*(W-L-R);
+  const step=max>10?5:0.25;let g="";
+  for(let t=0;t<=max+1e-9;t+=step){const x=xs(t);g+=`<line x1="${x}" y1="${top-4}" x2="${x}" y2="${H-24}" stroke="var(--soft)"/><text x="${x}" y="${H-8}" text-anchor="middle" class="ax">${t%1?t.toFixed(2):t}</text>`;}
+  rows.forEach(([n,v],i)=>{const m=M.find(x=>x.n===n),y=top+i*rh;const lab=(labels[n]||n).replace(/^Macintosh /,"");
+    g+=`<text x="${L-8}" y="${y+15}" text-anchor="end" class="lb">${esc(lab)}</text><rect x="${L}" y="${y+4}" width="${xs(v)-L}" height="15" rx="2" fill="${CPUC[m.g]}" data-jump="${m.id}" style="cursor:pointer"><title>${esc(lab)}: ${fmt(v)}</title></rect><text x="${xs(v)+6}" y="${y+16}" class="vl">${fmt(v)}</text>`;});
+  document.getElementById(el).innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`;
+}
+
+/* ---------- OS support ranges ---------- */
+function osChart(){
+  const W=900,L=230,R=20,rh=17,top=34;const rows=[...M].sort((a,b)=>a.d.localeCompare(b.d));const H=top+rows.length*rh+10;
+  const cw=(W-L-R)/(OSB.length-1), xs=i=>L+i*cw;let g="";
+  OSB.forEach((o,i)=>{g+=`<line x1="${xs(i)}" y1="${top-8}" x2="${xs(i)}" y2="${H-6}" stroke="var(--soft)"/><text x="${xs(i)}" y="${top-14}" text-anchor="middle" class="ax">${o}</text>`;});
+  rows.forEach((m,i)=>{const r=X[m.n]?.os;if(!r)return;const y=top+i*rh;
+    g+=`<text x="${L-10}" y="${y+12}" text-anchor="end" class="lb sm" data-jump="${m.id}" style="cursor:pointer">${esc(m.n.replace(/^Macintosh /,""))}</text>`;
+    g+=`<rect x="${xs(r[0])-5}" y="${y+4}" width="${xs(r[1])-xs(r[0])+10}" height="10" rx="5" fill="${CPUC[m.g]}" opacity=".9"><title>${esc(m.n)}: ships with ${esc(X[m.n].ship)}, last ${esc(m.os)}</title></rect>`;});
+  document.getElementById("oschart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="System software each Mac supports">${g}</svg>`;
+}
+
+/* ---------- diagnosis ---------- */
+const CLASS={"01":["ROM checksum failed","Clean the ROM chips or ROM SIMM contacts and reseat. If it persists, look for corroded traces near the ROMs or a failed ROM."],"02":["RAM data bus test failed","A RAM chip or SIMM failed, or a socket is dirty. On SIMM Macs swap SIMMs within the bank and see if the code changes. On the 128K and 512K, one of the soldered DRAM chips is bad."],"03":["RAM byte-write test failed","Usually a bad SIMM or mismatched SIMMs in one bank. Fill the bank with identical SIMMs."],"04":["RAM mod-3 address test failed","Bad SIMM, or on the Plus and SE the RAM-size resistors or jumper don't match the SIMMs fitted."],"05":["RAM address uniqueness failed","Bad SIMM or a damaged address line. Inspect for leaked-capacitor corrosion around the RAM area."],"0F":["CPU exception during startup","Usually software. Boot from a known-good floppy or ROM disk, then reinstall the System or remove extensions."]};
+function decodeSad(){
+  const raw=document.getElementById("sadin").value.toUpperCase().replace(/[^0-9A-F]/g,"");const out=document.getElementById("sadout");
+  if(!raw){out.innerHTML=`<p class="fine">Type the numbers from under the Sad Mac icon. Examples: <code>0F0003</code> (compact Mac) or <code>0000000F 00000003</code> (later Macs).</p>`;return;}
+  let cls=null,detail="",kind="";
+  if(raw.length===6){cls=raw.slice(0,2);detail=raw.slice(2);kind="68000 compact format: class "+cls+", detail "+detail;}
+  else if(raw.length===16){cls=raw.slice(6,8);detail=raw.slice(8);kind="Two-line format: class "+raw.slice(4,8)+", detail "+detail;}
+  else {out.innerHTML=`<p class="fine">Expected 6 digits (one line) or 16 digits (two lines of 8). You typed ${raw.length}.</p>`;return;}
+  const c=CLASS[cls];
+  let extra="";
+  if(c&&/^0[2-5]$/.test(cls)){const bits=parseInt(detail,16);const lanes=[];for(let b=0;b<4;b++)if(bits&(0xFF<<(b*8)))lanes.push(b);
+    extra=lanes.length&&raw.length===16?`<p>The detail value flags bits in byte lane${lanes.length>1?"s":""} ${lanes.join(", ")}. On 30-pin machines each SIMM in a bank carries one byte lane, so start with the SIMM${lanes.length>1?"s":""} in that position.</p>`:(raw.length===6&&bits?`<p>The detail digits mark the failing bit or bits. Each bit is one DRAM chip on 128K/512K boards, or one chip position on Plus/SE SIMMs.</p>`:"");}
+  out.innerHTML=c?`<div class="dx"><b>${c[0]}</b><p>${c[1]}</p>${extra}<p class="fine">${kind}</p></div>`:`<div class="dx"><b>Class ${cls} isn't a common startup code</b><p>Codes outside 01–05 and 0F are rare. Check the Mac's service manual for that class.</p><p class="fine">${kind}</p></div>`;
+}
+const SOUNDS=[
+ ["Normal chime, then a happy face","Startup hardware tests passed. Anything wrong from here is software or the boot disk."],
+ ["Normal chime, then a flashing disk with a question mark","The Mac can't find a bootable disk. Check SCSI cables, termination and IDs, or that the drive spins up. A dead drive often needs replacing with a BlueSCSI or ZuluSCSI."],
+ ["Chimes of death (arpeggio, or a car-crash chord on the Mac II family)","A hardware test failed, most often RAM. Reseat SIMMs, try one known-good bank, and look for leaked capacitors."],
+ ["No chime, but the fan spins or the screen lights","Logic board isn't starting. Classic sign of leaked surface-mount caps on 1989–1995 boards, or a dead PRAM battery on the IIfx. Recap and inspect traces."],
+ ["No chime and nothing at all","Power. Check the supply (recap it), the power switch, and on soft-power Macs the keyboard power key and ADB cable."],
+ ["Checkerboard pattern (Simasimac)","On compact Macs the board stalls before video setup. Reseat ROMs and RAM; on the SE/30 suspect corroded traces from leaked caps."],
+ ["Chime but no sound in apps, or no chime only","The sound circuit, a classic leaked-capacitor symptom on the SE/30, Classic, IIci, IIsi and LCs. Recap."]
+];
+function initDiag(){
+  document.getElementById("sadin").addEventListener("input",decodeSad);decodeSad();
+  const sel=document.getElementById("sndsel");sel.innerHTML=SOUNDS.map((s,i)=>`<option value="${i}">${esc(s[0])}</option>`).join("");
+  const show=()=>{document.getElementById("sndout").innerHTML=`<div class="dx"><p>${esc(SOUNDS[sel.value][1])}</p></div>`;};
+  sel.addEventListener("change",show);sel.value="2";show();
+}
+
+/* ---------- accessories wing ---------- */
+const ACC=[
+{n:"Macintosh External Disk Drive",y:"1984",port:"DB-19 floppy port",art:"floppy",c:"beige",
+ w:["Macintosh 128K","Macintosh 512K","Macintosh 512Ke","Macintosh Plus","Macintosh SE"],
+ note:"Single-sided 400K Sony drive. The second drive almost every 128K owner bought, since copying disks with one drive meant endless swapping.",
+ fix:"Same hardened-grease problem as the internal drives. Clean and relube the eject mechanism."},
+{n:"Apple 800K External Drive",y:"1986",port:"DB-19 floppy port",art:"floppy",c:"plat",
+ w:["Macintosh 512Ke","Macintosh Plus","Macintosh SE","Macintosh SE/30","Macintosh Classic","Macintosh Classic II","Macintosh Portable"],
+ note:"Double-sided 800K drive. Needs a Mac with the 128K ROMs or later, so a stock 512K can't use it without the 512Ke upgrade.",
+ fix:"Relube the mechanism and clean the heads gently with isopropyl on a swab."},
+{n:"Apple External SuperDrive (FDHD)",y:"1989",port:"DB-19 floppy port",art:"floppy",c:"plat",
+ w:["Macintosh SE","Macintosh SE/30","Macintosh Classic","Macintosh Classic II","Macintosh Portable"],
+ note:"Reads 1.4 MB disks and PC-formatted disks. The SE needs the SuperDrive (FDHD) ROMs to drive it at full capacity.",
+ fix:"On a Mac without SuperDrive ROMs it behaves as an 800K drive at best."},
+{n:"PowerBook 100 Floppy Drive",y:"1991",port:"HDI-20 floppy port",art:"floppy",c:"gray",
+ w:["PowerBook 100","PowerBook Duo 210 / 230 / 250 / 270c","PowerBook Duo 280 / 280c"],
+ note:"The PowerBook 100 had no internal drive, so this slim 1.4 MB drive came in the box. Duos use it through the MiniDock or the Duo Floppy Adapter.",
+ fix:"The HDI-20 cable is fragile. Check it before blaming the drive."},
+{n:"Apple Hard Disk 20 (HD20)",y:"1985",port:"DB-19 floppy port (daisy-chains a floppy drive)",art:"hd20",c:"beige",
+ w:["Macintosh 512K","Macintosh 512Ke","Macintosh Plus","Macintosh SE","Macintosh Classic","Macintosh Portable","Macintosh IIci","Macintosh LC"],
+ note:"Apple's first hard disk: 20 MB that sat under the Mac and plugged into the floppy port, with its own floppy pass-through. The 512K needs the HD20 Init. A Floppy Emu in HD20 mode follows the same compatibility.",
+ fix:"Original mechanisms suffer stiction and failed bearings. Most people now use a Floppy Emu in HD20 mode instead."},
+{n:"Apple Hard Disk 20SC",y:"1986",port:"SCSI (DB-25 / Centronics 50)",art:"scsi",c:"plat",
+ w:["Macintosh Plus","Macintosh SE","Macintosh SE/30","Macintosh II","Macintosh IIci","Macintosh Classic","Macintosh LC","Macintosh Quadra 700"],
+ note:"The SCSI hard disk launched with the Plus. Works on every SCSI Mac; the list shows a few. Set a unique SCSI ID on the back.",
+ fix:"Terminate the end of the chain. Replace dead mechanisms with a BlueSCSI or ZuluSCSI inside the case to keep the look."},
+{n:"AppleCD SC",y:"1988",port:"SCSI",art:"cd",c:"plat",
+ w:["Macintosh Plus","Macintosh SE","Macintosh SE/30","Macintosh II","Macintosh IIci","Macintosh LC","Macintosh Centris 650","Macintosh Quadra 800"],
+ note:"Apple's first CD-ROM drive, caddy-loading. Works on any SCSI Mac with the Apple CD-ROM extension installed.",
+ fix:"Caddies are scarce now. Keep the one that came with the drive."},
+{n:"Macintosh Keyboard and Mouse (M0110 / M0100)",y:"1984",port:"RJ-11 keyboard, DE-9 mouse",art:"kbd",c:"beige",
+ w:["Macintosh 128K","Macintosh 512K","Macintosh 512Ke","Macintosh Plus"],
+ note:"The pre-ADB keyboard and mouse. The Plus came with the M0110A keyboard, which added arrow keys and a keypad.",
+ fix:"The keyboard cable looks like a phone cord but is wired straight-through. A crossed phone cord won't work. Clean mouse rollers with isopropyl."},
+{n:"Apple Desktop Bus Keyboard and Mouse",y:"1987",port:"ADB (4-pin mini-DIN)",art:"kbd",c:"plat",
+ w:["Macintosh SE","Macintosh II","Macintosh SE/30","Macintosh Classic","Macintosh LC","Macintosh Color Classic","Macintosh Quadra 700","Macintosh Centris 610"],
+ note:"Every Mac from the SE and Mac II onward uses ADB, including PowerBooks for external devices. The Apple Extended Keyboard II is the collector favorite.",
+ fix:"Never plug or unplug ADB with the power on; it can blow a fuse on the logic board."},
+{n:"ImageWriter II",y:"1985",port:"Serial (printer port)",art:"printer",c:"plat",
+ w:["Macintosh 512K","Macintosh Plus","Macintosh SE","Macintosh Classic","Macintosh II","Macintosh LC","Macintosh Quadra 630"],
+ note:"The dot-matrix printer that printed a generation of school reports. Works from every 68K Mac's printer port.",
+ fix:"Use fresh ribbons and the correct ImageWriter driver for your System version."},
+{n:"LaserWriter",y:"1985",port:"LocalTalk / AppleTalk",art:"printer",c:"beige",
+ w:["Macintosh 512K","Macintosh Plus","Macintosh SE","Macintosh II","Macintosh Classic","Macintosh LC"],
+ note:"The PostScript laser printer that, with PageMaker and the 512K, started desktop publishing.",
+ fix:"Needs LocalTalk connectors and terminated cable runs. Turn AppleTalk on in the Chooser."},
+{n:"AppleColor High-Resolution RGB Monitor",y:"1987",port:"DA-15 video",art:"monitor",c:"plat",
+ w:["Macintosh II","Macintosh IIx","Macintosh IIci","Macintosh IIsi","Macintosh LC","Macintosh IIvx","Macintosh Quadra 700","Macintosh Centris 610"],
+ note:"The 13-inch Trinitron that launched alongside the Mac II. Runs 640×480 from any Mac II video card or built-in video. The LC needs its VRAM upgrade for this size.",
+ fix:"Dim or color-shifted pictures usually mean dried capacitors on the monitor's board."},
+{n:"Apple IIe Card",y:"1991",port:"LC PDS slot",art:"card",c:"plat",
+ w:["Macintosh LC","Macintosh LC II","Macintosh LC III","Macintosh Color Classic","Macintosh LC 520","Macintosh LC 475","Macintosh LC 575"],
+ note:"A whole Apple IIe on a card, with a breakout cable for Apple II floppy drives and joysticks. Schools used it to run Apple II software on Macs.",
+ fix:"Needs the IIe Startup software. The breakout Y-cable is the part that usually goes missing."},
+{n:"PowerBook Duo Dock",y:"1992",port:"Duo docking connector",art:"dock",c:"plat",
+ w:["PowerBook Duo 210 / 230 / 250 / 270c","PowerBook Duo 280 / 280c"],
+ note:"Turns a Duo into a desktop with a floppy drive, two NuBus slots, video and a hard disk bay. The Duo Dock II added Ethernet and better color.",
+ fix:"The motorized loading mechanism jams. Clean and relube it and keep the key."},
+{n:"Floppy Emu",y:"Modern",port:"Floppy port or internal floppy connector",art:"emu",c:"dark",
+ w:["Macintosh 128K","Macintosh 512K","Macintosh 512Ke","Macintosh Plus","Macintosh SE","Macintosh Classic","Macintosh IIci","Macintosh LC"],
+ note:"Emulates floppy drives and the HD20 from disk images on an SD card. Floppy mode works on nearly every 68K Mac with a floppy connector; see each exhibit for HD20 support.",
+ fix:"Use the right adapter: the external DB-19 port on compacts, or the internal 20-pin floppy header on Macs without an external port."},
+{n:"BlueSCSI / ZuluSCSI",y:"Modern",port:"SCSI",art:"emu",c:"dark",
+ w:["Macintosh Plus","Macintosh SE","Macintosh SE/30","Macintosh II","Macintosh Classic II","Macintosh LC III","PowerBook 170","Macintosh Quadra 800"],
+ note:"SD-card hard disk replacements for any SCSI Mac. Internal 50-pin, external DB-25, and PowerBook versions exist.",
+ fix:"The Plus doesn't supply SCSI termination power: either pick a version that powers itself over USB, or add the TERMPWR jumper on the Plus logic board (see the Plus exhibit)."}
+];
+function accArt(a){
+  const c=CASE[a.c];let s="";
+  if(a.art==="floppy"){s+=shadow(120,150,150)+`<rect x="50" y="78" width="140" height="68" rx="5" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/>`+slot(96,104,80)+`<rect x="62" y="122" width="9" height="9" rx="2" fill="${c[1]}"/>`+grooves(62,90,24,3,c[1]);}
+  else if(a.art==="hd20"){s+=shadow(120,170,190)+`<rect x="58" y="10" width="124" height="100" rx="6" fill="#ffffff22" stroke="${c[1]}" stroke-dasharray="4 3"/><text x="120" y="64" text-anchor="middle" class="ghost">Mac sits here</text><rect x="30" y="112" width="180" height="52" rx="4" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/>`+grooves(42,124,90,6,c[1])+`<circle cx="190" cy="138" r="3" fill="#61BB46"/>`;}
+  else if(a.art==="scsi"){s+=shadow(120,160,170)+`<rect x="36" y="96" width="168" height="60" rx="4" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/>`+grooves(48,108,110,9,c[1])+`<circle cx="186" cy="136" r="3" fill="#61BB46"/>`;}
+  else if(a.art==="cd"){s+=shadow(120,160,130)+`<rect x="56" y="70" width="128" height="86" rx="4" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/><rect x="66" y="88" width="108" height="12" rx="2" fill="${c[1]}"/><rect x="70" y="92" width="100" height="3" fill="#2A2A2A" opacity=".5"/><circle cx="166" cy="136" r="3" fill="#E5A400"/>`+grooves(66,118,50,5,c[1]);}
+  else if(a.art==="kbd"){s+=shadow(110,160,190)+`<rect x="16" y="96" width="168" height="58" rx="5" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/><rect x="26" y="104" width="148" height="42" fill="url(#keysL)"/><path d="M204 112 q0 -12 12 -12 q12 0 12 12 v26 q0 12 -12 12 q-12 0 -12 -12 z" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/><rect x="204" y="112" width="24" height="3" fill="${c[1]}"/>`;}
+  else if(a.art==="printer"){s+=shadow(120,166,180)+`<rect x="62" y="40" width="116" height="40" fill="#F4F3EE" stroke="${c[1]}"/>${[50,58,66].map(y=>`<rect x="74" y="${y}" width="${y===66?50:90}" height="2" fill="#888"/>`).join("")}<path d="M34 80 H206 L214 160 H26 Z" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5" stroke-linejoin="round"/><rect x="50" y="92" width="140" height="8" rx="2" fill="${c[1]}"/>`+grooves(50,124,60,5,c[1])+`<circle cx="190" cy="140" r="3" fill="#61BB46"/>`;}
+  else if(a.art==="monitor"){s+=shadow(120,176,170)+monitor(120,172,170,150,c,"color");}
+  else if(a.art==="card"){s+=`<rect x="34" y="60" width="172" height="80" rx="3" fill="#2F6B3F" stroke="#1E4A2B"/>${[60,96,132].map(x=>`<rect x="${x}" y="78" width="28" height="22" fill="#1B1C1E"/>`).join("")}<rect x="60" y="112" width="70" height="12" fill="#1B1C1E"/><rect x="40" y="140" width="160" height="8" fill="#C9A23A"/>${Array.from({length:20},(_,i)=>`<rect x="${44+i*8}" y="140" width="4" height="8" fill="#9C7A22"/>`).join("")}`;}
+  else if(a.art==="dock"){s+=shadow(120,170,200)+`<rect x="28" y="62" width="184" height="104" rx="6" fill="${c[0]}" stroke="${c[1]}" stroke-width="1.5"/><rect x="58" y="76" width="124" height="16" rx="3" fill="#2A2A2A"/><text x="120" y="88" text-anchor="middle" class="ghost" style="fill:#ddd">Duo slides in here</text>`+slot(130,112,60)+grooves(40,110,70,10,c[1]);}
+  else if(a.art==="emu"){s+=shadow(120,150,130)+`<rect x="60" y="72" width="120" height="72" rx="4" fill="#1F5FAF" stroke="#123B70"/><rect x="72" y="84" width="58" height="26" fill="#9FD3F0" stroke="#123B70"/><rect x="76" y="90" width="40" height="3" fill="#123B70"/><rect x="76" y="98" width="30" height="3" fill="#123B70"/><rect x="144" y="86" width="22" height="16" rx="2" fill="#C0C4CA"/>${[78,96,114].map(x=>`<circle cx="${x}" cy="128" r="5" fill="#E8E8E8"/>`).join("")}<rect x="140" y="120" width="30" height="14" fill="#C9A23A"/>`;}
+  return `<svg viewBox="0 0 240 180" role="img" aria-label="Illustration of the ${esc(a.n)}">${s}</svg>`;
+}
+function renderAcc(){
+  document.getElementById("accgrid").innerHTML=ACC.map(a=>`<article class="win acc-card">
+    <div class="tbar"><span class="box"></span><span class="t">${esc(a.n)}</span><span class="sp"></span></div>
+    <div class="plate accplate">${accArt(a)}<div class="acc">${esc(a.y)} · ${esc(a.port)}</div></div>
+    <div class="pad"><p class="blurb" style="font-size:15px">${esc(a.note)}</p>
+      <div><h5 class="lbl">Works with</h5><div class="works">${a.w.map(n=>{const m=M.find(x=>x.n===n);return m?`<a href="#${m.id}" data-jump="${m.id}" class="wchip"><i style="background:${CPUC[m.g]}"></i>${esc(n.replace(/^Macintosh /,""))}</a>`:`<span class="wchip">${esc(n)}</span>`}).join("")}</div></div>
+      <div><h5 class="lbl">Tip</h5><p class="fine" style="font-size:14px">${esc(a.fix)}</p></div></div></article>`).join("");
+}
+
+render();
+renderAcc();
+initCompare();
+barChart("sp3",S3,S3L,25,v=>v.toFixed(2));
+barChart("sp4",S4,S4L,1.25,v=>v.toFixed(2));
+osChart();
+initDiag();
+</script>
+
+</body>
+</html>

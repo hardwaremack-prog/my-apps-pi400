@@ -1,0 +1,8 @@
+{
+  "mesh_name": "home-mesh",
+  "secret": "pick-a-shared-key",
+  "node_name": "",
+  "peers": [],
+  "mesh_port": 47474,
+  "web_port": 8470
+}

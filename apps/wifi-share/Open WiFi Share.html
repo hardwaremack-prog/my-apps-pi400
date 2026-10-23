@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WiFi Share</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0d1320;color:#e3e9f3;font:16px/1.5 system-ui,sans-serif;padding:16px;box-sizing:border-box}
+.box{max-width:580px;background:#141c2b;border:1px solid #27344a;border-radius:16px;padding:28px}
+h1{margin:0 0 4px;font-size:24px;display:flex;align-items:center;gap:12px} img{width:48px;height:48px}
+p{color:#a2afc3} code{background:#0d1320;border:1px solid #27344a;border-radius:6px;padding:2px 6px;color:#5aa2ff;font-size:14px}
+ol{padding-left:20px} li{margin:8px 0} .warn{color:#f0b640}
+</style></head><body><div class="box">
+<h1><img src="wifi-share-icon.png" alt="">WiFi Share</h1>
+<p>Shares the Pi's Wi-Fi internet through its Ethernet port and shows who's plugged in. It opens in its own window, so start it from the Desktop:</p>
+<ol>
+<li>Double-click the <b>WiFi Share</b> icon on the Desktop (it's added by <b>Set Up My Apps.sh</b>), or find it in the Raspberry Pi menu under <b>Internet</b>.</li>
+<li>Click <b>Start sharing</b>, then plug the other device into the Pi's Ethernet port.</li>
+</ol>
+<p>No icon? Open a Terminal and type:<br><code>python3 ~/Desktop/"My Apps"/apps/wifi-share/wifi_share.py</code></p>
+<p>Needs Raspberry Pi OS Bookworm or newer. More help is in <b>README.txt</b> in this folder.</p>
+<p class="warn">Don't plug the Pi's Ethernet into your home router while sharing is on. Click Stop sharing first.</p>
+</div></body></html>

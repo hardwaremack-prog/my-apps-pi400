@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PAPER ROUTE</title>
+<style>
+  :root{
+    --ink:#10151c;
+    --paper:#f2e9d8;
+    --road:#3a3d42;
+    --line:#e8c14d;
+    --accent:#e8562f;
+    --accent2:#3ec1a3;
+  }
+  html,body{
+    margin:0; height:100%;
+    background: radial-gradient(ellipse at center, #262b33 0%, #10151c 70%);
+    display:flex; align-items:center; justify-content:center;
+    font-family: 'Courier New', monospace;
+    overflow:hidden;
+    touch-action:none;
+  }
+  #wrap{
+    position:relative;
+    border:6px solid #05070a;
+    border-radius:10px;
+    box-shadow: 0 0 0 3px #454b55, 0 20px 50px rgba(0,0,0,0.6), inset 0 0 40px rgba(0,0,0,0.5);
+    background:#000;
+  }
+  canvas{
+    display:block;
+    image-rendering: pixelated;
+  }
+  .hud{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between;
+    padding:10px 14px;
+    color:var(--paper);
+    font-size:15px;
+    letter-spacing:1px;
+    pointer-events:none;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.6);
+  }
+  .hud .lives{ color: var(--accent2); }
+  .overlay{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(10,12,16,0.86);
+    color:var(--paper);
+    text-align:center;
+    padding:20px;
+  }
+  .overlay h1{
+    font-size:34px; margin:0 0 6px 0; letter-spacing:3px;
+    color:var(--accent);
+    text-shadow: 3px 3px 0 #7a2c14;
+  }
+  .overlay h2{
+    font-size:20px; margin:14px 0 4px 0; color: var(--accent2);
+  }
+  .overlay p{ font-size:13px; line-height:1.7; max-width:320px; opacity:0.9; }
+  .overlay button{
+    margin-top:16px;
+    background:var(--accent2);
+    border:none;
+    color:#08221b;
+    font-family:inherit;
+    font-weight:bold;
+    font-size:15px;
+    letter-spacing:1px;
+    padding:12px 26px;
+    border-radius:6px;
+    cursor:pointer;
+    box-shadow: 0 4px 0 #1f6e5c;
+  }
+  .overlay button:active{ transform:translateY(3px); box-shadow:none; }
+  .hidden{ display:none !important; }
+  .touch{
+    position:absolute; bottom:10px; left:0; right:0;
+    display:flex; justify-content:space-between; padding:0 14px;
+    pointer-events:none;
+  }
+  .touch button{
+    pointer-events:all;
+    width:64px; height:64px; border-radius:50%;
+    background:rgba(242,233,216,0.14);
+    border:2px solid rgba(242,233,216,0.35);
+    color:var(--paper); font-size:22px;
+    -webkit-user-select:none; user-select:none;
+  }
+  .touch .mid{ display:flex; gap:14px; }
+  @media (min-width: 700px){ .touch{ display:none; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="480" height="640"></canvas>
+
+  <div class="hud">
+    <div>SCORE <span id="score">0</span></div>
+    <div>DAY <span id="day">1</span></div>
+    <div class="lives">BIKES <span id="lives">3</span></div>
+  </div>
+
+  <div class="overlay" id="startScreen">
+    <h1>PAPER ROUTE</h1>
+    <p>Ride your route and deliver to every subscriber. Steer with ← → (or A/D). Press SPACE to throw a paper toward the side you last steered. Miss the customers' mailbox and they'll be annoyed. Hit a hazard and you'll wipe out.</p>
+    <h2>◀ ▶ steer&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;SPACE throw</h2>
+    <button id="startBtn">START ROUTE</button>
+  </div>
+
+  <div class="overlay hidden" id="overScreen">
+    <h1>WIPED OUT</h1>
+    <p id="finalStats">Final score: 0</p>
+    <button id="retryBtn">TRY AGAIN</button>
+  </div>
+
+  <div class="touch">
+    <button id="tLeft">◀</button>
+    <div class="mid">
+      <button id="tThrow">🗞</button>
+    </div>
+    <button id="tRight">▶</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // ---- zones ----
+  const ZONE = {
+    leftYardStart: 0, leftYardEnd: 96,
+    leftWalkEnd: 138,
+    roadEnd: 342,
+    rightWalkEnd: 384,
+    rightYardEnd: 480
+  };
+  const roadCenter = (ZONE.leftWalkEnd + ZONE.roadEnd) / 2;
+
+  const HOUSE_COLORS = ['#c9704b','#7fa88a','#d9a441','#5a6a8a','#b5493f','#4d8a86','#a8763e'];
+
+  let state = 'start'; // start | playing | over
+  let score = 0, lives = 3, day = 1;
+  let distance = 0;
+  let worldSpeed = 150; // px/sec
+  let rowSpacing = 190;
+  let nextRowAt = 200;
+  let throwCooldown = 0;
+  let lastDir = 1; // 1 right, -1 left
+  let leftKey=false, rightKey=false;
+
+  let player = { x: roadCenter, y: 540, w: 20, h: 30, vx:0, invuln:0, wobble:0 };
+  let rows = [];     // {y, left:{...}, right:{...}}
+  let obstacles = []; // {x,y,w,h,type}
+  let papers = [];   // {x,y,vx,vy}
+  let popups = [];   // {x,y,text,color,life}
+
+  function resetGame(){
+    score=0; lives=3; day=1; distance=0; worldSpeed=150; nextRowAt=200;
+    player.x = roadCenter; player.invuln=0; player.wobble=0;
+    rows=[]; obstacles=[]; papers=[]; popups=[];
+  }
+
+  function spawnRow(y){
+    const leftSub = Math.random() < 0.62;
+    const rightSub = Math.random() < 0.62;
+    rows.push({
+      y: y,
+      left: { subscriber: leftSub, delivered:false, missed:false, color: HOUSE_COLORS[Math.floor(Math.random()*HOUSE_COLORS.length)] },
+      right:{ subscriber: rightSub, delivered:false, missed:false, color: HOUSE_COLORS[Math.floor(Math.random()*HOUSE_COLORS.length)] }
+    });
+    // maybe spawn an obstacle near this row
+    if(Math.random() < 0.55){
+      const kinds = [
+        {type:'pothole', zone:'road'},
+        {type:'can', zone:'walkL'},
+        {type:'can', zone:'walkR'},
+        {type:'rock', zone:'yardL'},
+        {type:'rock', zone:'yardR'},
+      ];
+      const k = kinds[Math.floor(Math.random()*kinds.length)];
+      let x, w=26, h=26;
+      if(k.zone==='road'){ x = ZONE.leftWalkEnd + 30 + Math.random()*(ZONE.roadEnd-ZONE.leftWalkEnd-60); }
+      else if(k.zone==='walkL'){ x = ZONE.leftYardEnd + 8; w=16;h=16; }
+      else if(k.zone==='walkR'){ x = ZONE.roadEnd + 8; w=16;h=16; }
+      else if(k.zone==='yardL'){ x = 20 + Math.random()*50; }
+      else { x = ZONE.roadEnd + 40 + Math.random()*50; }
+      obstacles.push({x, y: y + 70 + Math.random()*40, w, h, type:k.type});
+    }
+  }
+
+  function popup(x,y,text,color){
+    popups.push({x,y,text,color,life:0.9});
+  }
+
+  function throwPaper(){
+    if(throwCooldown>0) return;
+    throwCooldown = 0.28;
+    papers.push({
+      x: player.x, y: player.y - 6,
+      vx: lastDir * 150,
+      vy: -300
+    });
+  }
+
+  // ---- input ----
+  window.addEventListener('keydown', e=>{
+    if(state!=='playing'){
+      if(e.code==='Space' && state==='start'){ startGame(); }
+      return;
+    }
+    if(e.code==='ArrowLeft'||e.code==='KeyA'){ leftKey=true; lastDir=-1; }
+    if(e.code==='ArrowRight'||e.code==='KeyD'){ rightKey=true; lastDir=1; }
+    if(e.code==='Space'){ e.preventDefault(); throwPaper(); }
+  });
+  window.addEventListener('keyup', e=>{
+    if(e.code==='ArrowLeft'||e.code==='KeyA'){ leftKey=false; }
+    if(e.code==='ArrowRight'||e.code==='KeyD'){ rightKey=false; }
+  });
+
+  function bindHold(el, onDown, onUp){
+    el.addEventListener('pointerdown', e=>{ e.preventDefault(); onDown(); });
+    el.addEventListener('pointerup', e=>{ e.preventDefault(); onUp&&onUp(); });
+    el.addEventListener('pointerleave', e=>{ onUp&&onUp(); });
+  }
+  bindHold(document.getElementById('tLeft'), ()=>{leftKey=true; lastDir=-1;}, ()=>{leftKey=false;});
+  bindHold(document.getElementById('tRight'), ()=>{rightKey=true; lastDir=1;}, ()=>{rightKey=false;});
+  bindHold(document.getElementById('tThrow'), ()=>{ if(state==='playing') throwPaper(); });
+
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('retryBtn').addEventListener('click', startGame);
+
+  function startGame(){
+    resetGame();
+    state='playing';
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('overScreen').classList.add('hidden');
+  }
+
+  function gameOver(){
+    state='over';
+    document.getElementById('finalStats').textContent = `Final score: ${score} — Day ${day}`;
+    document.getElementById('overScreen').classList.remove('hidden');
+  }
+
+  function crash(){
+    if(player.invuln>0) return;
+    lives--;
+    player.invuln = 1.6;
+    player.wobble = 1.6;
+    updateHud();
+    if(lives<=0){ gameOver(); }
+  }
+
+  function updateHud(){
+    document.getElementById('score').textContent = score;
+    document.getElementById('lives').textContent = Math.max(lives,0);
+    document.getElementById('day').textContent = day;
+  }
+
+  // ---- update ----
+  let lastTime = performance.now();
+  function loop(t){
+    let dt = (t - lastTime)/1000;
+    if(dt>0.05) dt = 0.05;
+    lastTime = t;
+    if(state==='playing') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function update(dt){
+    // gradual difficulty
+    worldSpeed = 150 + Math.min(140, day*10);
+
+    distance += worldSpeed*dt;
+    if(distance >= nextRowAt){
+      spawnRow(-140);
+      nextRowAt += rowSpacing;
+    }
+
+    if(player.invuln>0) player.invuln -= dt;
+    if(player.wobble>0) player.wobble -= dt;
+    if(throwCooldown>0) throwCooldown -= dt;
+
+    // player movement
+    const accel = 620, maxV = 230, friction = 700;
+    if(leftKey) player.vx -= accel*dt;
+    if(rightKey) player.vx += accel*dt;
+    if(!leftKey && !rightKey){
+      if(player.vx>0) player.vx = Math.max(0, player.vx-friction*dt);
+      else player.vx = Math.min(0, player.vx+friction*dt);
+    }
+    player.vx = Math.max(-maxV, Math.min(maxV, player.vx));
+    player.x += player.vx*dt;
+    player.x = Math.max(14, Math.min(W-14, player.x));
+
+    // move world objects downward
+    for(const r of rows){ r.y += worldSpeed*dt; }
+    for(const o of obstacles){ o.y += worldSpeed*dt; }
+    for(const p of papers){ p.x += p.vx*dt; p.y += p.vy*dt; }
+    for(const pu of popups){ pu.life -= dt; pu.y -= 30*dt; }
+
+    // cleanup + day counter
+    while(rows.length && rows[0].y > H + 200){
+      const r = rows.shift();
+      if(r.left.subscriber && !r.left.delivered) { /* missed silently */ }
+      if(r.right.subscriber && !r.right.delivered) { }
+      day++;
+      updateHud();
+    }
+    obstacles = obstacles.filter(o=> o.y < H+60);
+    papers = papers.filter(p=> p.y > -20 && p.x > -20 && p.x < W+20);
+    popups = popups.filter(p=> p.life>0);
+
+    // mailbox positions
+    const mbW=14, mbH=18;
+    const leftMbX = ZONE.leftYardEnd - 6;
+    const rightMbX = ZONE.roadEnd + 6;
+
+    for(const r of rows){
+      const mbY = r.y + 90;
+      // left mailbox check
+      if(r.left.subscriber && !r.left.delivered){
+        for(const p of papers){
+          if(rectHit(p.x-4,p.y-4,8,8, leftMbX, mbY, mbW, mbH)){
+            r.left.delivered = true;
+            score += 100; updateHud();
+            popup(leftMbX, mbY, '+100', '#3ec1a3');
+            p.dead = true;
+          }
+        }
+      }
+      if(!r.left.subscriber && !r.left.missed){
+        for(const p of papers){
+          if(rectHit(p.x-4,p.y-4,8,8, leftMbX, mbY, mbW, mbH)){
+            r.left.missed = true;
+            score = Math.max(0, score-25); updateHud();
+            popup(leftMbX, mbY, 'HEY!', '#e8562f');
+            p.dead = true;
+          }
+        }
+      }
+      // right mailbox check
+      if(r.right.subscriber && !r.right.delivered){
+        for(const p of papers){
+          if(rectHit(p.x-4,p.y-4,8,8, rightMbX, mbY, mbW, mbH)){
+            r.right.delivered = true;
+            score += 100; updateHud();
+            popup(rightMbX, mbY, '+100', '#3ec1a3');
+            p.dead = true;
+          }
+        }
+      }
+      if(!r.right.subscriber && !r.right.missed){
+        for(const p of papers){
+          if(rectHit(p.x-4,p.y-4,8,8, rightMbX, mbY, mbW, mbH)){
+            r.right.missed = true;
+            score = Math.max(0, score-25); updateHud();
+            popup(rightMbX, mbY, 'HEY!', '#e8562f');
+            p.dead = true;
+          }
+        }
+      }
+    }
+    papers = papers.filter(p=>!p.dead);
+
+    // obstacle collision
+    if(player.invuln<=0){
+      const pl = {x:player.x-10, y:player.y-14, w:20, h:26};
+      for(const o of obstacles){
+        if(rectHit(pl.x,pl.y,pl.w,pl.h, o.x-o.w/2, o.y-o.h/2, o.w, o.h)){
+          crash();
+          player.x = roadCenter;
+          break;
+        }
+      }
+    }
+  }
+
+  function rectHit(ax,ay,aw,ah, bx,by,bw,bh){
+    return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+  }
+
+  // ---- draw ----
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    // yards
+    ctx.fillStyle = '#2f6e39';
+    ctx.fillRect(ZONE.leftYardStart,0, ZONE.leftYardEnd-ZONE.leftYardStart, H);
+    ctx.fillRect(ZONE.rightWalkEnd,0, ZONE.rightYardEnd-ZONE.rightWalkEnd, H);
+    // subtle grass texture
+    ctx.fillStyle='rgba(0,0,0,0.06)';
+    const gOff = distance % 40;
+    for(let y=-40+gOff; y<H; y+=40){
+      ctx.fillRect(0,y,ZONE.leftYardEnd,3);
+      ctx.fillRect(ZONE.rightWalkEnd,y,ZONE.rightYardEnd-ZONE.rightWalkEnd,3);
+    }
+
+    // sidewalks
+    ctx.fillStyle = '#b9b3a5';
+    ctx.fillRect(ZONE.leftYardEnd,0, ZONE.leftWalkEnd-ZONE.leftYardEnd, H);
+    ctx.fillRect(ZONE.roadEnd,0, ZONE.rightWalkEnd-ZONE.roadEnd, H);
+    ctx.strokeStyle='rgba(0,0,0,0.15)';
+    const sOff = distance % 50;
+    for(let y=-50+sOff; y<H; y+=50){
+      ctx.beginPath(); ctx.moveTo(ZONE.leftYardEnd,y); ctx.lineTo(ZONE.leftWalkEnd,y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ZONE.roadEnd,y); ctx.lineTo(ZONE.rightWalkEnd,y); ctx.stroke();
+    }
+
+    // road
+    ctx.fillStyle = '#3a3d42';
+    ctx.fillRect(ZONE.leftWalkEnd,0, ZONE.roadEnd-ZONE.leftWalkEnd, H);
+    ctx.strokeStyle = '#e8c14d';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([22,18]);
+    const rOff = distance % 40;
+    ctx.beginPath();
+    ctx.moveTo(roadCenter, -40+rOff%40);
+    for(let y=-40+rOff%40; y<H; y+=40){ ctx.moveTo(roadCenter,y); ctx.lineTo(roadCenter,y+22); }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // houses + mailboxes
+    for(const r of rows){
+      drawHouse(10, r.y, 78, 92, r.left.color, r.left.subscriber, r.left.delivered);
+      drawHouse(ZONE.rightWalkEnd+12, r.y, 78, 92, r.right.color, r.right.subscriber, r.right.delivered);
+      drawMailbox(ZONE.leftYardEnd-6, r.y+90, r.left.subscriber, r.left.delivered);
+      drawMailbox(ZONE.roadEnd+6, r.y+90, r.right.subscriber, r.right.delivered);
+    }
+
+    // obstacles
+    for(const o of obstacles) drawObstacle(o);
+
+    // papers
+    ctx.fillStyle = '#f2e9d8';
+    for(const p of papers){
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(performance.now()/120);
+      ctx.fillRect(-4,-4,8,8);
+      ctx.restore();
+    }
+
+    // popups
+    ctx.font='bold 13px monospace';
+    ctx.textAlign='center';
+    for(const pu of popups){
+      ctx.globalAlpha = Math.max(0,pu.life);
+      ctx.fillStyle = pu.color;
+      ctx.fillText(pu.text, pu.x, pu.y);
+      ctx.globalAlpha = 1;
+    }
+
+    // player
+    drawPlayer();
+  }
+
+  function drawHouse(x,y,w,h, color, subscriber, delivered){
+    if(y < -h-10 || y > H+10) return;
+    ctx.fillStyle = color;
+    ctx.fillRect(x,y+30,w,h-30);
+    // roof
+    ctx.beginPath();
+    ctx.moveTo(x-8,y+30);
+    ctx.lineTo(x+w/2,y);
+    ctx.lineTo(x+w+8,y+30);
+    ctx.closePath();
+    ctx.fillStyle = '#20242c';
+    ctx.fill();
+    // door
+    ctx.fillStyle='rgba(0,0,0,0.35)';
+    ctx.fillRect(x+w/2-9, y+h-6, 18, 26);
+    // window
+    ctx.fillStyle = delivered ? '#ffe9a8' : 'rgba(255,255,255,0.5)';
+    ctx.fillRect(x+10, y+46, 16,16);
+    ctx.fillRect(x+w-26, y+46, 16,16);
+  }
+
+  function drawMailbox(x,y, subscriber, delivered){
+    ctx.fillStyle = subscriber ? (delivered ? '#3ec1a3' : '#e0463b') : '#7a7a7a';
+    ctx.fillRect(x-2, y-10, 10, 14);
+    ctx.fillRect(x-6, y+2, 18, 4);
+    if(subscriber && !delivered){
+      ctx.fillStyle='#e8c14d';
+      ctx.fillRect(x+3,y-18,3,10);
+    }
+  }
+
+  function drawObstacle(o){
+    if(o.y < -40 || o.y > H+40) return;
+    if(o.type==='pothole'){
+      ctx.fillStyle='#15171a';
+      ctx.beginPath(); ctx.ellipse(o.x,o.y,o.w/2,o.h/2.4,0,0,Math.PI*2); ctx.fill();
+    } else if(o.type==='can'){
+      ctx.fillStyle='#8a8f98';
+      ctx.fillRect(o.x-o.w/2,o.y-o.h/2,o.w,o.h);
+      ctx.fillStyle='#5c6068';
+      ctx.fillRect(o.x-o.w/2,o.y-o.h/2,o.w,4);
+    } else if(o.type==='rock'){
+      ctx.fillStyle='#6b6b6b';
+      ctx.beginPath(); ctx.arc(o.x,o.y,o.w/2,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawPlayer(){
+    const blinking = player.invuln>0 && Math.floor(player.invuln*10)%2===0;
+    if(blinking) return;
+    const wob = player.wobble>0 ? Math.sin(performance.now()/40)*6 : 0;
+    ctx.save();
+    ctx.translate(player.x+wob, player.y);
+    // wheels
+    ctx.fillStyle='#111';
+    ctx.beginPath(); ctx.arc(-8,12,6,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(8,12,6,0,Math.PI*2); ctx.fill();
+    // frame
+    ctx.strokeStyle='#e8562f';
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(-8,12); ctx.lineTo(0,-6); ctx.lineTo(8,12);
+    ctx.moveTo(0,-6); ctx.lineTo(0,4);
+    ctx.stroke();
+    // rider
+    ctx.fillStyle='#f2e9d8';
+    ctx.beginPath(); ctx.arc(0,-16,5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#3ec1a3';
+    ctx.fillRect(-6,-11,12,14);
+    ctx.restore();
+  }
+
+  updateHud();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

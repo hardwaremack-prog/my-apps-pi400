@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PiDirStat</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#131416;color:#e7e8ea;font:16px/1.5 system-ui,sans-serif;padding:16px;box-sizing:border-box}
+.box{max-width:560px;background:#1c1d21;border:1px solid #2d2f35;border-radius:16px;padding:28px}
+h1{margin:0 0 4px;font-size:24px;display:flex;align-items:center;gap:12px} img{width:48px;height:48px}
+p{color:#999ca3} code{background:#131416;border:1px solid #2d2f35;border-radius:6px;padding:2px 6px;color:#ff4f7e;font-size:14px}
+ol{padding-left:20px} li{margin:8px 0} #st{color:#e0b000}
+</style></head><body><div class="box">
+<h1><img src="pidirstat-icon.png" alt="">PiDirStat</h1>
+<p id="st">Looking for PiDirStat...</p>
+<div id="help" hidden>
+<p>PiDirStat is a small program that does the scanning, so it has to be started first.</p>
+<ol>
+<li>Double-click the <b>PiDirStat</b> icon on the Desktop (it's added by <b>Set Up My Apps.sh</b>), or find it in the Raspberry Pi menu under <b>System Tools</b>.</li>
+<li>Keep the black window that opens. The viewer opens by itself when the scan is done.</li>
+</ol>
+<p>No icon? Open a Terminal and type:<br><code>python3 ~/Desktop/"My Apps"/apps/pidirstat/pidirstat.py / --open</code></p>
+<p>On Windows, double-click <b>Start PiDirStat (Windows).bat</b> in this folder instead.</p>
+<p>This page keeps checking and jumps to PiDirStat as soon as it's running.</p>
+</div></div>
+<script>
+// PiDirStat answers /pds.js with its port; other programs on these ports won't, so we never open the wrong app.
+const PORTS=[8088,8089,8090,9000];
+function probe(){window.__pidirstat=[];let left=PORTS.length;
+  PORTS.forEach(p=>{const sc=document.createElement('script');sc.src='http://127.0.0.1:'+p+'/pds.js?'+Date.now();
+    sc.onload=sc.onerror=()=>{sc.remove();if(--left===0)done()};document.head.appendChild(sc)})}
+function done(){const p=(window.__pidirstat||[])[0];
+  if(p){location.replace('http://127.0.0.1:'+p+'/');return}
+  document.getElementById('st').textContent='PiDirStat isn\'t running yet.';document.getElementById('help').hidden=false;setTimeout(probe,2500)}
+probe();
+</script></body></html>

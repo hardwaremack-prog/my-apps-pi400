@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en"><head><script src="../suite-users.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Stocked</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: insurance-ledger feel. Totals strip, room tabs, item cards with photo; a print view that becomes a clean claim list. */
+:root{
+  --bg:#F1F5F5; --surface:#FFFFFF; --sunk:#E5ECEC; --ink:#162325; --muted:#566B6E; --line:#D2DDDE;
+  --teal:#2F6F7E; --teal-soft:#D7E8EB; --on-teal:#FFFFFF; --brass:#B5852A; --good:#2C8A57; --warn:#B87400; --warn-soft:#FBEBCC; --bad:#C2453A;
+  --f:"Archivo","Helvetica Neue","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1617; --surface:#172123; --sunk:#1F2B2D; --ink:#E3EDEE; --muted:#93A8AB; --line:#2A393C;
+  --teal:#6FB8C7; --teal-soft:#1D3439; --on-teal:#0C1718; --brass:#E0B358; --good:#4CC384; --warn:#F2B13C; --warn-soft:#3A2D13; --bad:#EE7A6E;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1617; --surface:#172123; --sunk:#1F2B2D; --ink:#E3EDEE; --muted:#93A8AB; --line:#2A393C;
+  --teal:#6FB8C7; --teal-soft:#1D3439; --on-teal:#0C1718; --brass:#E0B358; --good:#4CC384; --warn:#F2B13C; --warn-soft:#3A2D13; --bad:#EE7A6E;
+  color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15px;line-height:1.5}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:16px;padding-block:18px 60px;display:flex;flex-direction:column;gap:18px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-weight:800;font-size:23px;color:var(--teal);display:flex;align-items:center;gap:10px;letter-spacing:-.01em}
+.logo svg{width:26px;height:26px}
+.saved{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:4px 10px;border-radius:99px}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none}
+.save-dot.saving{background:var(--warn);animation:svpulse .9s infinite ease-in-out}
+.save-dot.error{background:var(--bad)} .save-dot.example{background:var(--muted)}
+@keyframes svpulse{50%{transform:scale(1.5)}}
+h1{font-weight:800;font-size:clamp(28px,4.6vw,42px);line-height:1.08;letter-spacing:-.025em;margin:0;text-wrap:balance}
+h1 em{font-style:normal;color:var(--teal)}
+.lede{margin:6px 0 0;color:var(--muted);font-size:16px;max-width:62ch}
+
+.ledger{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.ledger div{padding:14px 18px;display:grid;gap:2px}
+.ledger div+div{border-left:1px solid var(--line)}
+.ledger b{font-family:var(--mono);font-weight:500;font-size:24px;font-variant-numeric:tabular-nums}
+.ledger span{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+@media (max-width:700px){.ledger{grid-template-columns:1fr 1fr}.ledger div:nth-child(3){border-left:0}.ledger div:nth-child(n+3){border-top:1px solid var(--line)}}
+
+.banner{background:var(--teal-soft);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-weight:500}
+.banner.warn{background:var(--warn-soft)}
+.bar{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.rooms{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;max-width:100%}
+.rooms button{border:1px solid var(--line);background:var(--surface);padding:7px 13px;border-radius:99px;font-weight:600;cursor:pointer;white-space:nowrap}
+.rooms button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rooms em{font-style:normal;font-family:var(--mono);font-size:12px;opacity:.7;margin-left:4px}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 13px;border-radius:10px;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--teal)}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:var(--on-teal)}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn.danger{color:var(--bad)}
+.search{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;min-width:0;width:220px;max-width:100%}
+
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;cursor:pointer;text-align:left;padding:0}
+.card:hover{border-color:var(--teal)}
+.ph{aspect-ratio:4/3;background:var(--sunk);display:grid;place-items:center;color:var(--muted);max-width:100%}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph svg{width:44px;height:44px;opacity:.5}
+.cbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.cbody b{font-size:16px;font-weight:700;overflow-wrap:anywhere}
+.meta{color:var(--muted);font-size:13px}
+.nums{display:flex;justify-content:space-between;gap:8px;margin-top:auto;padding-top:8px;border-top:1px dashed var(--line);font-size:13px}
+.nums span{display:grid}
+.nums small{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--sunk);color:var(--muted)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.ok{background:var(--teal-soft);color:var(--teal)}
+.pill.sell{background:color-mix(in srgb,#23824A 18%,transparent);color:#23824A}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:30px;text-align:center;color:var(--muted)}
+
+dialog{border:0;border-radius:16px;padding:0;background:var(--surface);color:var(--ink);width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
+dialog::backdrop{background:rgba(10,20,22,.5)}
+.dlg{padding:20px;display:flex;flex-direction:column;gap:14px}
+.dlg h2{margin:0;font-size:21px;font-weight:800}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fgrid .full{grid-column:1/-1}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.f input,.f select,.f textarea{border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:8px 10px;min-width:0;width:100%}
+.photo-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.thumb{width:96px;height:72px;border-radius:9px;background:var(--sunk);overflow:hidden;display:grid;place-items:center;color:var(--muted);font-size:12px;flex:none}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.filebtn{position:relative}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.check{display:flex;align-items:center;gap:8px;font-weight:600}
+.check input{width:18px;height:18px;accent-color:var(--teal)}
+.dfoot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+@media (max-width:520px){.fgrid{grid-template-columns:1fr}}
+
+#printList{display:none}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:30}
+footer{color:var(--muted);font-size:13px;text-align:center}
+@media print{
+  body{background:#fff;color:#000;font-size:11pt}
+  .wrap>*:not(#printList){display:none!important}
+  #printList{display:block!important}
+  #printList h2{font-size:18pt;margin:0 0 4pt}
+  #printList table{width:100%;border-collapse:collapse;margin-top:10pt}
+  #printList th,#printList td{border-bottom:1px solid #999;padding:5pt 4pt;text-align:left;vertical-align:top;font-size:9.5pt}
+  #printList td.n,#printList th.n{text-align:right;font-family:var(--mono)}
+  #printList img{width:60px;height:45px;object-fit:cover}
+  #printList tr{break-inside:avoid}
+}
+@media (prefers-reduced-motion:reduce){.save-dot.saving{animation:none}}
+</style></head><body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>Stocked</div>
+    <span class="saved" title="Your inventory is saved in this browser"><i class="save-dot" id="saveDot"></i><span id="saveText">Saved</span></span>
+  </div>
+  <div>
+    <h1>Know what you own. <em>Be ready for anything.</em></h1>
+    <p class="lede">List your things with a photo, what you paid and the warranty. If there's ever a fire, flood or break-in, you'll have a list ready for the insurance company in one click.</p>
+  </div>
+
+  <div class="ledger">
+    <div><b class="num" id="tItems">0</b><span>Things listed</span></div>
+    <div><b class="num" id="tPaid">$0</b><span>What you paid</span></div>
+    <div><b class="num" id="tWorth">$0</b><span>Worth today, about</span></div>
+    <div><b class="num" id="tWarr">0</b><span>Warranties ending soon</span></div>
+  </div>
+
+  <div class="banner" id="exBanner" hidden><span>These are example items so you can see how Stocked works.</span><button class="btn small" id="clearEx">Clear examples</button></div>
+  <div class="banner warn" id="fullBanner" hidden><span>Your browser is running low on room for photos. Use smaller photos, or back up with Snug and remove photos you don't need.</span></div>
+
+  <div class="bar">
+    <div class="rooms" id="rooms" role="group" aria-label="Filter by room"></div>
+    <div class="tools">
+      <input class="search" id="q" type="search" placeholder="Search your things" aria-label="Search">
+      <button class="btn primary" id="addBtn">Add a thing</button>
+    </div>
+  </div>
+  <div class="items" id="items"></div>
+  <div class="bar">
+    <span class="meta">Worth today is a rough guess based on age and type of item. Check with your insurance company for their numbers.</span>
+    <div class="tools"><button class="btn" id="printBtn">Print insurance list</button><button class="btn" id="csvBtn">Save as spreadsheet (for Tidy)</button></div>
+  </div>
+  <footer>Stocked is part of the Tidy Suite. Warranty dates show up in Ready. Everything stays on this computer.</footer>
+  <div id="printList"></div>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <form class="dlg" id="form" method="dialog">
+    <h2 id="dlgTitle">Add a thing</h2>
+    <div class="photo-row">
+      <div class="thumb" id="thumb">No photo</div>
+      <span class="btn filebtn">Add photo<input type="file" accept="image/*" id="photoIn" aria-label="Add a photo"></span>
+      <button type="button" class="btn small" id="rmPhoto" hidden>Remove photo</button>
+    </div>
+    <div class="fgrid">
+      <div class="f full"><label for="fName">What is it?</label><input id="fName" required placeholder="65-inch TV, riding mower, wedding ring"></div>
+      <div class="f"><label for="fRoom">Room or place</label><input id="fRoom" list="roomList" placeholder="Living room"><datalist id="roomList"></datalist></div>
+      <div class="f"><label for="fCat">Type</label><select id="fCat"></select></div>
+      <div class="f"><label for="fBrand">Brand and model</label><input id="fBrand" placeholder="Samsung QN65"></div>
+      <div class="f"><label for="fSerial">Serial number</label><input id="fSerial" placeholder="On a sticker, usually on the back"></div>
+      <div class="f"><label for="fBought">When you got it</label><input id="fBought" type="date"></div>
+      <div class="f"><label for="fPaid">What you paid ($)</label><input id="fPaid" type="number" min="0" step="1" inputmode="decimal"></div>
+      <div class="f"><label for="fWarr">Warranty ends</label><input id="fWarr" type="date"></div>
+      <div class="f"><label for="fQty">How many</label><input id="fQty" type="number" min="1" step="1" value="1"></div>
+      <div class="f full"><label for="fNotes">Notes</label><textarea id="fNotes" rows="2" placeholder="Where the receipt is, who to call for repairs"></textarea></div>
+      <label class="check full"><input type="checkbox" id="fSell"> I might sell this (try Clearout)</label>
+    </div>
+    <div class="dfoot">
+      <button type="button" class="btn danger" id="delBtn" hidden>Delete</button>
+      <span class="tools" style="margin-left:auto"><button type="button" class="btn" id="cancelBtn">Cancel</button><button type="submit" class="btn primary" id="saveBtn">Save</button></span>
+    </div>
+  </form>
+</dialog>
+
+<script>
+function saveLight(s){const d=document.getElementById('saveDot'),t=document.getElementById('saveText');if(!d)return;
+ d.className='save-dot'+(s==='saved'?'':' '+s);t.textContent={saved:'Saved',saving:'Saving…',error:'Not saved. Check browser settings',example:'Example, not saved'}[s];
+ clearTimeout(saveLight.t);if(s==='saving')saveLight.t=setTimeout(()=>{if(d.classList.contains('saving'))saveLight('saved')},4000);}
+function storeOK(k,v){try{localStorage.setItem(k,v);return localStorage.getItem(k)===v}catch(e){return false}}
+
+(function(){
+const KEY='stocked.v1';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money=n=>'$'+Math.round(+n||0).toLocaleString();
+const uid=()=>Math.random().toString(36).slice(2,9);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const now=new Date(), TODAY=ymd(now);
+const CATS={electronics:{l:'Electronics',rate:.2},appliance:{l:'Appliance',rate:.1},furniture:{l:'Furniture',rate:.08},tools:{l:'Tools & equipment',rate:.07},vehicle:{l:'Vehicle or outdoor',rate:.12},jewelry:{l:'Jewelry & collectibles',rate:0},clothing:{l:'Clothing',rate:.25},kitchen:{l:'Kitchen',rate:.1},sports:{l:'Sports & hobby',rate:.12},other:{l:'Other',rate:.1}};
+const yrsAgo=(y,m=0)=>ymd(new Date(now.getFullYear()-y,now.getMonth()-m,10));
+const inDays=n=>ymd(new Date(now.getFullYear(),now.getMonth(),now.getDate()+n));
+function seed(){return {v:1,items:[
+ {id:uid(),ex:true,name:'65-inch TV',room:'Living room',cat:'electronics',brand:'Samsung QN65',serial:'',bought:yrsAgo(2),paid:899,warranty:inDays(40),qty:1,notes:'Receipt in the kitchen drawer folder',sell:false},
+ {id:uid(),ex:true,name:'Riding mower',room:'Garage',cat:'vehicle',brand:'Craftsman T110',serial:'',bought:yrsAgo(4),paid:1650,warranty:'',qty:1,notes:'',sell:false},
+ {id:uid(),ex:true,name:'Washer',room:'Laundry',cat:'appliance',brand:'Whirlpool',serial:'',bought:yrsAgo(1,3),paid:749,warranty:inDays(210),qty:1,notes:'Extended warranty through the store',sell:false},
+ {id:uid(),ex:true,name:'Fishing kayak',room:'Garage',cat:'sports',brand:'Pelican Catch 100',serial:'',bought:yrsAgo(3),paid:550,warranty:'',qty:1,notes:'',sell:true},
+ {id:uid(),ex:true,name:'Grandma\'s ring',room:'Bedroom',cat:'jewelry',brand:'',serial:'',bought:'',paid:1200,warranty:'',qty:1,notes:'Get it appraised for insurance',sell:false}]}}
+let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){} S=S||seed();
+function save(){saveLight('saving');const ok=storeOK(KEY,JSON.stringify(S));setTimeout(()=>saveLight(ok?'saved':'error'),300);$('fullBanner').hidden=ok;return ok}
+
+function worth(i){const r=(CATS[i.cat]||CATS.other).rate;const paid=(+i.paid||0)*(+i.qty||1);if(!i.bought||!r)return paid;
+  const yrs=Math.max(0,(now-new Date(i.bought))/(365.25*864e5));return Math.max(paid*.1,paid*Math.pow(1-r,yrs))}
+const warrSoon=i=>i.warranty&&i.warranty>=TODAY&&i.warranty<=inDays(90);
+const icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>';
+let room='All', q='';
+
+function render(){
+  $('exBanner').hidden=!S.items.some(i=>i.ex);
+  const rooms={};S.items.forEach(i=>{const r=i.room||'No room';rooms[r]=(rooms[r]||0)+1});
+  const names=['All',...Object.keys(rooms).sort()]; if(!names.includes(room))room='All';
+  $('rooms').innerHTML=names.map(r=>`<button aria-pressed="${r===room}" data-room="${esc(r)}">${esc(r)}<em>${r==='All'?S.items.length:rooms[r]}</em></button>`).join('');
+  $('roomList').innerHTML=Object.keys(rooms).map(r=>`<option value="${esc(r)}">`).join('');
+  const list=S.items.filter(i=>(room==='All'||(i.room||'No room')===room)&&(!q||(i.name+' '+i.brand+' '+i.room+' '+i.notes).toLowerCase().includes(q)));
+  $('items').innerHTML=list.length?list.map(i=>{const w=warrSoon(i),wl=i.warranty&&i.warranty<TODAY;
+    return `<button class="card" data-id="${i.id}"><div class="ph">${i.photo?`<img src="${i.photo}" alt="">`:icon}</div><div class="cbody">
+      <b>${esc(i.name)}${+i.qty>1?' × '+i.qty:''}</b><span class="meta">${esc([i.room,i.brand].filter(Boolean).join(' · '))||'&nbsp;'}</span>
+      <span class="pills">${w?`<span class="pill warn">Warranty ends ${fmt(i.warranty)}</span>`:i.warranty&&!wl?`<span class="pill ok">Under warranty</span>`:''}${i.sell?'<span class="pill sell">Might sell</span>':''}${i.photo?'':'<span class="pill">Needs a photo</span>'}</span>
+      <span class="nums"><span><small>Paid</small><b class="num">${i.paid?money((+i.paid)*(+i.qty||1)):'—'}</b></span><span style="text-align:right"><small>Worth today</small><b class="num">${i.paid?money(worth(i)):'—'}</b></span></span></div></button>`}).join('')
+    :`<div class="empty">${S.items.length?'Nothing matches. Try another room or search.':'Start with the big stuff: TVs, appliances, tools, furniture, jewelry. Tap <b>Add a thing</b>.'}</div>`;
+  $('tItems').textContent=S.items.reduce((s,i)=>s+(+i.qty||1),0);
+  $('tPaid').textContent=money(S.items.reduce((s,i)=>s+(+i.paid||0)*(+i.qty||1),0));
+  $('tWorth').textContent=money(S.items.reduce((s,i)=>s+worth(i),0));
+  $('tWarr').textContent=S.items.filter(warrSoon).length;
+}
+const fmt=s=>{const d=new Date(s+'T12:00');return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:d.getFullYear()!==now.getFullYear()?'numeric':undefined})};
+$('rooms').addEventListener('click',e=>{const b=e.target.closest('[data-room]');if(b){room=b.dataset.room;render()}});
+$('q').addEventListener('input',e=>{q=e.target.value.trim().toLowerCase();render()});
+
+/* ---------- edit dialog ---------- */
+$('fCat').innerHTML=Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('');
+let editing=null, photo=null;
+function open(item){editing=item||null;photo=item?item.photo||null:null;
+  $('dlgTitle').textContent=item?'Edit '+item.name:'Add a thing'; $('delBtn').hidden=!item;
+  const v=item||{name:'',room:room!=='All'?room:'',cat:'electronics',brand:'',serial:'',bought:'',paid:'',warranty:'',qty:1,notes:'',sell:false};
+  $('fName').value=v.name;$('fRoom').value=v.room;$('fCat').value=v.cat;$('fBrand').value=v.brand;$('fSerial').value=v.serial;
+  $('fBought').value=v.bought;$('fPaid').value=v.paid;$('fWarr').value=v.warranty;$('fQty').value=v.qty||1;$('fNotes').value=v.notes;$('fSell').checked=!!v.sell;
+  showThumb();$('dlg').showModal();$('fName').focus()}
+function showThumb(){$('thumb').innerHTML=photo?`<img src="${photo}" alt="Photo">`:'No photo';$('rmPhoto').hidden=!photo}
+$('addBtn').onclick=()=>open(null);
+$('items').addEventListener('click',e=>{const c=e.target.closest('[data-id]');if(c)open(S.items.find(i=>i.id===c.dataset.id))});
+$('cancelBtn').onclick=()=>$('dlg').close();
+$('rmPhoto').onclick=()=>{photo=null;showThumb()};
+$('photoIn').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const img=new Image();const url=URL.createObjectURL(f);
+  img.onload=()=>{const max=640,sc=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);photo=c.toDataURL('image/jpeg',.72);URL.revokeObjectURL(url);showThumb()};
+  img.onerror=()=>toast('That picture could not be opened. Try a JPG or PNG.');img.src=url;e.target.value=''});
+let delArmed=false;
+$('delBtn').onclick=()=>{if(!delArmed){delArmed=true;$('delBtn').textContent='Tap again to delete';setTimeout(()=>{delArmed=false;$('delBtn').textContent='Delete'},3000);return}
+  S.items=S.items.filter(i=>i!==editing);delArmed=false;$('delBtn').textContent='Delete';save();$('dlg').close();render();toast('Deleted')};
+$('form').addEventListener('submit',e=>{e.preventDefault();
+  const v={name:$('fName').value.trim(),room:$('fRoom').value.trim(),cat:$('fCat').value,brand:$('fBrand').value.trim(),serial:$('fSerial').value.trim(),bought:$('fBought').value,paid:$('fPaid').value?+$('fPaid').value:'',warranty:$('fWarr').value,qty:Math.max(1,+$('fQty').value||1),notes:$('fNotes').value.trim(),sell:$('fSell').checked,photo};
+  if(!v.name)return;
+  if(editing){Object.assign(editing,v);delete editing.ex}else S.items.unshift(Object.assign({id:uid()},v));
+  const ok=save();$('dlg').close();render();toast(ok?'Saved '+v.name:'Could not save the photo. Try a smaller one.');
+});
+
+/* ---------- print + csv ---------- */
+$('printBtn').onclick=()=>{
+  const rows=S.items.slice().sort((a,b)=>(a.room||'').localeCompare(b.room||''));
+  $('printList').innerHTML=`<h2>Home inventory</h2><div>Printed ${now.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})} · ${rows.length} entries · paid ${$('tPaid').textContent} · worth today about ${$('tWorth').textContent}</div>
+  <table><thead><tr><th></th><th>Item</th><th>Room</th><th>Brand / model</th><th>Serial</th><th>Got it</th><th class="n">Qty</th><th class="n">Paid</th><th class="n">Worth today</th></tr></thead><tbody>
+  ${rows.map(i=>`<tr><td>${i.photo?`<img src="${i.photo}" alt="">`:''}</td><td>${esc(i.name)}${i.notes?`<br><small>${esc(i.notes)}</small>`:''}</td><td>${esc(i.room)}</td><td>${esc(i.brand)}</td><td>${esc(i.serial)}</td><td>${i.bought?fmt(i.bought):''}</td><td class="n">${i.qty||1}</td><td class="n">${i.paid?money((+i.paid)*(+i.qty||1)):''}</td><td class="n">${i.paid?money(worth(i)):''}</td></tr>`).join('')}</tbody></table>`;
+  window.print();
+};
+$('csvBtn').onclick=()=>{
+  const head=['Item','Room','Type','Brand and model','Serial','Got it','Qty','Paid','Worth today','Warranty ends','Might sell','Notes'];
+  const cell=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const lines=[head,...S.items.map(i=>[i.name,i.room,(CATS[i.cat]||CATS.other).l,i.brand,i.serial,i.bought,i.qty||1,i.paid,i.paid?Math.round(worth(i)):'',i.warranty,i.sell?'Yes':'',i.notes])].map(r=>r.map(cell).join(','));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv'}));a.download='home-inventory.csv';document.body.appendChild(a);a.click();a.remove();toast('Saved home-inventory.csv. Open it in Tidy.');
+};
+$('clearEx').onclick=()=>{S.items=S.items.filter(i=>!i.ex);save();render();toast('Examples cleared. Start with the big stuff.')};
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2400)}
+render(); if(!localStorage.getItem(KEY)) save();
+})();
+</script>
+</body></html>

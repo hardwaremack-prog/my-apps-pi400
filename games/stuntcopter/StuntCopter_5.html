@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>StuntCopter — a recreation</title>
+<style>
+  :root{
+    --plastic-1:#DCD7C8;
+    --plastic-2:#C7C1AF;
+    --plastic-3:#9E9887;
+    --plastic-dark:#3E3A32;
+    --screen-bg:#F6F5F0;
+    --ink:#1B1A17;
+    --amber:#D98E1F;
+    --amber-bright:#F0AC3E;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    height:100%;
+    background:
+      radial-gradient(ellipse at 50% 20%, #3a3733 0%, #201e1b 60%, #131210 100%);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    color:var(--plastic-1);
+    overflow:auto;
+    -webkit-tap-highlight-color:transparent;
+  }
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100%;
+    padding:22px 12px;
+  }
+  .rig{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+    width:100%;
+    max-width:640px;
+  }
+  .brandrow{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    width:100%;
+    padding:0 6px;
+  }
+  .brandrow .name{
+    font-weight:800;
+    letter-spacing:0.14em;
+    font-size:13px;
+    color:#8a8578;
+    text-transform:uppercase;
+  }
+  .brandrow .model{
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:#635e52;
+  }
+
+  /* ---- the compact-mac case ---- */
+  .mac{
+    position:relative;
+    width:100%;
+    background:linear-gradient(155deg,var(--plastic-1) 0%,var(--plastic-2) 55%,var(--plastic-3) 100%);
+    border-radius:22px;
+    padding:26px 26px 18px;
+    box-shadow:
+      0 2px 0 rgba(255,255,255,0.5) inset,
+      0 -6px 14px rgba(0,0,0,0.18) inset,
+      0 24px 50px rgba(0,0,0,0.55),
+      0 2px 0 rgba(0,0,0,0.4);
+  }
+  .handle{
+    position:absolute;
+    top:-9px;
+    left:50%;
+    transform:translateX(-50%);
+    width:120px;
+    height:16px;
+    border-radius:0 0 10px 10px;
+    background:linear-gradient(180deg,#8f8a7c,#a9a394);
+    box-shadow:0 3px 4px rgba(0,0,0,0.35) inset;
+  }
+  .screen-well{
+    position:relative;
+    background:linear-gradient(155deg,#2b2924,#151412);
+    border-radius:14px;
+    padding:16px;
+    box-shadow:
+      0 2px 6px rgba(0,0,0,0.6) inset,
+      0 1px 0 rgba(255,255,255,0.06);
+  }
+  .screen{
+    position:relative;
+    width:100%;
+    aspect-ratio: 680 / 460;
+    background:var(--screen-bg);
+    border-radius:6px;
+    overflow:hidden;
+    box-shadow:0 0 0 2px #050504, 0 0 30px rgba(0,0,0,0.5) inset;
+    cursor:crosshair;
+  }
+  .screen canvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+  }
+  .crt-vignette{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.22) 100%);
+  }
+  .crt-scan{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0.05) 0px,
+      rgba(0,0,0,0.05) 1px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0) 3px
+    );
+    mix-blend-mode:multiply;
+    opacity:0.5;
+    animation:flicker 5s infinite steps(30);
+  }
+  @keyframes flicker{
+    0%,100%{opacity:0.45;}
+    50%{opacity:0.52;}
+    52%{opacity:0.38;}
+  }
+
+  /* ---- overlay panels (title / gameover) drawn as DOM over the canvas ---- */
+  .panel{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap:clamp(4px,1.8vh,14px);
+    padding:4% 7%;
+    background:rgba(246,245,240,0.94);
+    transition:opacity 0.25s ease;
+    overflow-y:auto;
+  }
+  .panel.hidden{
+    opacity:0;
+    pointer-events:none;
+  }
+  .panel h1{
+    margin:0;
+    font-family:"Courier New",monospace;
+    font-weight:900;
+    letter-spacing:0.05em;
+    font-size:clamp(20px,6.4vw,44px);
+    color:var(--ink);
+    text-shadow:3px 3px 0 var(--amber);
+    line-height:1.05;
+  }
+  .panel .sub{
+    font-family:"Courier New",monospace;
+    font-size:clamp(10px,2.3vw,13px);
+    color:var(--ink);
+    line-height:1.55;
+    max-width:420px;
+    letter-spacing:0.01em;
+  }
+  .panel .sub b{color:var(--amber);}
+  .panel .go-score{
+    font-family:"Courier New",monospace;
+    font-weight:900;
+    font-size:clamp(18px,4.6vw,28px);
+    color:var(--ink);
+  }
+  .panel .go-score span{color:var(--amber);}
+  .btn{
+    font-family:"Courier New",monospace;
+    font-weight:900;
+    letter-spacing:0.08em;
+    font-size:clamp(12px,2.8vw,14px);
+    text-transform:uppercase;
+    color:var(--screen-bg);
+    background:var(--ink);
+    border:none;
+    padding:clamp(8px,2vh,12px) clamp(18px,4vw,26px);
+    border-radius:3px;
+    cursor:pointer;
+    box-shadow:3px 3px 0 var(--amber);
+    transition:transform 0.08s ease;
+    flex-shrink:0;
+  }
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--amber);}
+
+  .hs-list{
+    font-family:"Courier New",monospace;
+    font-size:12px;
+    color:var(--ink);
+    width:100%;
+    max-width:220px;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .hs-row{
+    display:flex;
+    justify-content:space-between;
+    padding:2px 6px;
+    letter-spacing:0.06em;
+  }
+  .hs-row:first-child{ color:var(--amber); font-weight:900; }
+
+  .initials-row{
+    display:flex;
+    gap:10px;
+  }
+  .initial-slot{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+  }
+  .initial-slot.active .ini-letter{
+    color:var(--screen-bg);
+    background:var(--ink);
+    box-shadow:2px 2px 0 var(--amber);
+  }
+  .ini-letter{
+    font-family:"Courier New",monospace;
+    font-weight:900;
+    font-size:clamp(15px,4vw,26px);
+    width:clamp(22px,6vw,34px);
+    height:clamp(24px,6vh,38px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--ink);
+    border:2px solid var(--ink);
+    border-radius:3px;
+    background:var(--screen-bg);
+  }
+  .ini-arrow{
+    font-family:"Courier New",monospace;
+    background:transparent;
+    border:none;
+    color:var(--ink);
+    font-size:12px;
+    cursor:pointer;
+    padding:1px 8px;
+  }
+  .ini-arrow:active{ color:var(--amber); }
+
+  .firebtn{
+    position:absolute;
+    right:14px;
+    bottom:14px;
+    width:60px;
+    height:60px;
+    border-radius:50%;
+    background:rgba(27,26,23,0.72);
+    border:2px solid var(--amber-bright);
+    color:var(--amber-bright);
+    font-family:"Courier New",monospace;
+    font-weight:900;
+    font-size:12px;
+    letter-spacing:0.05em;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+  }
+  .firebtn.hidden{ display:none; }
+  .firebtn:active{ background:rgba(217,142,31,0.85); color:var(--ink); }
+
+  /* ---- chin: badge + controls ---- */
+  .chin{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 8px 2px;
+  }
+  .grille{
+    display:grid;
+    grid-template-columns:repeat(6,4px);
+    grid-auto-rows:4px;
+    gap:4px;
+  }
+  .grille i{
+    width:4px;height:4px;border-radius:50%;
+    background:rgba(0,0,0,0.28);
+    box-shadow:0 1px 0 rgba(255,255,255,0.35);
+  }
+  .badge{
+    font-family:"Courier New",monospace;
+    font-weight:800;
+    font-size:12px;
+    letter-spacing:0.12em;
+    color:#55503f;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .led{
+    width:7px;height:7px;border-radius:50%;
+    background:#7a4d18;
+    box-shadow:0 0 0 1px rgba(0,0,0,0.3) inset;
+  }
+  .led.on{
+    background:var(--amber-bright);
+    box-shadow:0 0 6px 2px rgba(240,172,62,0.9);
+  }
+  .mutebtn{
+    font-family:"Courier New",monospace;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:0.08em;
+    background:transparent;
+    border:1px solid #6b6656;
+    color:#55503f;
+    border-radius:3px;
+    padding:6px 10px;
+    cursor:pointer;
+  }
+  .mutebtn:active{background:rgba(0,0,0,0.06);}
+
+  .footnote{
+    font-size:10.5px;
+    color:#68635a;
+    letter-spacing:0.03em;
+    text-align:center;
+    max-width:480px;
+    line-height:1.6;
+  }
+  .footnote b{color:#a99a72;}
+</style>
+</head>
+<body>
+
+<div class="rig">
+  <div class="brandrow">
+    <span class="name">Hometown Software</span>
+    <span class="model">Model No. SC&#8209;500K</span>
+  </div>
+
+  <div class="mac">
+    <div class="handle"></div>
+    <div class="screen-well">
+      <div class="screen" id="screen">
+        <canvas id="game" width="680" height="460"></canvas>
+        <div class="crt-scan"></div>
+        <div class="crt-vignette"></div>
+        <button class="firebtn hidden" id="btn-fire" type="button">FIRE</button>
+
+        <div class="panel" id="panel-title">
+          <h1>STUNTCOPTER</h1>
+          <div class="sub">
+            <b>Move</b> to fly, <b>click/tap</b> to drop.<br>
+            Land in the <b>hay</b> — not the horse or driver.<br>
+            Clouds slow his fall. Land 5 to level up.<br>
+            Level 5+: <b>right-click</b> to shoot the birds before they hit you.
+          </div>
+          <button class="btn" id="btn-start">Start</button>
+        </div>
+
+        <div class="panel hidden" id="panel-gameover">
+          <h1>GAME OVER</h1>
+          <div class="go-score">SCORE <span id="go-score-val">0</span></div>
+          <div class="sub" id="go-level-val">Reached level 1</div>
+          <div class="hs-list" id="hs-list"></div>
+          <button class="btn" id="btn-retry">Fly Again</button>
+        </div>
+
+        <div class="panel hidden" id="panel-initials">
+          <h1>HIGH SCORE!</h1>
+          <div class="go-score">SCORE <span id="ini-score-val">0</span></div>
+          <div class="initials-row" id="initials-row">
+            <div class="initial-slot" data-i="0">
+              <button class="ini-arrow" data-slot="0" data-dir="1" type="button">&#9650;</button>
+              <div class="ini-letter" id="ini-letter-0">A</div>
+              <button class="ini-arrow" data-slot="0" data-dir="-1" type="button">&#9660;</button>
+            </div>
+            <div class="initial-slot" data-i="1">
+              <button class="ini-arrow" data-slot="1" data-dir="1" type="button">&#9650;</button>
+              <div class="ini-letter" id="ini-letter-1">A</div>
+              <button class="ini-arrow" data-slot="1" data-dir="-1" type="button">&#9660;</button>
+            </div>
+            <div class="initial-slot" data-i="2">
+              <button class="ini-arrow" data-slot="2" data-dir="1" type="button">&#9650;</button>
+              <div class="ini-letter" id="ini-letter-2">A</div>
+              <button class="ini-arrow" data-slot="2" data-dir="-1" type="button">&#9660;</button>
+            </div>
+          </div>
+          <button class="btn" id="btn-submit-initials">Save Score</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="chin">
+      <div class="grille" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="badge"><span class="led" id="led">&nbsp;</span>StuntCopter</div>
+      <button class="mutebtn" id="btn-mute">SOUND ON</button>
+    </div>
+  </div>
+
+  <div class="footnote">
+    A browser recreation of <b>StuntCopter</b>, the 1986 Macintosh shareware classic by Duane&nbsp;Blehm.
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------------------------------------------------------------
+  // Setup
+  // ---------------------------------------------------------------------
+  var W = 680, H = 460;
+  var groundY = 396;
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var screenEl = document.getElementById('screen');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  var panelTitle = document.getElementById('panel-title');
+  var panelGameOver = document.getElementById('panel-gameover');
+  var panelInitials = document.getElementById('panel-initials');
+  var btnStart = document.getElementById('btn-start');
+  var btnRetry = document.getElementById('btn-retry');
+  var btnMute = document.getElementById('btn-mute');
+  var btnSubmitInitials = document.getElementById('btn-submit-initials');
+  var led = document.getElementById('led');
+  var goScoreVal = document.getElementById('go-score-val');
+  var goLevelVal = document.getElementById('go-level-val');
+  var hsListEl = document.getElementById('hs-list');
+  var iniScoreVal = document.getElementById('ini-score-val');
+  var btnFire = document.getElementById('btn-fire');
+
+  var INK = '#1B1A17';
+  var PAPER = '#F6F5F0';
+  var AMBER = '#D98E1F';
+  var AMBER_BRIGHT = '#F0AC3E';
+
+  // ---------------------------------------------------------------------
+  // High scores — persisted per-user via the artifact storage API
+  // ---------------------------------------------------------------------
+  var HS_KEY = 'stuntcopter-highscores';
+  var HS_MAX = 5;
+  async function loadHighScores(){
+    try{
+      var res = await window.storage.get(HS_KEY, false);
+      if (res && res.value){
+        var list = JSON.parse(res.value);
+        if (Array.isArray(list)) return list;
+      }
+    }catch(e){ /* no scores saved yet, or storage unavailable */ }
+    return [];
+  }
+  async function saveHighScores(list){
+    try{ await window.storage.set(HS_KEY, JSON.stringify(list), false); }
+    catch(e){ /* best-effort; not fatal if this fails */ }
+  }
+  function renderHighScoreList(list){
+    if (!list || !list.length){ hsListEl.innerHTML = ''; return; }
+    hsListEl.innerHTML = list.map(function(row,i){
+      return '<div class="hs-row"><span>'+(i+1)+'. '+row.initials+'</span><span>'+row.score+'</span></div>';
+    }).join('');
+  }
+
+  // ---------------------------------------------------------------------
+  // Hatch patterns (fake 1-bit greys, in the spirit of QuickDraw dithers)
+  // ---------------------------------------------------------------------
+  function makePattern(spacing, weight, color, angle){
+    var s = spacing;
+    var pc = document.createElement('canvas');
+    pc.width = s; pc.height = s;
+    var pctx = pc.getContext('2d');
+    pctx.strokeStyle = color;
+    pctx.lineWidth = weight;
+    pctx.beginPath();
+    pctx.moveTo(-s, s*2);
+    pctx.lineTo(s*2, -s);
+    pctx.moveTo(-s, s*3);
+    pctx.lineTo(s*3, -s);
+    pctx.moveTo(-s, s);
+    pctx.lineTo(s, -s);
+    pctx.stroke();
+    return ctx.createPattern(pc, 'repeat');
+  }
+  var hatchFar, hatchNear, hatchAmber, hatchGrass;
+  function buildPatterns(){
+    hatchFar = makePattern(7, 1, 'rgba(27,26,23,0.35)');
+    hatchNear = makePattern(6, 1.2, 'rgba(27,26,23,0.55)');
+    hatchAmber = makePattern(6, 1.4, 'rgba(255,255,255,0.55)');
+    hatchGrass = makePattern(5, 1, 'rgba(27,26,23,0.4)');
+  }
+  buildPatterns();
+
+  // ---------------------------------------------------------------------
+  // Audio (tiny synthesized blips, no external files)
+  // ---------------------------------------------------------------------
+  var actx = null, muted = false, hum = null, humGain = null;
+  function ensureAudio(){
+    if (actx) return;
+    try{
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+    }catch(e){ actx = null; }
+  }
+  function tone(freq, dur, type, gainVal, delay, slideTo){
+    if (!actx || muted) return;
+    var t0 = actx.currentTime + (delay||0);
+    var osc = actx.createOscillator();
+    var g = actx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, t0);
+    if (slideTo) osc.frequency.linearRampToValueAtTime(slideTo, t0+dur);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gainVal||0.12, t0+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+    osc.connect(g); g.connect(actx.destination);
+    osc.start(t0); osc.stop(t0+dur+0.02);
+  }
+  function sndDrop(){ tone(520,0.12,'square',0.10,0,300); }
+  function sndSuccess(){
+    tone(660,0.09,'square',0.11,0);
+    tone(880,0.09,'square',0.11,0.08);
+    tone(1180,0.16,'square',0.12,0.16);
+  }
+  function sndMiss(){ tone(160,0.28,'sawtooth',0.14,0,60); }
+  function sndWhoosh(){ tone(320,0.22,'sine',0.05,0,180); }
+  function sndOuch(){
+    tone(140,0.15,'square',0.16,0);
+    tone(110,0.22,'sawtooth',0.16,0.08,50);
+  }
+  function sndHorseCry(){
+    tone(240,0.16,'sawtooth',0.15,0,340);
+    tone(300,0.2,'sawtooth',0.14,0.1,140);
+  }
+  function sndThud(){ tone(85,0.18,'square',0.17,0,45); }
+  function sndShoot(){ tone(700,0.06,'square',0.08,0,200); }
+  function sndBirdHit(){
+    tone(500,0.07,'square',0.1,0);
+    tone(300,0.1,'sawtooth',0.1,0.05,140);
+  }
+  function sndCrash(){
+    tone(180,0.3,'sawtooth',0.18,0,40);
+    tone(90,0.4,'square',0.2,0.1,30);
+    tone(60,0.5,'sawtooth',0.16,0.2,25);
+  }
+  function sndExplode(){
+    tone(65,0.4,'square',0.24,0,22);
+    tone(40,0.55,'sawtooth',0.22,0.06,18);
+    tone(220,0.1,'square',0.14,0,500);
+  }
+  function sndLevel(){
+    tone(523,0.1,'square',0.12,0);
+    tone(659,0.1,'square',0.12,0.1);
+    tone(784,0.1,'square',0.12,0.2);
+    tone(1046,0.22,'square',0.14,0.3);
+  }
+  function startHum(){
+    if (!actx || hum) return;
+    hum = actx.createOscillator();
+    humGain = actx.createGain();
+    var filt = actx.createBiquadFilter();
+    filt.type = 'lowpass'; filt.frequency.value = 220;
+    hum.type = 'sawtooth'; hum.frequency.value = 58;
+    humGain.gain.value = muted ? 0 : 0.025;
+    hum.connect(filt); filt.connect(humGain); humGain.connect(actx.destination);
+    hum.start();
+  }
+  function setMute(m){
+    muted = m;
+    btnMute.textContent = muted ? 'SOUND OFF' : 'SOUND ON';
+    if (humGain) humGain.gain.value = muted ? 0 : 0.025;
+  }
+
+  // ---------------------------------------------------------------------
+  // Game state
+  // ---------------------------------------------------------------------
+  var STATE_TITLE = 0, STATE_PLAY = 1, STATE_OVER = 2;
+  var state = STATE_TITLE;
+
+  var heli, wagon, man, particles, popups, banner, clouds, birds, bullets;
+  var score, level, lives, streak, copterLives;
+  var pointer = {x: W*0.5, y: H*0.35, active:false};
+  var lastTime = 0;
+  var groundClearance = 96;
+  var crashPending = false, crashT = 0, crashSpin = 0, crashFlash = 0;
+  var crashStartY = 0, crashLanded = false, crashInvulnT = 0;
+  var birdSpawnT = 0, fireCooldownT = 0, gameOverScheduled = false;
+
+  var BIRD_LEVEL_START = 5;
+  var BIRD_SPEED_BASE = 95;
+  var BIRD_HOMING = 0.7;
+  var BIRD_CRASH_RADIUS = 24;
+  var BIRD_HIT_RADIUS = 20;
+  var BULLET_SPEED = 480;
+  var FIRE_COOLDOWN = 0.32;
+  var BIRD_BONUS = 30;
+  var COPTER_LIVES_MAX = 3;
+  var CRASH_FALL_T = 0.55;
+  var CRASH_BURN_T = 1.3;
+  var CRASH_INVULN_T = 1.6;
+
+  function initClouds(){
+    clouds = [
+      {x:130, y:120, w:118, h:44, spd:34},
+      {x:330, y:88,  w:96,  h:36, spd:-44},
+      {x:470, y:168, w:140, h:50, spd:26},
+      {x:610, y:110, w:104, h:40, spd:-38}
+    ];
+  }
+
+  function resetGame(){
+    score = 0; level = 1; lives = 5; streak = 0; copterLives = COPTER_LIVES_MAX;
+    heli = {
+      x: W*0.5, y: H*0.32,
+      vx:0, vy:0,
+      rot: 0,
+      bob: 0
+    };
+    wagon = {
+      x: 90, dir: 1,
+      speed: 58,
+      horseW: 48, driverW: 16, hayW: 82,
+      legPhase: 0,
+      horseDeadT: null
+    };
+    man = { attached:true, x:heli.x, y:heli.y, vy:0, startY:0, falling:false, pose:0, dead:0, inCloud:false, puffT:0 };
+    particles = [];
+    popups = [];
+    banner = null;
+    birds = [];
+    bullets = [];
+    birdSpawnT = 4 + Math.random()*2;
+    fireCooldownT = 0;
+    crashPending = false; crashT = 0; crashSpin = 0; crashFlash = 0;
+    crashLanded = false; crashInvulnT = 0;
+    gameOverScheduled = false;
+    initClouds();
+  }
+
+  function cloudAt(x,y){
+    for (var i=0;i<clouds.length;i++){
+      var c = clouds[i];
+      var dx = Math.abs(x-c.x)/(c.w/2);
+      var dy = Math.abs(y-c.y)/(c.h/2);
+      // soft elliptical hit-test, a little more forgiving than a strict rectangle
+      if (dx*dx + dy*dy <= 1.05) return c;
+    }
+    return null;
+  }
+
+  function wagonWidth(){ return wagon.horseW + wagon.driverW + wagon.hayW; }
+  function wagonZones(){
+    // returns x-ranges in world space, oriented by dir
+    var w = wagonWidth();
+    var left = wagon.x - w/2;
+    if (wagon.dir > 0){
+      // moving right: horse leads (front = right side)
+      var hayL = left, hayR = left+wagon.hayW;
+      var drvL = hayR, drvR = drvL+wagon.driverW;
+      var horL = drvR, horR = horL+wagon.horseW;
+    } else {
+      var horL = left, horR = left+wagon.horseW;
+      var drvL = horR, drvR = drvL+wagon.driverW;
+      var hayL = drvR, hayR = hayL+wagon.hayW;
+    }
+    return {
+      hay:[hayL,hayR], driver:[drvL,drvR], horse:[horL,horR],
+      full:[left, left+w]
+    };
+  }
+
+  function difficultyForLevel(lv){
+    wagon.speed = Math.min(230, 56 + (lv-1)*14);
+    wagon.hayW = Math.max(42, 82 - (lv-1)*5);
+  }
+  var WAGON_SCALE = 0.74; // shrinks the horse + cart visuals (and their hitboxes) below
+
+  // horse "death" sequence timings (seconds): topple, lie still, fade out, new horse fades in
+  var HORSE_FALL_T = 0.4, HORSE_DOWN_T = 1.1, HORSE_FADE_T = 0.3, HORSE_IN_T = 0.35;
+  var HORSE_TOTAL_T = HORSE_FALL_T + HORSE_DOWN_T + HORSE_FADE_T + HORSE_IN_T;
+  var HORSE_FALL_ANGLE = 84 * Math.PI/180;
+  function easeOutCubic(t){ return 1 - Math.pow(1-t, 3); }
+
+  // ---------------------------------------------------------------------
+  // Input
+  // ---------------------------------------------------------------------
+  function toLocal(clientX, clientY){
+    var r = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - r.left) * (W / r.width),
+      y: (clientY - r.top) * (H / r.height)
+    };
+  }
+  function onMove(clientX, clientY){
+    var p = toLocal(clientX, clientY);
+    pointer.x = p.x; pointer.y = p.y; pointer.active = true;
+  }
+  screenEl.addEventListener('pointermove', function(e){
+    if (state !== STATE_PLAY) return;
+    if (e.pointerType === 'mouse' || e.buttons > 0) onMove(e.clientX, e.clientY);
+  });
+  screenEl.addEventListener('pointerdown', function(e){
+    if (state === STATE_PLAY) onMove(e.clientX, e.clientY);
+  });
+  screenEl.addEventListener('click', function(e){
+    if (state === STATE_PLAY) tryDrop();
+  });
+  screenEl.addEventListener('contextmenu', function(e){
+    e.preventDefault();
+    if (state === STATE_PLAY) fireBullet();
+  });
+  window.addEventListener('keydown', function(e){
+    if (state !== STATE_PLAY) return;
+    var step = 26;
+    if (e.code === 'ArrowLeft'){ pointer.x = clamp(pointer.x-step,0,W); pointer.active=true; }
+    else if (e.code === 'ArrowRight'){ pointer.x = clamp(pointer.x+step,0,W); pointer.active=true; }
+    else if (e.code === 'ArrowUp'){ pointer.y = clamp(pointer.y-step,0,H); pointer.active=true; }
+    else if (e.code === 'ArrowDown'){ pointer.y = clamp(pointer.y+step,0,H); pointer.active=true; }
+    else if (e.code === 'Space'){ e.preventDefault(); tryDrop(); }
+    else if (e.code === 'KeyF' || e.code === 'ControlLeft' || e.code === 'ControlRight'){ e.preventDefault(); fireBullet(); }
+  });
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function tryDrop(){
+    if (!man.attached || man.falling) return;
+    man.falling = true;
+    man.attached = false;
+    man.vy = 40;
+    man.startY = man.y;
+    sndDrop();
+  }
+
+  function fireBullet(){
+    if (fireCooldownT > 0) return;
+    if (level < BIRD_LEVEL_START) return;
+    fireCooldownT = FIRE_COOLDOWN;
+    var target = null, bestD = Infinity;
+    for (var i=0;i<birds.length;i++){
+      var b = birds[i];
+      var d = Math.hypot(b.x-heli.x, b.y-heli.y);
+      if (d < bestD){ bestD = d; target = b; }
+    }
+    var dx, dy;
+    if (target){ dx = target.x-heli.x; dy = target.y-heli.y; }
+    else { dx = (pointer.x-heli.x) || (Math.random()<0.5?-1:1); dy = -20; }
+    var len = Math.hypot(dx,dy) || 1;
+    bullets.push({
+      x: heli.x, y: heli.y+8,
+      vx: dx/len*BULLET_SPEED, vy: dy/len*BULLET_SPEED,
+      life: 1.1
+    });
+    sndShoot();
+  }
+
+  btnFire.addEventListener('click', function(e){
+    e.stopPropagation();
+    if (state === STATE_PLAY) fireBullet();
+  });
+  btnFire.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+
+  function updateFireButtonVisibility(){
+    var show = (state === STATE_PLAY) && (level >= BIRD_LEVEL_START);
+    btnFire.classList.toggle('hidden', !show);
+  }
+
+  // ---------------------------------------------------------------------
+  // Buttons
+  // ---------------------------------------------------------------------
+  btnStart.addEventListener('click', function(e){
+    e.stopPropagation();
+    ensureAudio(); startHum();
+    resetGame();
+    state = STATE_PLAY;
+    updateHUDLed(true);
+    updateFireButtonVisibility();
+    panelTitle.classList.add('hidden');
+    panelGameOver.classList.add('hidden');
+  });
+  btnRetry.addEventListener('click', function(e){
+    e.stopPropagation();
+    ensureAudio(); startHum();
+    resetGame();
+    state = STATE_PLAY;
+    updateHUDLed(true);
+    updateFireButtonVisibility();
+    panelGameOver.classList.add('hidden');
+    panelInitials.classList.add('hidden');
+  });
+  btnMute.addEventListener('click', function(){ setMute(!muted); });
+
+  function updateHUDLed(on){
+    led.classList.toggle('on', !!on);
+  }
+
+  // ---------------------------------------------------------------------
+  // Effects helpers
+  // ---------------------------------------------------------------------
+  function spawnBurst(x,y,n,color,spread,life,grav,sizeMul){
+    for (var i=0;i<n;i++){
+      var a = Math.random()*Math.PI*2;
+      var sp = (0.4+Math.random()*0.6)*spread;
+      particles.push({
+        x:x, y:y,
+        vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - spread*0.3,
+        life: life, maxLife: life,
+        color: color, size: (2+Math.random()*2.4) * (sizeMul||1),
+        grav: grav===undefined ? 260 : grav
+      });
+    }
+  }
+  function spawnExplosion(x,y){
+    spawnBurst(x,y,20,INK,120,1.05,260,1.35);          // dark debris, falls, chunky
+    spawnBurst(x,y,30,AMBER,240,1.05,-25,1.7);          // fireball, billows outward and up
+    spawnBurst(x,y,18,AMBER_BRIGHT,170,0.75,-55,1.5);   // hot core, rises fast
+    spawnBurst(x,y,12,AMBER_BRIGHT,95,0.45,-10,2.0);    // extra-chunky inner flash
+    crashFlash = 1;
+  }
+  function spawnFireTick(x,y){
+    spawnBurst(x+(Math.random()-0.5)*16, y-2, 3, Math.random()<0.6?AMBER_BRIGHT:AMBER, 20, 0.6, -60, 1.3);
+    if (Math.random() < 0.5){
+      spawnBurst(x+(Math.random()-0.5)*12, y-4, 1, 'rgba(27,26,23,0.55)', 14, 0.9, -32);
+    }
+  }
+  function addPopup(x,y,text,color){
+    popups.push({x:x,y:y,text:text,life:1.1,vy:-34,color:color||INK});
+  }
+  function shake(){ shakeT = 0.22; }
+  var shakeT = 0;
+
+  function resolveDrop(outcome, x, y, fallHeight){
+    var zone = wagonZones();
+    var mid = (zone.hay[0]+zone.hay[1])/2;
+    if (outcome === 'hay'){
+      var pts = Math.max(10, Math.round(fallHeight * level * 0.6));
+      score += pts;
+      streak++;
+      addPopup(x, y-10, '+'+pts, AMBER);
+      spawnBurst(x, y, 14, '#c9a24a', 90, 0.6);
+      sndSuccess();
+      if (streak >= 5){
+        streak = 0;
+        level++;
+        lives = Math.min(5, lives+1);
+        difficultyForLevel(level);
+        banner = {text:'LEVEL '+level+'!', life:1.6};
+        sndLevel();
+        updateFireButtonVisibility();
+        if (level === BIRD_LEVEL_START){
+          addPopup(x, y-30, 'BIRDS INCOMING', INK);
+        }
+      }
+    } else if (outcome === 'horse'){
+      lives = Math.max(0, lives-2);
+      addPopup(x, y-10, 'NEIGH!!', INK);
+      spawnBurst(x, y, 10, INK, 70, 0.5);
+      streak = 0;
+      if (wagon.horseDeadT === null) wagon.horseDeadT = 0;
+      sndHorseCry(); shake();
+    } else if (outcome === 'driver'){
+      lives = Math.max(0, lives-2);
+      addPopup(x, y-10, 'OW!', INK);
+      spawnBurst(x, y, 10, INK, 70, 0.5);
+      streak = 0;
+      sndOuch(); shake();
+    } else {
+      lives = Math.max(0, lives-1);
+      addPopup(x, y-10, 'MISS', INK);
+      spawnBurst(x, y, 10, '#8a7f66', 60, 0.5);
+      streak = 0;
+      sndMiss(); shake();
+    }
+
+    man.falling = false;
+    man.dead = 0.001;
+
+    if (lives <= 0 && !gameOverScheduled){
+      gameOverScheduled = true;
+      setTimeout(doGameOver, 500);
+    } else if (lives > 0){
+      setTimeout(function(){
+        man.attached = true;
+        man.dead = 0;
+        man.x = heli.x; man.y = heli.y + ROPE_LEN;
+      }, 480);
+    }
+  }
+
+  var ROPE_LEN = 44;
+
+  // ---------------------------------------------------------------------
+  // Game over + high scores
+  // ---------------------------------------------------------------------
+  var initials = ['A','A','A'], initialsActiveSlot = 0, pendingHSList = [];
+
+  async function doGameOver(){
+    if (state === STATE_OVER) return; // already handled (e.g. crash + drop race)
+    state = STATE_OVER;
+    updateHUDLed(false);
+    updateFireButtonVisibility();
+    goScoreVal.textContent = score;
+    goLevelVal.textContent = 'Reached level ' + level;
+    var list = await loadHighScores();
+    var qualifies = score > 0 && (list.length < HS_MAX || score > list[list.length-1].score);
+    if (qualifies){
+      openInitialsEntry(list);
+    } else {
+      renderHighScoreList(list);
+      panelGameOver.classList.remove('hidden');
+    }
+  }
+
+  function openInitialsEntry(list){
+    pendingHSList = list;
+    initials = ['A','A','A']; initialsActiveSlot = 0;
+    iniScoreVal.textContent = score;
+    updateInitialsDisplay();
+    panelInitials.classList.remove('hidden');
+  }
+
+  function updateInitialsDisplay(){
+    for (var i=0;i<3;i++){
+      var el = document.getElementById('ini-letter-'+i);
+      el.textContent = initials[i];
+      el.parentElement.classList.toggle('active', i===initialsActiveSlot);
+    }
+  }
+
+  function cycleInitial(slot, dir){
+    var code = initials[slot].charCodeAt(0) - 65;
+    code = (code + dir + 26) % 26;
+    initials[slot] = String.fromCharCode(65+code);
+    initialsActiveSlot = slot;
+    updateInitialsDisplay();
+  }
+
+  document.querySelectorAll('.ini-arrow').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      cycleInitial(+btn.dataset.slot, +btn.dataset.dir);
+    });
+  });
+  document.querySelectorAll('.initial-slot').forEach(function(slotEl, i){
+    slotEl.addEventListener('click', function(e){
+      e.stopPropagation();
+      initialsActiveSlot = i;
+      updateInitialsDisplay();
+    });
+  });
+  btnSubmitInitials.addEventListener('click', async function(e){
+    e.stopPropagation();
+    var list = pendingHSList.slice();
+    list.push({initials: initials.join(''), score: score});
+    list.sort(function(a,b){ return b.score-a.score; });
+    list = list.slice(0, HS_MAX);
+    await saveHighScores(list);
+    renderHighScoreList(list);
+    panelInitials.classList.add('hidden');
+    panelGameOver.classList.remove('hidden');
+  });
+  window.addEventListener('keydown', function(e){
+    if (panelInitials.classList.contains('hidden')) return;
+    if (/^[a-zA-Z]$/.test(e.key)){
+      initials[initialsActiveSlot] = e.key.toUpperCase();
+      initialsActiveSlot = (initialsActiveSlot+1)%3;
+      updateInitialsDisplay();
+    } else if (e.key === 'ArrowLeft'){
+      initialsActiveSlot = (initialsActiveSlot+2)%3; updateInitialsDisplay();
+    } else if (e.key === 'ArrowRight'){
+      initialsActiveSlot = (initialsActiveSlot+1)%3; updateInitialsDisplay();
+    } else if (e.key === 'ArrowUp'){
+      cycleInitial(initialsActiveSlot, 1);
+    } else if (e.key === 'ArrowDown'){
+      cycleInitial(initialsActiveSlot, -1);
+    } else if (e.key === 'Enter'){
+      btnSubmitInitials.click();
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // Update
+  // ---------------------------------------------------------------------
+  function updateFx(dt){
+    for (var i=particles.length-1;i>=0;i--){
+      var p = particles[i];
+      p.vy += p.grav*dt;
+      p.x += p.vx*dt; p.y += p.vy*dt;
+      p.life -= dt;
+      if (p.life<=0) particles.splice(i,1);
+    }
+    for (var j=popups.length-1;j>=0;j--){
+      var u = popups[j];
+      u.y += u.vy*dt; u.life -= dt;
+      if (u.life<=0) popups.splice(j,1);
+    }
+    if (banner){ banner.life -= dt; if (banner.life<=0) banner=null; }
+    if (shakeT>0) shakeT = Math.max(0, shakeT-dt);
+    if (crashFlash>0) crashFlash = Math.max(0, crashFlash - dt*3.2);
+  }
+
+  function triggerCrash(){
+    if (crashPending || state !== STATE_PLAY || gameOverScheduled) return;
+    crashPending = true; crashT = 0; crashSpin = 0; crashFlash = 0;
+    crashStartY = heli.y; crashLanded = false;
+    copterLives = Math.max(0, copterLives-1);
+    banner = {text:'CRASHED!', life:1.4};
+    if (copterLives > 0){
+      addPopup(heli.x, heli.y-36, copterLives+' COPTER'+(copterLives===1?'':'S')+' LEFT', AMBER);
+    }
+    spawnBurst(heli.x, heli.y, 12, INK, 90, 0.6, 200);
+    spawnBurst(heli.x, heli.y, 8, AMBER, 90, 0.5, -20);
+    shakeT = 0.5;
+    sndCrash();
+    birds = [];
+    // the stuntman bails / is hidden for the duration of the crash — a fresh one
+    // is waiting when the copter respawns, so the rope never has to stretch
+    // absurdly while the wreck falls away from wherever he was hanging.
+    man.attached = false;
+    man.falling = false;
+    man.dead = 1;
+  }
+
+  function spawnBird(){
+    var side = Math.floor(Math.random()*3); // 0=left,1=right,2=top
+    var x, y;
+    if (side === 0){ x = -30; y = 60 + Math.random()*150; }
+    else if (side === 1){ x = W+30; y = 60 + Math.random()*150; }
+    else { x = Math.random()*W; y = -30; }
+    var spd = BIRD_SPEED_BASE + (level-BIRD_LEVEL_START)*8;
+    var dx = heli.x-x, dy = heli.y-y, len = Math.hypot(dx,dy)||1;
+    birds.push({
+      x:x, y:y,
+      vx: dx/len*spd, vy: dy/len*spd,
+      wingPhase: Math.random()*6, alive:true
+    });
+  }
+
+  function respawnHeli(){
+    heli.x = W*0.5; heli.y = H*0.32; heli.rot = 0; heli.bob = 0;
+    crashPending = false; crashT = 0; crashSpin = 0; crashFlash = 0;
+    crashLanded = false;
+    crashInvulnT = CRASH_INVULN_T;
+    banner = null;
+    birds = []; bullets = [];
+    birdSpawnT = 3 + Math.random()*2;
+    man.attached = true; man.dead = 0; man.falling = false;
+    man.x = heli.x; man.y = heli.y + ROPE_LEN;
+  }
+
+  function update(dt){
+    if (crashPending){
+      crashT += dt;
+      updateFx(dt);
+      var groundRestY = groundY - 16;
+      if (crashT < CRASH_FALL_T){
+        // tumbling down from the strike point to the ground
+        var ft = crashT / CRASH_FALL_T;
+        var eased = ft*ft; // ease-in: starts slow, slams down
+        heli.y = crashStartY + (groundRestY - crashStartY) * eased;
+        crashSpin += dt * 26;
+        if (Math.random() < 0.7){
+          spawnBurst(heli.x + (Math.random()-0.5)*10, heli.y+8, 1, 'rgba(27,26,23,0.5)', 20, 0.5, -20);
+        }
+      } else {
+        if (!crashLanded){
+          crashLanded = true;
+          heli.y = groundRestY;
+          spawnExplosion(heli.x, heli.y);
+          shakeT = 0.65;
+          sndExplode();
+        }
+        // wreckage burns in place
+        spawnFireTick(heli.x, heli.y);
+        if (Math.random() < 0.5) spawnFireTick(heli.x, heli.y);
+      }
+      if (crashT >= CRASH_FALL_T + CRASH_BURN_T){
+        crashPending = false;
+        if (copterLives > 0){
+          respawnHeli();
+        } else {
+          gameOverScheduled = true;
+          doGameOver();
+        }
+      }
+      return;
+    }
+
+    if (crashInvulnT > 0) crashInvulnT = Math.max(0, crashInvulnT - dt);
+
+    // helicopter follow pointer
+    var minX = 46, maxX = W-46, minY = 50, maxY = groundY - groundClearance;
+    var tx = clamp(pointer.x, minX, maxX);
+    var ty = clamp(pointer.y, minY, maxY);
+    var followK = 1 - Math.exp(-8*dt);
+    heli.x += (tx - heli.x) * followK;
+    heli.y += (ty - heli.y) * followK;
+    heli.bob += dt;
+    heli.rot += dt*40;
+
+    // wagon movement — exits fully off-screen, then re-enters from the other side
+    // (paused while the horse is down; nothing is there to pull the cart)
+    if (wagon.horseDeadT === null){
+      var w = wagonWidth();
+      wagon.x += wagon.dir * wagon.speed * dt;
+      if (wagon.x - w/2 > W + 24){
+        wagon.x = -w/2 - 24;
+      } else if (wagon.x + w/2 < -24){
+        wagon.x = W + w/2 + 24;
+      }
+      wagon.legPhase += dt * wagon.speed * 0.14;
+    } else {
+      var prevHT = wagon.horseDeadT;
+      wagon.horseDeadT += dt;
+      if (prevHT < HORSE_FALL_T && wagon.horseDeadT >= HORSE_FALL_T){
+        var hz = wagonZones().horse;
+        spawnBurst((hz[0]+hz[1])/2, groundY-4, 12, '#8a7f66', 55, 0.55);
+        sndThud();
+      }
+      if (wagon.horseDeadT >= HORSE_TOTAL_T){
+        wagon.horseDeadT = null; // fully back on its feet
+      }
+    }
+
+    // clouds drift lazily across the sky and wrap around
+    for (var ci=0; ci<clouds.length; ci++){
+      var c = clouds[ci];
+      c.x += c.spd*dt;
+      if (c.spd > 0 && c.x - c.w/2 > W+20) c.x = -c.w/2-20;
+      if (c.spd < 0 && c.x + c.w/2 < -20) c.x = W+c.w/2+20;
+    }
+
+    // stuntman
+    if (man.attached){
+      man.x = heli.x;
+      man.y = heli.y + ROPE_LEN;
+    } else if (man.falling){
+      var inCloud = !!cloudAt(man.x, man.y);
+      if (inCloud){
+        if (!man.inCloud){ sndWhoosh(); }
+        man.vy += 70*dt;                       // much weaker gravity inside a cloud
+        man.vy *= Math.pow(0.12, dt);           // and it saps existing speed fast
+        man.puffT -= dt;
+        if (man.puffT <= 0){
+          spawnBurst(man.x, man.y, 2, 'rgba(27,26,23,0.25)', 18, 0.5);
+          man.puffT = 0.09;
+        }
+      } else {
+        man.vy += 620*dt;
+      }
+      man.inCloud = inCloud;
+      man.y += man.vy*dt;
+      man.pose += dt*18; // x stays fixed at the release point — leading the wagon is the whole skill
+
+      var bedTopY = groundY - 22;
+      var zones = wagonZones();
+      if (man.y >= bedTopY && man.y - man.vy*dt < bedTopY){
+        var mx = man.x;
+        if (mx >= zones.hay[0] && mx <= zones.hay[1]){
+          resolveDrop('hay', mx, bedTopY, man.y-man.startY);
+        } else if (mx >= zones.horse[0] && mx <= zones.horse[1]){
+          resolveDrop('horse', mx, bedTopY, man.y-man.startY);
+        } else if (mx >= zones.driver[0] && mx <= zones.driver[1]){
+          resolveDrop('driver', mx, bedTopY, man.y-man.startY);
+        }
+      }
+      if (man.falling && man.y >= groundY-4){
+        resolveDrop('ground', man.x, groundY-4, man.y-man.startY);
+      }
+    }
+
+    // killer birds (from level 5) — they home in on the copter; shoot them or dodge
+    if (level >= BIRD_LEVEL_START){
+      birdSpawnT -= dt;
+      if (birdSpawnT <= 0){
+        spawnBird();
+        birdSpawnT = Math.max(1.8, 4.5 - (level-BIRD_LEVEL_START)*0.3) + Math.random()*2;
+      }
+    }
+    var birdSpd = BIRD_SPEED_BASE + (level-BIRD_LEVEL_START)*8;
+    for (var bi=birds.length-1; bi>=0; bi--){
+      var bd = birds[bi];
+      var bdx = heli.x-bd.x, bdy = heli.y-bd.y, blen = Math.hypot(bdx,bdy)||1;
+      var desiredVx = bdx/blen*birdSpd, desiredVy = bdy/blen*birdSpd;
+      bd.vx += (desiredVx-bd.vx) * BIRD_HOMING * dt;
+      bd.vy += (desiredVy-bd.vy) * BIRD_HOMING * dt;
+      bd.x += bd.vx*dt; bd.y += bd.vy*dt;
+      bd.wingPhase += dt*16;
+      if (blen < BIRD_CRASH_RADIUS && crashInvulnT <= 0){
+        triggerCrash();
+        break;
+      }
+      if (bd.x < -60 || bd.x > W+60 || bd.y < -60 || bd.y > H+60){
+        birds.splice(bi,1);
+      }
+    }
+    if (crashPending){ updateFx(dt); return; }
+
+    // bullets
+    if (fireCooldownT > 0) fireCooldownT -= dt;
+    for (var ui=bullets.length-1; ui>=0; ui--){
+      var ub = bullets[ui];
+      ub.x += ub.vx*dt; ub.y += ub.vy*dt; ub.life -= dt;
+      var hitSomething = false;
+      for (var bj=birds.length-1; bj>=0; bj--){
+        var tb = birds[bj];
+        if (Math.hypot(ub.x-tb.x, ub.y-tb.y) < BIRD_HIT_RADIUS){
+          spawnBurst(tb.x, tb.y, 10, INK, 90, 0.5);
+          addPopup(tb.x, tb.y-8, '+'+BIRD_BONUS, AMBER);
+          score += BIRD_BONUS;
+          sndBirdHit();
+          birds.splice(bj,1);
+          hitSomething = true;
+          break;
+        }
+      }
+      if (hitSomething || ub.life<=0 || ub.x<-20 || ub.x>W+20 || ub.y<-20 || ub.y>H+20){
+        bullets.splice(ui,1);
+      }
+    }
+
+    updateFx(dt);
+  }
+
+  // ---------------------------------------------------------------------
+  // Draw helpers
+  // ---------------------------------------------------------------------
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function drawSky(){
+    ctx.fillStyle = PAPER;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  function drawHills(){
+    // far hill band
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0,300);
+    ctx.bezierCurveTo(120,255,220,290,340,265);
+    ctx.bezierCurveTo(460,240,540,275,W,250);
+    ctx.lineTo(W,groundY);
+    ctx.lineTo(0,groundY);
+    ctx.closePath();
+    ctx.fillStyle = hatchFar;
+    ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.restore();
+
+    // near hill band
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0,340);
+    ctx.bezierCurveTo(100,315,180,345,300,330);
+    ctx.bezierCurveTo(430,312,520,338,W,320);
+    ctx.lineTo(W,groundY);
+    ctx.lineTo(0,groundY);
+    ctx.closePath();
+    ctx.fillStyle = hatchNear;
+    ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawClouds(){
+    ctx.save();
+    ctx.lineWidth = 1.4;
+    for (var i=0;i<clouds.length;i++){
+      var c = clouds[i];
+      var puffs = [
+        [-0.34,0.12,0.40], [-0.06,-0.18,0.52], [0.28,0.06,0.44],
+        [0.52,0.22,0.30], [-0.55,0.26,0.26]
+      ];
+      ctx.beginPath();
+      for (var k=0;k<puffs.length;k++){
+        var px = c.x + puffs[k][0]*c.w;
+        var py = c.y + puffs[k][1]*c.h;
+        var pr = puffs[k][2]*c.h;
+        ctx.moveTo(px+pr, py);
+        ctx.arc(px, py, pr, 0, Math.PI*2);
+      }
+      ctx.fillStyle = PAPER;
+      ctx.fill();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = hatchFar;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(27,26,23,0.65)';
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawGround(){
+    ctx.fillStyle = PAPER;
+    ctx.fillRect(0, groundY, W, H-groundY);
+    ctx.fillStyle = hatchGrass;
+    ctx.fillRect(0, groundY, W, H-groundY);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(0,groundY);
+    ctx.lineTo(W,groundY);
+    ctx.stroke();
+    // little grass ticks
+    ctx.lineWidth = 1;
+    for (var x=6; x<W; x+=13){
+      var h2 = 4 + ((x*7)%5);
+      ctx.beginPath();
+      ctx.moveTo(x,groundY+3);
+      ctx.lineTo(x-2,groundY+3+h2);
+      ctx.stroke();
+    }
+  }
+
+  function drawWagon(){
+    var zones = wagonZones();
+    var dir = wagon.dir;
+    var HS = WAGON_SCALE;
+    var wheelY = groundY - 7;
+    var bedTop = groundY - 22;
+    var wheelR = 15*HS, spokeLen = 14*HS, wheelInset = 18*HS, bedTaper = 6*HS;
+    // the cart body spans the hay + driver zones (the horse stands separately, out front)
+    var cartLeft = Math.min(zones.hay[0], zones.driver[0]);
+    var cartRight = Math.max(zones.hay[1], zones.driver[1]);
+    var cartW = cartRight - cartLeft;
+
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.fillStyle = PAPER;
+    ctx.lineWidth = 2;
+
+    // wheels
+    [cartLeft+wheelInset, cartRight-wheelInset].forEach(function(wx){
+      ctx.beginPath();
+      ctx.arc(wx, wheelY, wheelR, 0, Math.PI*2);
+      ctx.fillStyle = PAPER; ctx.fill(); ctx.stroke();
+      for (var s=0;s<6;s++){
+        var a = s/6*Math.PI*2 + wagon.legPhase;
+        ctx.beginPath();
+        ctx.moveTo(wx, wheelY);
+        ctx.lineTo(wx+Math.cos(a)*spokeLen, wheelY+Math.sin(a)*spokeLen);
+        ctx.stroke();
+      }
+    });
+
+    // cart bed
+    ctx.beginPath();
+    ctx.moveTo(cartLeft, wheelY-3);
+    ctx.lineTo(cartLeft+bedTaper, bedTop);
+    ctx.lineTo(cartRight-bedTaper, bedTop);
+    ctx.lineTo(cartRight, wheelY-3);
+    ctx.closePath();
+    ctx.fillStyle = PAPER; ctx.fill(); ctx.stroke();
+
+    // hay pile (amber, textured) — sits within the hay zone
+    var hL = zones.hay[0], hR = zones.hay[1];
+    var hInset = 3*HS, hBumpBase = 6*HS, hBumpVar = 5*HS;
+    ctx.beginPath();
+    ctx.moveTo(hL+hInset, bedTop);
+    var steps = 6, hw=(hR-hL-2*hInset)/steps;
+    for (var k=0;k<=steps;k++){
+      var hx = hL+hInset+k*hw;
+      var hy = bedTop - (hBumpBase + hBumpVar*Math.abs(Math.sin(k*1.7+1)));
+      ctx.lineTo(hx,hy);
+    }
+    ctx.lineTo(hR-hInset, bedTop);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(217,142,31,0.22)';
+    ctx.fill();
+    ctx.fillStyle = hatchAmber;
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = AMBER; ctx.globalAlpha=0.0; ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = AMBER;
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.5;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // driver hand/seat anchor is computed now (zone geometry), figure itself is
+    // drawn after the horse below so he renders on top rather than behind it
+    var dMid = (zones.driver[0]+zones.driver[1])/2;
+    var driverHandX = dMid + dir*7.5;
+    var driverHandY = bedTop-13.5;
+
+    // horse (side silhouette), oriented by dir
+    var hx0 = (zones.horse[0]+zones.horse[1])/2;
+
+    // work out the death-sequence visual state, if the horse was just flattened
+    var horseAlpha = 1, horseRot = 0, horseDeadEyes = false, horseStrideOn = true;
+    if (wagon.horseDeadT !== null){
+      var ht = wagon.horseDeadT;
+      if (ht < HORSE_FALL_T){
+        horseRot = easeOutCubic(ht/HORSE_FALL_T) * HORSE_FALL_ANGLE;
+        horseDeadEyes = true; horseStrideOn = false;
+      } else if (ht < HORSE_FALL_T+HORSE_DOWN_T){
+        horseRot = HORSE_FALL_ANGLE;
+        horseDeadEyes = true; horseStrideOn = false;
+      } else if (ht < HORSE_FALL_T+HORSE_DOWN_T+HORSE_FADE_T){
+        horseRot = HORSE_FALL_ANGLE;
+        horseDeadEyes = true; horseStrideOn = false;
+        horseAlpha = 1 - (ht-(HORSE_FALL_T+HORSE_DOWN_T))/HORSE_FADE_T;
+      } else {
+        horseStrideOn = false;
+        horseAlpha = clamp((ht-(HORSE_FALL_T+HORSE_DOWN_T+HORSE_FADE_T))/HORSE_IN_T, 0, 1);
+      }
+    }
+
+    ctx.save();
+    ctx.globalAlpha = horseAlpha;
+    ctx.translate(hx0, groundY-4);
+    ctx.scale(dir>0?HS:-HS, HS);
+    ctx.translate(0,-25);
+    ctx.rotate(horseRot);
+    ctx.translate(0,25);
+    ctx.strokeStyle = INK; ctx.fillStyle = PAPER;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+    var stride = horseStrideOn ? Math.sin(wagon.legPhase*2)*8 : 0;
+
+    // far pair of legs first (reads as "behind" the body)
+    drawHorseLeg(-13,-27, -stride);
+    drawHorseLeg(14,-26, stride);
+
+    // body + neck + head as one continuous silhouette
+    ctx.lineWidth = 2;
+    ctx.fillStyle = PAPER;
+    ctx.beginPath();
+    ctx.moveTo(26,-74);                          // poll (top of head)
+    ctx.quadraticCurveTo(37,-71, 41,-62);         // forehead to bridge of nose
+    ctx.quadraticCurveTo(43,-57, 40,-53);         // nose tip
+    ctx.quadraticCurveTo(35,-51, 32,-55);         // muzzle underside
+    ctx.quadraticCurveTo(29,-52, 27,-47);         // chin to throat
+    ctx.quadraticCurveTo(24,-39, 23,-31);         // throat to chest
+    ctx.quadraticCurveTo(20,-23, 9,-21);          // chest to belly
+    ctx.quadraticCurveTo(-8,-19, -20,-23);        // belly curve
+    ctx.quadraticCurveTo(-29,-25, -32,-33);       // to the buttock
+    ctx.quadraticCurveTo(-34,-43, -27,-49);       // buttock up to tail root
+    ctx.quadraticCurveTo(-19,-54, -6,-56);        // croup to back
+    ctx.quadraticCurveTo(7,-58, 15,-55);          // back to withers
+    ctx.quadraticCurveTo(21,-58, 22,-64);         // withers up the crest
+    ctx.quadraticCurveTo(23,-70, 26,-74);         // crest back to poll
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // ear
+    ctx.beginPath();
+    ctx.moveTo(26,-73); ctx.lineTo(30,-83); ctx.lineTo(23,-75);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // eye + nostril (a little "x" when he's down for the count)
+    ctx.fillStyle = INK;
+    if (horseDeadEyes){
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(30,-67); ctx.lineTo(36,-61);
+      ctx.moveTo(36,-67); ctx.lineTo(30,-61);
+      ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(33,-64,1.5,0,Math.PI*2); ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(39,-56,1,0,Math.PI*2); ctx.fill();
+
+    // mane, a row of short tufts along the crest
+    ctx.lineWidth = 1.6;
+    for (var m=0;m<5;m++){
+      var mt = m/4;
+      var mx = 22 - mt*26, my = -64 - mt*(-6) - 2;
+      ctx.beginPath();
+      ctx.moveTo(mx,my);
+      ctx.lineTo(mx-2,my-7);
+      ctx.stroke();
+    }
+
+    // tail, flowing back from the croup
+    ctx.lineWidth = 2.2;
+    var tailSwish = horseStrideOn ? Math.sin(wagon.legPhase*2)*3 : 0;
+    ctx.beginPath();
+    ctx.moveTo(-29,-48);
+    ctx.quadraticCurveTo(-41+tailSwish,-42, -39+tailSwish,-27);
+    ctx.quadraticCurveTo(-38+tailSwish,-13, -43+tailSwish,-2);
+    ctx.stroke();
+
+    // near pair of legs (in front of the body)
+    drawHorseLeg(-11,-28, stride);
+    drawHorseLeg(16,-27, -stride);
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+
+    // driver — a small seated figure, drawn on top of the horse so he stays
+    // readable even where the two overlap at this tight scale
+    ctx.save();
+    ctx.translate(dMid, bedTop);
+    ctx.scale(dir, 1); // local +x always points toward the horse
+    ctx.strokeStyle = INK;
+    ctx.fillStyle = PAPER;
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // seated legs: hip -> knee -> foot, kept compact so they don't vanish into the horse
+    ctx.beginPath();
+    ctx.moveTo(0,-9);
+    ctx.lineTo(3,-4.5);
+    ctx.lineTo(5,-0.5);
+    ctx.stroke();
+    // torso, leaning slightly forward
+    ctx.beginPath();
+    ctx.moveTo(0,-9);
+    ctx.lineTo(-1,-18);
+    ctx.stroke();
+    // arm reaching forward to the reins
+    ctx.beginPath();
+    ctx.moveTo(-1,-16);
+    ctx.lineTo(7.5,-13.5);
+    ctx.stroke();
+    // head + a small hat brim for a little character
+    ctx.beginPath();
+    ctx.arc(-1.3,-21,3.2,0,Math.PI*2);
+    ctx.fillStyle = PAPER; ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-4.4,-22.6); ctx.lineTo(2,-22.8);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // harness line to cart — attaches at the collar (chest), runs back to the shaft
+    // (hidden while the horse is down; it's snapped free until a fresh one steps in)
+    if (wagon.horseDeadT === null){
+      ctx.beginPath();
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+      ctx.moveTo(hx0 + dir*19*HS, (groundY-4) - 27*HS);
+      ctx.lineTo(dir>0?cartRight:cartLeft, bedTop+5);
+      ctx.stroke();
+
+      // reins from the driver's hand up to the horse's head
+      var reinX = hx0 + dir*33*HS;
+      var reinY = (groundY-4) - 58*HS;
+      ctx.beginPath();
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.1;
+      ctx.moveTo(driverHandX, driverHandY);
+      ctx.quadraticCurveTo((driverHandX+reinX)/2, Math.max(driverHandY,reinY)+8, reinX, reinY);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawHorseLeg(hx,hy,swing){
+    var kx = hx + swing*0.45, ky = hy+15;
+    var fx = hx + swing, fy = -2;
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(hx,hy);
+    ctx.lineTo(kx,ky);
+    ctx.lineTo(fx,fy);
+    ctx.stroke();
+    // hoof
+    ctx.beginPath();
+    ctx.moveTo(fx-2.6,fy-1);
+    ctx.lineTo(fx+2.6,fy-1);
+    ctx.lineTo(fx+2,fy+2.4);
+    ctx.lineTo(fx-2,fy+2.4);
+    ctx.closePath();
+    ctx.fillStyle = INK;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawRotorBlur(cx,cy,len,angle){
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.strokeStyle = 'rgba(27,26,23,0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-len,0); ctx.lineTo(len,0);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(27,26,23,0.18)';
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.ellipse(0,0,len,3,0,0,Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCrashFlash(){
+    var r = 115 + (1-crashFlash)*65;
+    var g = ctx.createRadialGradient(heli.x, heli.y, 0, heli.x, heli.y, r);
+    g.addColorStop(0, 'rgba(240,172,62,'+(0.65*crashFlash)+')');
+    g.addColorStop(0.55, 'rgba(217,142,31,'+(0.32*crashFlash)+')');
+    g.addColorStop(1, 'rgba(217,142,31,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(heli.x, heli.y, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function drawHelicopter(){
+    var x = heli.x, y = heli.y + Math.sin(heli.bob*3)*1.6;
+    if (crashInvulnT > 0 && Math.floor(crashInvulnT*10)%2===0) return; // invuln flicker
+    ctx.save();
+    ctx.translate(x,y);
+    if (crashPending) ctx.rotate(crashSpin);
+    ctx.strokeStyle = INK;
+    ctx.fillStyle = PAPER;
+    ctx.lineWidth = 2.2;
+
+    // tail boom
+    ctx.beginPath();
+    ctx.moveTo(-14,-2);
+    ctx.quadraticCurveTo(-52,-6,-64,-16);
+    ctx.quadraticCurveTo(-56,-4,-50,4);
+    ctx.quadraticCurveTo(-30,10,-14,8);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // tail rotor blur
+    ctx.save();
+    ctx.translate(-63,-16);
+    ctx.strokeStyle='rgba(27,26,23,0.5)';
+    ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.ellipse(0,0,2,9,0,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+
+    // body
+    ctx.beginPath();
+    ctx.ellipse(6,0,26,15,0,0,Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    // cockpit bubble
+    ctx.beginPath();
+    ctx.ellipse(16,-2,11,10,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(27,26,23,0.08)';
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+    ctx.fillStyle = PAPER;
+
+    // skids
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-14,17); ctx.lineTo(24,17);
+    ctx.moveTo(-8,12); ctx.lineTo(-8,17);
+    ctx.moveTo(18,12); ctx.lineTo(18,17);
+    ctx.stroke();
+
+    // mast + rotor
+    ctx.beginPath();
+    ctx.moveTo(4,-14); ctx.lineTo(4,-20);
+    ctx.stroke();
+    drawRotorBlur(4,-20, 46, heli.rot);
+
+    ctx.restore();
+
+    // rope + man (if attached, drawn relative to world since rope hangs straight)
+  }
+
+  function drawMan(){
+    if (man.dead && !man.attached) return;
+    var x = man.x, y = man.y;
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+
+    if (man.attached){
+      // rope from heli skid to man
+      ctx.beginPath();
+      ctx.moveTo(heli.x+4, heli.y+16);
+      ctx.lineTo(x, y-10);
+      ctx.stroke();
+    }
+
+    ctx.translate(x,y);
+    var swing = man.falling ? Math.sin(man.pose)*22 : 0;
+    var armA = man.falling ? Math.sin(man.pose*1.3) : -0.9;
+    var legA = man.falling ? Math.cos(man.pose*1.1) : 0.15;
+
+    // head
+    ctx.beginPath();
+    ctx.arc(0,-10,4.6,0,Math.PI*2);
+    ctx.fillStyle = PAPER; ctx.fill(); ctx.stroke();
+    // torso
+    ctx.beginPath();
+    ctx.moveTo(0,-6); ctx.lineTo(0,6);
+    ctx.stroke();
+    // arms
+    ctx.beginPath();
+    ctx.moveTo(0,-4); ctx.lineTo(-9*Math.cos(armA)-2, -4+9*Math.sin(armA));
+    ctx.moveTo(0,-4); ctx.lineTo(9*Math.cos(armA)+2, -4-9*Math.sin(armA));
+    ctx.stroke();
+    // legs
+    ctx.beginPath();
+    ctx.moveTo(0,6); ctx.lineTo(-7*Math.cos(legA)-1, 6+9*Math.sin(legA)+7);
+    ctx.moveTo(0,6); ctx.lineTo(7*Math.cos(legA)+1, 6-9*Math.sin(legA)+7);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawParticles(){
+    particles.forEach(function(p){
+      var a = Math.max(0,p.life/p.maxLife);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x-p.size/2, p.y-p.size/2, p.size, p.size);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function drawBird(b){
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(Math.atan2(b.vy, b.vx));
+    ctx.strokeStyle = INK;
+    ctx.fillStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    var tipY = Math.sin(b.wingPhase) * 9; // wingtip bob, -9..9
+    // one continuous stroke: left wingtip -> shoulder -> right wingtip.
+    // fixed control-point offsets keep a visible "M" bend even mid-flap.
+    ctx.beginPath();
+    ctx.moveTo(-17, tipY);
+    ctx.quadraticCurveTo(-7,-4, 1,0);
+    ctx.quadraticCurveTo(-7,4, -17,-tipY);
+    ctx.stroke();
+    // head/beak, marks the direction of travel
+    ctx.beginPath();
+    ctx.arc(2,0,2.8,0,Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(4.5,0); ctx.lineTo(9,-1.2); ctx.lineTo(4.8,1.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBirds(){
+    birds.forEach(drawBird);
+  }
+
+  function drawBullets(){
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    bullets.forEach(function(b){
+      var ang = Math.atan2(b.vy, b.vx);
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(b.x-Math.cos(ang)*9, b.y-Math.sin(ang)*9);
+      ctx.stroke();
+    });
+  }
+
+  function drawPopups(){
+    ctx.font = '900 15px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    popups.forEach(function(u){
+      var a = Math.max(0, Math.min(1, u.life/1.1));
+      ctx.globalAlpha = a;
+      ctx.fillStyle = u.color;
+      ctx.fillText(u.text, u.x, u.y);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function drawBanner(){
+    if (!banner) return;
+    var a = Math.max(0, Math.min(1, banner.life/1.6));
+    var scale = 1 + (1-Math.min(1,banner.life/1.6))*0 + Math.min(0.25, (1.6-banner.life)*1.2);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(W/2, H*0.32);
+    ctx.scale(scale, scale);
+    ctx.font = '900 34px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = AMBER;
+    ctx.fillText(banner.text, 2, 2);
+    ctx.fillStyle = INK;
+    ctx.fillText(banner.text, 0, 0);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawJumperIcon(x,y,alive){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.strokeStyle = alive ? INK : 'rgba(27,26,23,0.28)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(0,-6,3,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0,-3); ctx.lineTo(0,5);
+    ctx.moveTo(0,-1); ctx.lineTo(-4,3);
+    ctx.moveTo(0,-1); ctx.lineTo(4,3);
+    ctx.moveTo(0,5); ctx.lineTo(-4,10);
+    ctx.moveTo(0,5); ctx.lineTo(4,10);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCopterIcon(x,y,alive){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.strokeStyle = alive ? INK : 'rgba(27,26,23,0.28)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-6,-4); ctx.lineTo(6,-4);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(0,0.5,5,2.6,0,0,Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-5,0.5); ctx.lineTo(-9.5,-1.2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawHUD(){
+    ctx.save();
+    ctx.font = '900 16px "Courier New", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = INK;
+    ctx.fillText('SCORE '+pad(score,6), 14, 24);
+    ctx.textAlign = 'center';
+    ctx.fillText('LV '+pad(level,2), W/2, 24);
+    if (level >= BIRD_LEVEL_START){
+      for (var c=0;c<COPTER_LIVES_MAX;c++){
+        drawCopterIcon(W/2 + (c-(COPTER_LIVES_MAX-1)/2)*18, 36, c < copterLives);
+      }
+    }
+    ctx.textAlign = 'right';
+    for (var i=0;i<5;i++){
+      drawJumperIcon(W-16-(4-i)*20, 14, i < lives);
+    }
+    ctx.restore();
+  }
+  function pad(n,len){
+    var s = String(n);
+    while (s.length<len) s = '0'+s;
+    return s;
+  }
+
+  // ---------------------------------------------------------------------
+  // Main render
+  // ---------------------------------------------------------------------
+  function render(){
+    ctx.save();
+    if (shakeT>0){
+      var m2 = shakeT*40;
+      ctx.translate((Math.random()-0.5)*m2, (Math.random()-0.5)*m2);
+    }
+    drawSky();
+    drawHills();
+    drawClouds();
+    drawGround();
+    drawWagon();
+    drawParticles();
+    drawBirds();
+    if (crashFlash > 0) drawCrashFlash();
+    // draw order: man behind heli if attached below, helicopter body, rope+man
+    drawHelicopter();
+    drawMan();
+    drawBullets();
+    drawPopups();
+    drawBanner();
+    if (state === STATE_PLAY || crashPending) drawHUD();
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------------------
+  // Loop
+  // ---------------------------------------------------------------------
+  function frame(ts){
+    if (!lastTime) lastTime = ts;
+    var dt = Math.min(0.033, (ts-lastTime)/1000);
+    lastTime = ts;
+    if (state === STATE_PLAY) update(dt);
+    else {
+      // idle ambient motion on title/gameover
+      heli.bob += dt; heli.rot += dt*18;
+      wagon.legPhase += dt*4;
+      for (var ci=0; ci<clouds.length; ci++){
+        var c = clouds[ci];
+        c.x += c.spd*dt*0.6;
+        if (c.spd > 0 && c.x - c.w/2 > W+20) c.x = -c.w/2-20;
+        if (c.spd < 0 && c.x + c.w/2 < -20) c.x = W+c.w/2+20;
+      }
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  resetGame();
+  difficultyForLevel(1);
+  requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>

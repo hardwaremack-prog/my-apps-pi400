@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en"><head><script src="../suite-users.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ready</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: wall-calendar planner. Week-ahead list on the left, month grid on the right, to-dos below. */
+:root{
+  --bg:#F2F5FA; --surface:#FFFFFF; --sunk:#E7ECF4; --ink:#17202E; --muted:#58657A; --line:#D5DDE9;
+  --sky:#2B63B5; --sky-soft:#DCE7F7; --on-sky:#FFFFFF; --sun:#E9A23B; --good:#2C8A57; --warn:#E39A00; --bad:#C2453A;
+  --c-steady:#FF7A33; --c-handy:#3E3AA0; --c-stocked:#2F6F7E; --c-polished:#33415C; --c-chipper:#D9446F; --c-ready:#2B63B5;
+  --f-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151D; --surface:#18202B; --sunk:#202A37; --ink:#E6ECF4; --muted:#98A5B8; --line:#2A3544;
+  --sky:#7DA8EA; --sky-soft:#1F3150; --on-sky:#0D1520; --sun:#F2B85C; --good:#4CC384; --warn:#F2B13C; --bad:#EE7A6E;
+  --c-steady:#FF9458; --c-handy:#8F8BF0; --c-stocked:#5DB3C4; --c-polished:#9DB0D6; --c-chipper:#F27499; --c-ready:#7DA8EA;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151D; --surface:#18202B; --sunk:#202A37; --ink:#E6ECF4; --muted:#98A5B8; --line:#2A3544;
+  --sky:#7DA8EA; --sky-soft:#1F3150; --on-sky:#0D1520; --sun:#F2B85C; --good:#4CC384; --warn:#F2B13C; --bad:#EE7A6E;
+  --c-steady:#FF9458; --c-handy:#8F8BF0; --c-stocked:#5DB3C4; --c-polished:#9DB0D6; --c-chipper:#F27499; --c-ready:#7DA8EA;
+  color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:16px;padding-block:18px 60px;display:flex;flex-direction:column;gap:20px}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.logo{font-family:var(--f-display);font-weight:800;font-size:24px;color:var(--sky);letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+.logo svg{width:26px;height:26px}
+.saved{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:4px 10px;border-radius:99px}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none}
+.save-dot.saving{background:var(--warn);animation:svpulse .9s infinite ease-in-out}
+.save-dot.error{background:var(--bad)} .save-dot.example{background:var(--muted)}
+@keyframes svpulse{50%{transform:scale(1.5)}}
+
+.hero{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(30px,5vw,46px);line-height:1.05;letter-spacing:-.025em;margin:0;text-wrap:balance}
+h1 em{font-style:normal;color:var(--sky)}
+.lede{margin:6px 0 0;color:var(--muted);font-size:16.5px;max-width:60ch}
+.counts{display:flex;gap:22px}
+.counts div{display:grid}
+.counts b{font-family:var(--f-display);font-size:26px;font-variant-numeric:tabular-nums;line-height:1}
+.counts span{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700}
+
+.banner{background:var(--sky-soft);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-weight:500}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:20px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
+h2{font-family:var(--f-display);font-weight:700;font-size:21px;margin:0;letter-spacing:-.01em}
+.phead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.label{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 13px;border-radius:10px;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--sky)}
+.btn.primary{background:var(--sky);border-color:var(--sky);color:var(--on-sky)}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent}
+.iconbtn{border:1px solid var(--line);background:var(--surface);width:34px;height:34px;border-radius:10px;cursor:pointer;display:grid;place-items:center}
+
+/* agenda */
+.days{display:flex;flex-direction:column;gap:14px}
+.day h3{margin:0 0 6px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;display:flex;gap:8px;align-items:baseline}
+.day h3 .rel{color:var(--sky)}
+.item{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--sunk)}
+.item+.item{margin-top:6px}
+.item .bar{width:4px;align-self:stretch;border-radius:4px;background:var(--c)}
+.item b{font-weight:600;display:block;overflow-wrap:anywhere}
+.item small{color:var(--muted);font-size:12.5px}
+.chip{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c);white-space:nowrap}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+
+/* month */
+.month-nav{display:flex;align-items:center;gap:8px}
+.month-nav h2{min-width:9.5em;text-align:center}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:center;padding-bottom:4px}
+.cell{min-height:78px;border-radius:10px;background:var(--sunk);padding:6px;display:flex;flex-direction:column;gap:3px;cursor:pointer;border:2px solid transparent;text-align:left;min-width:0}
+.cell:hover{border-color:var(--line)}
+.cell.out{opacity:.45}
+.cell.today .n{background:var(--sky);color:var(--on-sky)}
+.cell.sel{border-color:var(--sky)}
+.cell .n{font-weight:700;font-size:13px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.dots{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dots i{display:block;font-style:normal;font-size:11px;line-height:1.3;padding:1px 5px;border-radius:5px;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.more{font-size:11px;color:var(--muted);font-weight:600}
+@media (max-width:640px){.cell{min-height:52px}.dots i{font-size:0;height:6px;width:6px;padding:0;border-radius:50%;background:var(--c)}.dots{flex-direction:row;flex-wrap:wrap}}
+
+.daypanel{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
+form.add{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-top:10px}
+form.add input{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px;min-width:0}
+@media (max-width:640px){form.add{grid-template-columns:1fr 1fr}form.add input[name=title]{grid-column:1/-1}}
+
+/* todos */
+.todos{display:flex;flex-direction:column;gap:6px}
+.todo{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--sunk)}
+.todo input[type=checkbox]{width:20px;height:20px;accent-color:var(--good)}
+.todo.done .t{text-decoration:line-through;color:var(--muted)}
+.todo .t{overflow-wrap:anywhere}
+.todo small{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.todo small.late{color:var(--bad);font-weight:600}
+.x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;border-radius:6px}
+.x:hover{color:var(--bad)}
+
+.sources{display:flex;flex-wrap:wrap;gap:8px}
+.src{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 8px;border-radius:99px;border:1px solid var(--line);background:var(--bg);font-size:13.5px;font-weight:600;cursor:pointer}
+.src i{width:12px;height:12px;border-radius:4px;background:var(--c)}
+.src[aria-pressed="false"]{opacity:.5}
+.src[aria-pressed="false"] i{background:transparent;border:2px solid var(--c)}
+.src em{font-style:normal;color:var(--muted);font-weight:500}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:20}
+footer{color:var(--muted);font-size:13px;text-align:center}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.save-dot.saving{animation:none}}
+</style></head><body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8.5 15l2.5 2.5 4.5-4.5"/></svg>Ready</div>
+    <span class="saved" title="Your calendar is saved in this browser"><i class="save-dot" id="saveDot"></i><span id="saveText">Saved</span></span>
+  </div>
+
+  <div class="hero">
+    <div>
+      <h1 id="greet">Here's what's coming. <em>You're ready.</em></h1>
+      <p class="lede">Your dates, to-dos, and everything coming up from the rest of the Tidy Suite in one place: bills from Steady, Handy jobs, warranties from Stocked, interviews from Polished and allowance day from Chipper.</p>
+    </div>
+    <div class="counts">
+      <div><b id="cWeek">0</b><span>This week</span></div>
+      <div><b id="cTodo">0</b><span>To-dos left</span></div>
+    </div>
+  </div>
+
+  <div class="banner" id="exBanner" hidden><span>These are example dates and to-dos so you can see how Ready works.</span><button class="btn small" id="clearEx">Clear examples</button></div>
+
+  <div class="layout">
+    <section class="panel" aria-labelledby="hAgenda">
+      <div class="phead"><h2 id="hAgenda">Next 14 days</h2></div>
+      <div class="days" id="agenda"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hMonth">
+      <div class="phead">
+        <div class="month-nav">
+          <button class="iconbtn" id="prev" aria-label="Previous month">‹</button>
+          <h2 id="hMonth">Month</h2>
+          <button class="iconbtn" id="next" aria-label="Next month">›</button>
+        </div>
+        <button class="btn small" id="todayBtn">Today</button>
+      </div>
+      <div class="grid" id="dows"></div>
+      <div class="grid" id="month"></div>
+      <div class="daypanel">
+        <div class="label" id="selLabel">Selected day</div>
+        <div id="selList" style="margin-top:8px"></div>
+        <form class="add" id="addEvent">
+          <input id="evTitle" name="title" placeholder="Add something on this day" required aria-label="What's happening">
+          <input id="evDate" name="date" type="date" aria-label="Date" required>
+          <input id="evTime" name="time" type="time" aria-label="Time (optional)">
+          <button class="btn primary" type="submit">Add</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <div class="layout">
+    <section class="panel" aria-labelledby="hTodo">
+      <div class="phead"><h2 id="hTodo">To-do list</h2><button class="btn small ghost" id="clearDone">Clear finished</button></div>
+      <div class="todos" id="todos"></div>
+      <form class="add" id="addTodo" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto">
+        <input id="tdText" name="title" placeholder="Something to get done" required aria-label="To-do">
+        <input id="tdDue" type="date" aria-label="Due date (optional)">
+        <button class="btn primary" type="submit">Add</button>
+      </form>
+    </section>
+    <section class="panel" aria-labelledby="hSrc">
+      <div class="phead"><h2 id="hSrc">Show dates from</h2></div>
+      <p style="margin:0 0 12px;color:var(--muted)">Ready reads dates from your other Tidy Suite apps on this computer. It never changes them. Tap one to show or hide it.</p>
+      <div class="sources" id="sources"></div>
+      <p style="margin:14px 0 0;color:var(--muted);font-size:13px">Keep the suite apps in the same folder and open them in the same browser so Ready can see them.</p>
+    </section>
+  </div>
+  <footer>Ready is part of the Tidy Suite. Everything stays on this computer.</footer>
+</div>
+
+<script>
+function saveLight(s){const d=document.getElementById('saveDot'),t=document.getElementById('saveText');if(!d)return;
+ d.className='save-dot'+(s==='saved'?'':' '+s);t.textContent={saved:'Saved',saving:'Saving…',error:'Not saved. Check browser settings',example:'Example, not saved'}[s];
+ clearTimeout(saveLight.t);if(s==='saving')saveLight.t=setTimeout(()=>{if(d.classList.contains('saving'))saveLight('saved')},4000);}
+function storeOK(k,v){try{localStorage.setItem(k,v);return localStorage.getItem(k)===v}catch(e){return false}}
+function readJSON(k){try{const s=localStorage.getItem(k);return s?JSON.parse(s):null}catch(e){return null}}
+
+(function(){
+const KEY='ready.v1';
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const now=new Date(); const TODAY=ymd(now);
+const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money=n=>'$'+Math.round(+n||0).toLocaleString();
+
+function seed(){return {v:1,sources:{steady:true,handy:true,stocked:true,polished:true,chipper:true},
+  events:[
+   {id:uid(),title:'Dentist checkup',date:ymd(addDays(now,3)),time:'10:30',ex:true},
+   {id:uid(),title:'Garage sale',date:ymd(addDays(now,6)),time:'08:00',ex:true},
+   {id:uid(),title:'Family dinner at Mom\'s',date:ymd(addDays(now,9)),time:'17:00',ex:true}],
+  todos:[
+   {id:uid(),text:'Call about the furnace filter',due:ymd(addDays(now,1)),done:false,ex:true},
+   {id:uid(),text:'Return library books',due:ymd(addDays(now,4)),done:false,ex:true},
+   {id:uid(),text:'Pick up dog food',due:'',done:true,ex:true}]}}
+let S=readJSON(KEY)||seed();
+S.sources=Object.assign({steady:true,handy:true,stocked:true,polished:true,chipper:true},S.sources||{});
+function save(){saveLight('saving');const ok=storeOK(KEY,JSON.stringify(S));setTimeout(()=>saveLight(ok?'saved':'error'),350)}
+
+/* ---------- read the rest of the suite ---------- */
+const APPS={
+ ready:{name:'Ready',c:'--c-ready'},
+ steady:{name:'Steady',c:'--c-steady',key:'steady-bills-v1'},
+ handy:{name:'Handy',c:'--c-handy',key:'handy.v1'},
+ stocked:{name:'Stocked',c:'--c-stocked',key:'stocked.v1'},
+ polished:{name:'Polished',c:'--c-polished',key:'polished.v1'},
+ chipper:{name:'Chipper',c:'--c-chipper',key:'chipper.v1'}};
+const dim=(y,m)=>new Date(y,m+1,0).getDate();
+function suiteItems(from,to){ // from,to are Date; returns [{date,title,sub,app}]
+  const out=[]; const inRange=s=>s>=ymd(from)&&s<=ymd(to);
+  // Steady: monthly bills by due day, renewals by expiry
+  const st=readJSON('steady-bills-v1');
+  if(st&&!st.example&&S.sources.steady){
+    (st.bills||[]).forEach(b=>{
+      if(!b||!b.dueDay) return; const f=b.freq||b.every||'monthly'; if(f!=='monthly'&&f!==1&&f!=='1') return;
+      for(let d=new Date(from.getFullYear(),from.getMonth(),1);d<=to;d=new Date(d.getFullYear(),d.getMonth()+1,1)){
+        const day=new Date(d.getFullYear(),d.getMonth(),Math.min(+b.dueDay,dim(d.getFullYear(),d.getMonth())));
+        const s=ymd(day); if(inRange(s)) out.push({date:s,title:(b.name||'Bill')+' due',sub:b.amount?money(b.amount):'',app:'steady'});
+      }});
+    const ups=(st.upkeep&&st.upkeep.items)||[];
+    ups.forEach(u=>{const e=u&&(u.expires||u.due); if(e&&inRange(e)) out.push({date:e,title:'Renew '+(u.name||u.label||u.kind||'item'),sub:'Papers & renewals',app:'steady'})});
+  }
+  const ha=readJSON('handy.v1');
+  if(ha&&S.sources.handy) (ha.jobs||[]).forEach(j=>{if(j&&j.date&&!j.ex&&j.date>=TODAY&&inRange(j.date)) out.push({date:j.date,title:'Handy job'+(j.who?' for '+j.who:''),sub:j.paid?money(j.paid):'',app:'handy'})});
+  const so=readJSON('stocked.v1');
+  if(so&&S.sources.stocked) (so.items||[]).forEach(i=>{if(i&&i.warranty&&!i.ex&&inRange(i.warranty)) out.push({date:i.warranty,title:'Warranty ends: '+(i.name||'item'),sub:i.room||'',app:'stocked'})});
+  const po=readJSON('polished.v1');
+  if(po&&S.sources.polished) (po.apps||[]).forEach(a=>{if(a&&a.next&&!a.ex&&inRange(a.next)) out.push({date:a.next,title:(a.nextWhat||'Follow up')+': '+(a.company||'job'),sub:a.role||'',app:'polished'})});
+  const ch=readJSON('chipper.v1');
+  if(ch&&S.sources.chipper&&ch.payday!=null&&!(ch.kids||[]).every(k=>k.ex)){
+    for(let d=new Date(from);d<=to;d=addDays(d,1)) if(d.getDay()===+ch.payday) out.push({date:ymd(d),title:'Allowance day',sub:'Chipper',app:'chipper'});
+  }
+  return out;
+}
+function allItems(from,to){
+  const mine=S.events.filter(e=>e.date>=ymd(from)&&e.date<=ymd(to)).map(e=>({date:e.date,title:e.title,sub:e.time?fmtTime(e.time):'',app:'ready',id:e.id,time:e.time||''}));
+  const todos=S.todos.filter(t=>!t.done&&t.due&&t.due>=ymd(from)&&t.due<=ymd(to)).map(t=>({date:t.due,title:t.text,sub:'To-do',app:'ready',todo:true}));
+  return mine.concat(todos,suiteItems(from,to)).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99').localeCompare(b.time||'99'));
+}
+function fmtTime(t){if(!t)return'';const [h,m]=t.split(':').map(Number);return ((h%12)||12)+(m?':'+pad(m):'')+(h<12?' am':' pm')}
+const DAYN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function itemHTML(it,removable){
+  return `<div class="item" style="--c:var(${APPS[it.app].c})"><span class="bar"></span><div><b>${esc(it.title)}</b>${it.sub?`<small>${esc(it.sub)}</small>`:''}</div>
+  ${removable&&it.id?`<button class="x" data-del="${it.id}" aria-label="Remove ${esc(it.title)}">×</button>`:(it.app==='ready'?'<span></span>':`<span class="chip">${APPS[it.app].name}</span>`)}</div>`;
+}
+
+/* ---------- agenda ---------- */
+function renderAgenda(){
+  const end=addDays(now,13); const items=allItems(now,end); const byDay={};
+  items.forEach(i=>(byDay[i.date]=byDay[i.date]||[]).push(i));
+  const keys=Object.keys(byDay).sort();
+  $('agenda').innerHTML=keys.length?keys.map(k=>{const d=parse(k);const diff=Math.round((d-parse(TODAY))/864e5);
+    const rel=diff===0?'Today':diff===1?'Tomorrow':DAYN[d.getDay()];
+    return `<div class="day"><h3><span class="rel">${rel}</span>${MON[d.getMonth()].slice(0,3)} ${d.getDate()}</h3>${byDay[k].map(i=>itemHTML(i,false)).join('')}</div>`}).join('')
+   :'<p class="empty">Nothing in the next two weeks. Add something on the calendar.</p>';
+  const wk=items.filter(i=>i.date<=ymd(addDays(now,6))).length; $('cWeek').textContent=wk;
+}
+
+/* ---------- month ---------- */
+let view=new Date(now.getFullYear(),now.getMonth(),1); let sel=TODAY;
+$('dows').innerHTML=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="dow">${d}</div>`).join('');
+function renderMonth(){
+  $('hMonth').textContent=MON[view.getMonth()]+' '+view.getFullYear();
+  const start=addDays(view,-view.getDay()); const end=addDays(start,41);
+  const items=allItems(start,end); const by={}; items.forEach(i=>(by[i.date]=by[i.date]||[]).push(i));
+  let h=''; for(let i=0;i<42;i++){const d=addDays(start,i),k=ymd(d),list=by[k]||[];
+    h+=`<button class="cell${d.getMonth()!==view.getMonth()?' out':''}${k===TODAY?' today':''}${k===sel?' sel':''}" data-day="${k}" aria-label="${DAYN[d.getDay()]} ${MON[d.getMonth()]} ${d.getDate()}, ${list.length} item${list.length===1?'':'s'}">
+      <span class="n">${d.getDate()}</span><span class="dots">${list.slice(0,3).map(x=>`<i style="--c:var(${APPS[x.app].c})">${esc(x.title)}</i>`).join('')}</span>${list.length>3?`<span class="more">+${list.length-3} more</span>`:''}</button>`;}
+  $('month').innerHTML=h; renderSel();
+}
+function renderSel(){
+  const d=parse(sel); $('selLabel').textContent=DAYN[d.getDay()]+', '+MON[d.getMonth()]+' '+d.getDate();
+  const list=allItems(d,d); $('selList').innerHTML=list.length?list.map(i=>itemHTML(i,true)).join(''):'<p class="empty">Nothing yet on this day.</p>';
+  $('evDate').value=sel;
+}
+$('month').addEventListener('click',e=>{const c=e.target.closest('[data-day]');if(!c)return;sel=c.dataset.day;renderMonth()});
+$('prev').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);renderMonth()};
+$('next').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);renderMonth()};
+$('todayBtn').onclick=()=>{view=new Date(now.getFullYear(),now.getMonth(),1);sel=TODAY;renderMonth()};
+$('selList').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;S.events=S.events.filter(x=>x.id!==b.dataset.del);save();renderAll();toast('Removed')});
+$('addEvent').addEventListener('submit',e=>{e.preventDefault();const t=$('evTitle').value.trim();if(!t)return;
+  S.events.push({id:uid(),title:t,date:$('evDate').value||sel,time:$('evTime').value});$('evTitle').value='';$('evTime').value='';
+  sel=$('evDate').value||sel;const d=parse(sel);view=new Date(d.getFullYear(),d.getMonth(),1);save();renderAll();toast('Added to '+MON[d.getMonth()]+' '+d.getDate())});
+
+/* ---------- todos ---------- */
+function renderTodos(){
+  const list=S.todos.slice().sort((a,b)=>(a.done-b.done)||((a.due||'9')).localeCompare(b.due||'9'));
+  $('todos').innerHTML=list.length?list.map(t=>{const late=!t.done&&t.due&&t.due<TODAY;const d=t.due?parse(t.due):null;
+    return `<div class="todo${t.done?' done':''}"><input type="checkbox" id="td-${t.id}" data-tog="${t.id}" ${t.done?'checked':''} aria-label="Done: ${esc(t.text)}">
+    <label class="t" for="td-${t.id}">${esc(t.text)}</label><small class="${late?'late':''}">${d?(late?'Was due ':'')+MON[d.getMonth()].slice(0,3)+' '+d.getDate():''}</small>
+    <button class="x" data-rm="${t.id}" aria-label="Delete ${esc(t.text)}">×</button></div>`}).join(''):'<p class="empty">All clear. Add a to-do below.</p>';
+  $('cTodo').textContent=S.todos.filter(t=>!t.done).length;
+}
+$('todos').addEventListener('change',e=>{const id=e.target.dataset.tog;if(!id)return;const t=S.todos.find(x=>x.id===id);t.done=e.target.checked;save();renderAll();if(t.done)toast('Nice. One less thing.')});
+$('todos').addEventListener('click',e=>{const b=e.target.closest('[data-rm]');if(!b)return;S.todos=S.todos.filter(x=>x.id!==b.dataset.rm);save();renderAll()});
+$('addTodo').addEventListener('submit',e=>{e.preventDefault();const t=$('tdText').value.trim();if(!t)return;S.todos.push({id:uid(),text:t,due:$('tdDue').value,done:false});$('tdText').value='';$('tdDue').value='';save();renderAll()});
+$('clearDone').onclick=()=>{const n=S.todos.filter(t=>t.done).length;S.todos=S.todos.filter(t=>!t.done);save();renderAll();toast(n?'Cleared '+n+' finished':'Nothing finished yet')};
+
+/* ---------- sources ---------- */
+function renderSources(){
+  const has=k=>{try{return localStorage.getItem(APPS[k].key)!=null}catch(e){return false}};
+  $('sources').innerHTML=['steady','handy','stocked','polished','chipper'].map(k=>`<button class="src" style="--c:var(${APPS[k].c})" data-src="${k}" aria-pressed="${!!S.sources[k]}"><i></i>${APPS[k].name}<em>${has(k)?'':' · not used yet'}</em></button>`).join('');
+}
+$('sources').addEventListener('click',e=>{const b=e.target.closest('[data-src]');if(!b)return;S.sources[b.dataset.src]=!S.sources[b.dataset.src];save();renderAll()});
+
+/* ---------- examples ---------- */
+$('clearEx').onclick=()=>{S.events=S.events.filter(x=>!x.ex);S.todos=S.todos.filter(x=>!x.ex);save();renderAll();toast('Examples cleared. It\'s all yours.')};
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+function renderAll(){
+  $('exBanner').hidden=!(S.events.some(x=>x.ex)||S.todos.some(x=>x.ex));
+  const h=now.getHours(); $('greet').innerHTML=(h<12?'Good morning.':h<17?'Good afternoon.':'Good evening.')+' <em>You\'re ready.</em>';
+  renderAgenda();renderMonth();renderTodos();renderSources();
+}
+window.addEventListener('storage',()=>renderAll()); // another suite app changed
+renderAll(); if(!readJSON(KEY)) save();
+})();
+</script>
+</body></html>

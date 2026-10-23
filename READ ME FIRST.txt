@@ -1,0 +1,220 @@
+MY APPS - for the Raspberry Pi 400
+==================================
+
+QUICKEST WAY
+  Double-click "My Apps Menu.html". It opens in the web browser.
+  Click any tile to play.
+
+MAKE A DESKTOP ICON (do this once)
+  Double-click "Set Up My Apps.sh" and choose "Execute".
+  It puts this folder on the Desktop and adds a "My Apps" icon to the
+  Desktop and to the Raspberry Pi menu (under Games).
+
+  If double-clicking doesn't run it, open a Terminal and type:
+      bash ~/Desktop/"My Apps"/"Set Up My Apps.sh"
+
+KEYBOARD
+  Arrow keys move around, Enter opens, 1/2/3 switch Games/Apps/Tidy Suite,
+  / searches.
+
+SERVER LIGHTS (top of the menu, like Command Center on Windows)
+  The bar at the top shows this Pi's name, IP address, temperature, CPU,
+  memory, SD card space, uptime and a warning if the power supply is too
+  weak. Under it is a light for every server: SSH, VNC, The Shelf,
+  PiMesh, PodDeck, Blueprint Wiki, NetPulse, and any other web server
+  running on the Pi (PON Lab, PiDirStat, Uptime Kuma...). Green = running,
+  red = off.
+  - Click a green web server to open it.
+  - Click SSH to copy the "ssh pi@..." line, VNC to copy the IP address.
+  - Click a red SSH or VNC to open Raspberry Pi Configuration, where you
+    turn them on (Interfaces tab).
+  - Click a red app with "Start" to start it.
+  - Every running web server has a red "Stop" button. Click it, then
+    click again to confirm, and that server shuts down (one at a time).
+    Servers that start with the Pi (The Shelf, PiMesh...) come back after
+    a restart. Containers are stopped in PodDeck instead.
+  - "+ Watch" adds a server on another computer, like your PC's Shelf
+    (its IP address and port 8080). "Hide" folds the bar away.
+  The lights come from a small helper (status/pi-status.py) that
+  Set Up My Apps.sh turns on; it starts by itself every time the Pi boots
+  and can only be reached from the Pi itself.
+
+RUGGED (grid-down guide)
+  Rugged is in the Tidy Suite tab. It works with no internet, so it's
+  the one to keep handy in a power outage. Run the Pi from a USB-C power
+  bank (5 volts, 3 amps) and a small screen, use Night mode to save
+  battery, and always shut down from the menu before unplugging.
+
+NETPULSE (network monitor)
+  NetPulse watches a list of IPs: up/down counts, plus a Plotter mode
+  with ping-over-time graphs and route tracing. It's a small Python
+  program, so start it with the NetPulse icon on the Desktop (added by
+  Set Up My Apps.sh) or from the Pi menu under Internet. Keep its
+  window open while it runs. The NetPulse tile on the menu jumps
+  straight to it once it's running.
+  Import an Excel (.xlsx) or CSV list of IPs from the Import button.
+
+HALO STUDIO (AI image editor)
+  A Photoshop-style editor with AI: remove backgrounds, generative fill
+  (select an area and describe it), batch thumbnails, GIF maker, next-gen
+  AVIF / JPEG XL compression and 3D-print models (lithophanes, keychains,
+  cookie cutters, multi-color prints). It lives on the big AI PC and the
+  whole house can use it: the Halo Studio tile finds it on this Pi or on
+  the AI PC (10.0.0.80:8395). It can also run on this Pi with the Halo
+  Studio icon (added by Set Up My Apps.sh; the first start needs internet
+  for a minute). The heavy AI only works on the AI PC.
+
+CUTWISE (AI video editor)
+  The easiest video editor: add a video, then let the AI cut out silences
+  and "um"s, write captions, split at scene changes and touch up color and
+  sound. Trim by dragging, Ctrl+Z undoes anything. It runs on the big AI PC
+  only (Desktop icon or Command Center); the Cutwise tile opens it there.
+
+NETSENTRY (network watchdog)
+  Keeps a live list of every device on your network and warns you, in
+  plain English, about anything that looks wrong: a new device joining,
+  something pretending to be your router (someone snooping on traffic),
+  cameras or gadgets with backdoor ports like Telnet open, or this Pi
+  talking to known malware ports. Each alert says what it means and
+  what to do. It's a small Python program, so start it with the
+  NetSentry icon on the Desktop (added by Set Up My Apps.sh) or from
+  the Pi menu under Internet, and keep its window open. The first
+  sweep learns your network - mark the devices you know as Trusted.
+  The NetSentry tile on the menu jumps straight to it once it's running.
+
+RPI400 PERFORMANCE (make the Pi run as fast as it can)
+  One big "Make it fast" button turns on every safe tune-up: full-speed
+  CPU, compressed RAM (zram, about 1.5x more room in 4 GB), gentler SD
+  card writing, temporary files in RAM, smaller logs, weekly SD card
+  clean-up, and switches off services you don't use (printing, modems...).
+  It asks before touching Bluetooth. Each tune-up also has its own switch.
+  Overclock: 1.8 (factory), 2.0 or 2.15 GHz; it won't overclock if the
+  power supply is too weak. A speed test shows before/after numbers, and
+  "Memory hogs" lets you close what's eating the RAM.
+  "Put everything back" undoes all of it. Start it with the RPi400
+  Performance icon (added by Set Up My Apps.sh), the menu under
+  Preferences, or its tile. Some changes finish after a restart.
+  If the Pi won't start after an overclock: put the SD card in another
+  computer, open config.txt and delete the lines between
+  "# >>> RPi400 Performance" and "# <<<".
+
+PIDIRSTAT (disk space viewer)
+  Shows what's filling up the SD card: biggest folders, file types and
+  a colored block map like WinDirStat. It's a small Python program, so
+  start it with the PiDirStat icon on the Desktop (added by Set Up My
+  Apps.sh) or from the Pi menu under System Tools. The PiDirStat tile on
+  the menu jumps straight to it once it's running.
+
+PON LAB (meter outage tester)
+  Web dashboard for cutting power to AMI meters through relays and
+  timing the outage notice (PON), how long they stay on the mesh, and
+  how long the supercaps last. The PON Lab icon on the Desktop starts
+  it in SIMULATION mode, so nothing is switched. For the real relay
+  bench, run sudo ./install.sh in apps/ponlab on that Pi (see its
+  README for wiring and safety).
+
+PON FLEET (control many PON Lab Pis)
+  One screen for every PON Lab Pi on the network. Add Pis by IP (or
+  scan), pick up to 16 meters and cut them all at the same instant,
+  then see PON / mesh / caps results for every meter. Start it with
+  the PON Fleet icon; on Windows use Start PON Fleet.bat.
+
+PIMESH (link your Pis together)
+  Every Pi with PiMesh finds the others on the network by itself and
+  shares live stats. Open the dashboard on ANY of them to see every
+  member: CPU, temperature, memory, disk, network, uptime, link speed
+  between Pis, and a log of who joined or dropped off. Set Up My Apps.sh
+  installs it (it asks for your password and a mesh name + key once -
+  use the same name and key on every Pi). Dashboard: the PiMesh icon on
+  the Desktop, or http://<any-pi>:8470. Try it with no Pis: try-demo.sh.
+
+PISNIP (Snipping Tool)
+  Works like the Windows 11 Snipping Tool: Print Screen (or Raspberry
+  + Shift + S) snips, Raspberry + Shift + R records the screen. Snips
+  save to Pictures/Screenshots and are copied to the clipboard; mark
+  them up with pens, arrows and shapes, read or hide text, then save.
+  Set Up My Apps.sh installs it (it asks for your password once) and
+  puts a Snipping Tool icon on the Desktop and taskbar. The manual is
+  in apps/pisnip/PiSnip-Manual.pdf.
+
+WIFI SHARE (share the Pi's internet)
+  Shares the Pi's Wi-Fi through its Ethernet port with one button and
+  lists the devices plugged in. It opens in its own window, so start it
+  with the WiFi Share icon on the Desktop (added by Set Up My Apps.sh) or
+  from the Pi menu under Internet. Needs Raspberry Pi OS Bookworm or newer.
+  Don't plug the Pi's Ethernet into your home router while sharing is on.
+
+BLUEPRINT WIKI (projects, notes and diagrams)
+  Your own wiki: pages with tables and checklists, pictures and PDFs
+  dropped straight in, and a drag-and-drop maker for network maps and
+  flowcharts. It's a small Python program, so start it with the
+  Blueprint Wiki icon on the Desktop (added by Set Up My Apps.sh) or
+  from the Pi menu under Office. The Blueprint Wiki tile on the menu
+  jumps straight to it once it's running. Your pages are kept in
+  apps/blueprint-wiki/data.
+
+PODDECK (container control panel)
+  A dashboard for Podman containers: see the Pi's CPU, memory and
+  temperature, start/stop/restart containers, watch their logs and
+  launch new ones (web server, Uptime Kuma, File Browser and more).
+  Start it with the PodDeck icon on the Desktop (added by Set Up My
+  Apps.sh) or from the Pi menu under System Tools. The first time it
+  installs Podman and asks you to pick a password; after that it starts
+  on every boot. Open it from any device at http://<pi-ip>:8070.
+  Needs 64-bit Raspberry Pi OS.
+
+68K MAC MUSEUM (vintage Mac guide)
+  Every Mac from the original 128K to the last 68040 PowerBook: specs,
+  common problems and how to fix them, max RAM, upgrades, overclocks,
+  replacement RAM chips, accessories, a Sad Mac decoder and a list of
+  the Macs you own. It's a web page, so just click its tile. Your
+  collection list is saved in this Pi's browser.
+
+RASPBERRY PI MUSEUM (every Pi board)
+  Every Raspberry Pi from the 2012 Model B to the Pi 500+ and the Picos:
+  specs, hacks, known issues, overclock settings, a "which Pi is this?"
+  decoder, a GPIO pin map, copy-paste fixes, and how fast each board runs
+  local AI models. It's a web page, so just click its tile.
+
+HAM RADIO MUSEUM (amateur radio guide)
+  50 ham radios from 1930s boatanchors to today's SDRs: common issues,
+  upgrades and prices, plus the best value radios you can buy new today,
+  the band plan, antenna picker, amplifiers, shack software, WebSDR links
+  and an offline toolkit (Morse player, SWR, grid square). It's a web
+  page, so just click its tile.
+
+KEEPER CARS (used-car buyer's guide)
+  28 used cars that last a long time and are cheap to fix, like the
+  Chevy HHR: 5- and 10-year ownership costs, exact engine and trim,
+  part prices, maintenance, a test-drive checklist, compare, and a
+  listing price checker. It's a web page, so just click its tile.
+
+SIM FISH (ocean game)
+  Eat fish smaller than you and dodge the bigger ones (red eyes) and
+  sharks (watch for the ! warning). Eat fast to build a combo up to x10,
+  grab shield, turbo, frenzy and extra-life bubbles, and grow big enough
+  to dive to the next of 7 zones. Mouse, touch or arrow keys; P pauses.
+  High scores stay in this Pi's browser.
+
+EMBER VALLEY (3D game)
+  Walk a realistic mountain valley at golden hour and gather 12 glowing
+  embers before the sun sets. WASD to walk, Shift to run, Space to jump,
+  mouse to look, F for the speed panel, M for sound, Esc to pause. Built
+  to push the AMD 395 PC (Strix Ultra setting); on a Pi, pick Low.
+  Needs the internet the first time it loads.
+
+FROSTFALL CABINS (LAN multiplayer game)
+  Five log cabins on one snowy mountain. Everyone on the Wi-Fi joins the
+  same night, splits up, hauls firewood and keeps the stoves lit through
+  the 2:00 AM icy gale until dawn. One computer hosts: double-click
+  "Frostfall Cabins Server" on the Desktop and it shows an address like
+  http://192.168.1.42:8765. Everyone else clicks the Frostfall Cabins tile,
+  types that address under "Join" and plays. Works offline.
+  WASD walk, Shift run, E use, T chat, Tab players, M map.
+
+GOOD TO KNOW
+  - Tiles with the 📶 sign need the internet (they load 3D or sound parts
+    from the web). Everything else works offline.
+  - Saves (high scores, Tidy Suite work) stay in this Pi's browser.
+  - HAL's big AI brain needs a graphics feature the Pi doesn't have,
+    so on the Pi he uses his built-in personality.

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Choplifter Clone</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; background: #111;
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; font-family: 'Courier New', monospace;
+    color: #eafff0;
+  }
+  #wrap {
+    position: relative;
+  }
+  canvas {
+    background: #7ec8e3;
+    display: block;
+    image-rendering: pixelated;
+    border: 4px solid #333;
+    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    max-width: 96vw;
+    max-height: 92vh;
+  }
+  #overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; text-align: center;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  #overlay h1 { font-size: 2.2em; margin-bottom: 10px; text-shadow: 2px 2px #000; letter-spacing: 2px;}
+  #overlay p { margin: 4px 0; font-size: 0.95em; line-height: 1.5;}
+  #overlay button {
+    margin-top: 16px;
+    padding: 10px 26px;
+    font-size: 1.1em;
+    font-family: inherit;
+    background: #ffcc33;
+    border: 3px solid #7a5c00;
+    cursor: pointer;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+  #overlay button:hover { background: #ffd966; }
+  .hidden { display: none !important; }
+  #minimap {
+    position: absolute;
+    bottom: 8px; left: 8px; right: 8px;
+    height: 10px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.4);
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="800" height="450"></canvas>
+  <div id="overlay">
+    <h1>🚁 CHOPLIFTER</h1>
+    <p>Fly to the enemy camp, land near the hostages to pick them up (max 4),<br>
+       then fly them home and land to drop them off. Watch out for tanks!</p>
+    <p><b>Arrows / WASD</b> — fly &nbsp; | &nbsp; <b>Space</b> — fire &nbsp; | &nbsp; hold <b>Up</b> to counter gravity</p>
+    <button id="startBtn">Start Mission</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+
+  const W = canvas.width, H = canvas.height;
+  const WORLD_W = 3200;
+  const GROUND_Y = H - 60;
+  const HOME_X = 150;
+  const CAMP_X = WORLD_W - 250;
+  const CARRY_MAX = 4;
+  const TOTAL_HOSTAGES = 8;
+
+  let keys = {};
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function dist(x1,y1,x2,y2){ return Math.hypot(x1-x2, y1-y2); }
+
+  let state = 'start'; // start, playing, gameover, win
+  let camera = 0;
+  let score = 0;
+  let lives = 3;
+  let fuel = 100;
+  let carried = 0;
+  let rescued = 0;
+  let hostagesAtCamp = [];
+  let tanks = [];
+  let playerBullets = [];
+  let enemyBullets = [];
+  let clouds = [];
+  let invuln = 0;
+  let boardTimer = 0;
+  let dropTimer = 0;
+  let messageFlash = '';
+  let flashTimer = 0;
+
+  let player;
+
+  function resetGame(){
+    score = 0; lives = 3; fuel = 100; carried = 0; rescued = 0;
+    invuln = 2.0;
+    player = {
+      x: HOME_X, y: GROUND_Y - 40, vx:0, vy:0,
+      facing: 1, tilt:0, landed:true, rotor:0
+    };
+    hostagesAtCamp = [];
+    for (let i=0;i<TOTAL_HOSTAGES;i++){
+      hostagesAtCamp.push({ x: CAMP_X + rand(-80,80), waiting:true });
+    }
+    tanks = [];
+    const tankXs = [850, 1300, 1750, 2200, 2600, 2900];
+    tankXs.forEach(x => {
+      tanks.push({ x, hp:3, cooldown: rand(1,3), alive:true });
+    });
+    playerBullets = [];
+    enemyBullets = [];
+    clouds = [];
+    for (let i=0;i<14;i++){
+      clouds.push({ x: rand(0,WORLD_W), y: rand(20,110), s: rand(0.6,1.4) });
+    }
+    boardTimer = 0; dropTimer = 0;
+    camera = 0;
+  }
+
+  function showMessage(msg){
+    messageFlash = msg;
+    flashTimer = 2.0;
+  }
+
+  // ---------- UPDATE ----------
+  let lastTime = performance.now();
+  function update(dt){
+    if (state !== 'playing') return;
+
+    if (invuln > 0) invuln -= dt;
+    if (flashTimer > 0) flashTimer -= dt;
+
+    // --- player physics ---
+    const THRUST = 260;
+    const GRAVITY = 90;
+    const DRAG = 0.988;
+    const MAXV = 220;
+
+    if (fuel > 0){
+      if (keys['ArrowUp'] || keys['KeyW']) player.vy -= THRUST*dt;
+      if (keys['ArrowDown'] || keys['KeyS']) player.vy += THRUST*0.6*dt;
+      if (keys['ArrowLeft'] || keys['KeyA']) { player.vx -= THRUST*dt; player.facing = -1; }
+      if (keys['ArrowRight'] || keys['KeyD']) { player.vx += THRUST*dt; player.facing = 1; }
+    }
+
+    player.vy += GRAVITY*dt;
+    player.vx *= DRAG;
+    player.vy *= 0.995;
+    player.vx = Math.max(-MAXV, Math.min(MAXV, player.vx));
+    player.vy = Math.max(-MAXV, Math.min(MAXV, player.vy));
+
+    player.x += player.vx*dt;
+    player.y += player.vy*dt;
+
+    player.x = Math.max(20, Math.min(WORLD_W-20, player.x));
+    if (player.y < 30) { player.y = 30; player.vy = 0; }
+
+    const wasFalling = player.vy;
+    player.landed = false;
+    if (player.y >= GROUND_Y - 18){
+      if (wasFalling > 140){
+        crash();
+      }
+      player.y = GROUND_Y - 18;
+      player.vy = 0;
+      player.landed = true;
+    }
+
+    player.tilt = Math.max(-0.5, Math.min(0.5, player.vx/240));
+    player.rotor += dt*(player.landed ? 20 : 40);
+
+    // fuel
+    if (fuel > 0){
+      fuel -= dt*1.6;
+      if (fuel < 0) fuel = 0;
+    }
+    if (dist(player.x,0,HOME_X,0) < 100 && player.landed){
+      fuel = Math.min(100, fuel + dt*40);
+    }
+
+    // shooting
+    player.shootCd = (player.shootCd||0) - dt;
+    if ((keys['Space']) && player.shootCd <= 0){
+      player.shootCd = 0.22;
+      playerBullets.push({ x: player.x + player.facing*16, y: player.y-2, vx: player.facing*420 });
+    }
+
+    // player bullets
+    for (const b of playerBullets){ b.x += b.vx*dt; }
+    playerBullets = playerBullets.filter(b => b.x > 0 && b.x < WORLD_W);
+
+    // tanks
+    for (const t of tanks){
+      if (!t.alive) continue;
+      t.cooldown -= dt;
+      const d = Math.abs(player.x - t.x);
+      if (d < 420 && t.cooldown <= 0){
+        t.cooldown = rand(1.4, 2.6);
+        const dx = player.x - t.x, dy = (player.y-10) - (GROUND_Y-20);
+        const len = Math.hypot(dx,dy) || 1;
+        const speed = 180;
+        enemyBullets.push({ x: t.x, y: GROUND_Y-24, vx: dx/len*speed, vy: dy/len*speed });
+      }
+      // hit by player bullets
+      for (const b of playerBullets){
+        if (Math.abs(b.x - t.x) < 16 && Math.abs(player.y - (GROUND_Y-20)) < 260){
+          t.hp -= 1;
+          b.x = -9999;
+          if (t.hp <= 0){ t.alive = false; score += 50; showMessage('Tank destroyed! +50'); }
+        }
+      }
+    }
+
+    // enemy bullets
+    for (const b of enemyBullets){
+      b.x += b.vx*dt; b.y += b.vy*dt;
+    }
+    enemyBullets = enemyBullets.filter(b => b.y < H+20 && b.x > 0 && b.x < WORLD_W);
+
+    // enemy bullet hits player
+    if (invuln <= 0){
+      for (const b of enemyBullets){
+        if (dist(b.x,b.y, player.x, player.y) < 14){
+          b.y = H+999;
+          hitPlayer();
+        }
+      }
+    }
+
+    // hostages boarding at camp
+    const nearCamp = Math.abs(player.x - CAMP_X) < 90 && player.landed;
+    if (nearCamp && carried < CARRY_MAX && hostagesAtCamp.some(h=>h.waiting)){
+      boardTimer -= dt;
+      if (boardTimer <= 0){
+        const h = hostagesAtCamp.find(h=>h.waiting);
+        if (h){ h.waiting = false; carried++; boardTimer = 0.5; showMessage('Hostage aboard!'); }
+      }
+    } else {
+      boardTimer = Math.max(boardTimer, 0.15);
+    }
+
+    // drop-off at home
+    const nearHome = Math.abs(player.x - HOME_X) < 90 && player.landed;
+    if (nearHome && carried > 0){
+      dropTimer -= dt;
+      if (dropTimer <= 0){
+        carried--; rescued++; score += 100; dropTimer = 0.4;
+        showMessage('Hostage rescued! +100');
+      }
+    } else {
+      dropTimer = Math.max(dropTimer, 0.15);
+    }
+
+    // win condition
+    if (rescued >= TOTAL_HOSTAGES){
+      state = 'win';
+      showEndOverlay(true);
+    }
+
+    // camera follow
+    const targetCam = player.x - W/2;
+    camera += (targetCam - camera) * Math.min(1, dt*4);
+    camera = Math.max(0, Math.min(WORLD_W - W, camera));
+  }
+
+  function crash(){
+    hitPlayer();
+  }
+
+  function hitPlayer(){
+    if (invuln > 0) return;
+    lives -= 1;
+    invuln = 2.5;
+    // lose one carried hostage on hard hit (harsh but fair)
+    showMessage('Hit! Lives: ' + lives);
+    if (lives <= 0){
+      state = 'gameover';
+      showEndOverlay(false);
+      return;
+    }
+    player.x = HOME_X;
+    player.y = GROUND_Y - 60;
+    player.vx = 0; player.vy = 0;
+  }
+
+  function showEndOverlay(won){
+    overlay.innerHTML = '';
+    const h1 = document.createElement('h1');
+    h1.textContent = won ? '🎉 MISSION COMPLETE' : '💥 GAME OVER';
+    const p1 = document.createElement('p');
+    p1.textContent = 'Score: ' + score + '   |   Hostages rescued: ' + rescued + '/' + TOTAL_HOSTAGES;
+    const btn = document.createElement('button');
+    btn.textContent = 'Play Again';
+    btn.onclick = () => {
+      resetGame();
+      state = 'playing';
+      overlay.classList.add('hidden');
+    };
+    overlay.appendChild(h1);
+    overlay.appendChild(p1);
+    overlay.appendChild(btn);
+    overlay.classList.remove('hidden');
+  }
+
+  // ---------- RENDER ----------
+  function drawBackground(){
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0, '#5fa8dd');
+    grad.addColorStop(1, '#bfe6f5');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (const c of clouds){
+      const sx = c.x - camera*0.4;
+      if (sx < -60 || sx > W+60) continue;
+      drawCloud(sx, c.y, c.s);
+    }
+  }
+
+  function drawCloud(x,y,s){
+    ctx.beginPath();
+    ctx.ellipse(x,y,22*s,12*s,0,0,Math.PI*2);
+    ctx.ellipse(x+18*s,y+4*s,16*s,10*s,0,0,Math.PI*2);
+    ctx.ellipse(x-18*s,y+4*s,16*s,10*s,0,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  function drawGround(){
+    const gy = GROUND_Y - camera*0; // ground fixed vertically
+    ctx.fillStyle = '#6b4a2a';
+    ctx.fillRect(0, GROUND_Y, W, H-GROUND_Y);
+    ctx.fillStyle = '#4a8f3c';
+    ctx.fillRect(0, GROUND_Y, W, 8);
+    // texture dashes
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 2;
+    for (let wx = -camera%40; wx < W; wx += 40){
+      ctx.beginPath();
+      ctx.moveTo(wx, GROUND_Y+10);
+      ctx.lineTo(wx+10, GROUND_Y+22);
+      ctx.stroke();
+    }
+  }
+
+  function drawHomeBase(){
+    const sx = HOME_X - camera;
+    if (sx < -100 || sx > W+100) return;
+    ctx.fillStyle = '#d9d9d9';
+    ctx.fillRect(sx-50, GROUND_Y-40, 100, 40);
+    ctx.fillStyle = '#888';
+    ctx.fillRect(sx-50, GROUND_Y-46, 100, 8);
+    ctx.fillStyle = '#c33';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('HOME BASE', sx, GROUND_Y-52);
+    // flag pole
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(sx+45, GROUND_Y-40); ctx.lineTo(sx+45, GROUND_Y-85); ctx.stroke();
+    ctx.fillStyle = '#3366ff';
+    ctx.fillRect(sx+45, GROUND_Y-85, 20, 14);
+  }
+
+  function drawCamp(){
+    const sx = CAMP_X - camera;
+    if (sx < -150 || sx > W+150) return;
+    ctx.fillStyle = '#b04a2a';
+    ctx.fillRect(sx-70, GROUND_Y-30, 140, 30);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('ENEMY CAMP', sx, GROUND_Y-40);
+    // fence posts
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 3;
+    for (let i=-3;i<=3;i++){
+      ctx.beginPath();
+      ctx.moveTo(sx+i*22, GROUND_Y-30);
+      ctx.lineTo(sx+i*22, GROUND_Y-55);
+      ctx.stroke();
+    }
+  }
+
+  function drawHostages(){
+    for (const h of hostagesAtCamp){
+      if (!h.waiting) continue;
+      const sx = h.x - camera;
+      if (sx < -20 || sx > W+20) continue;
+      drawStick(sx, GROUND_Y-16, '#ffe066');
+    }
+  }
+
+  function drawStick(x,y,color){
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y-10, 4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x,y-6); ctx.lineTo(x,y+6);
+    ctx.moveTo(x-5,y-2); ctx.lineTo(x+5,y-2);
+    ctx.moveTo(x,y+6); ctx.lineTo(x-4,y+14);
+    ctx.moveTo(x,y+6); ctx.lineTo(x+4,y+14);
+    ctx.stroke();
+  }
+
+  function drawTanks(){
+    for (const t of tanks){
+      if (!t.alive) continue;
+      const sx = t.x - camera;
+      if (sx < -40 || sx > W+40) continue;
+      ctx.fillStyle = '#3a4a2a';
+      ctx.fillRect(sx-16, GROUND_Y-20, 32, 16);
+      ctx.beginPath();
+      ctx.arc(sx, GROUND_Y-20, 10, Math.PI, 0);
+      ctx.fill();
+      ctx.strokeStyle = '#2a3a1a'; ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(sx, GROUND_Y-24);
+      ctx.lineTo(sx + (player.x > t.x ? 16 : -16), GROUND_Y-24);
+      ctx.stroke();
+      // treads
+      ctx.fillStyle = '#222';
+      ctx.fillRect(sx-18, GROUND_Y-4, 36, 6);
+    }
+  }
+
+  function drawPlayer(){
+    const sx = player.x - camera;
+    const sy = player.y;
+    if (invuln > 0 && Math.floor(invuln*10)%2===0) return; // blink
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(player.facing, 1);
+    ctx.rotate(player.tilt*0.4);
+
+    // rotor
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    const rotorLen = 22;
+    const ra = player.rotor;
+    ctx.beginPath();
+    ctx.moveTo(-rotorLen*Math.cos(ra), -18-rotorLen*0.15*Math.sin(ra));
+    ctx.lineTo(rotorLen*Math.cos(ra), -18+rotorLen*0.15*Math.sin(ra));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0,-18); ctx.lineTo(0,-10); ctx.stroke();
+
+    // body
+    ctx.fillStyle = '#d94f4f';
+    ctx.beginPath();
+    ctx.ellipse(0,0,18,10,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#8c1f1f';
+    ctx.beginPath();
+    ctx.ellipse(-16,-2,7,6,0,0,Math.PI*2);
+    ctx.fill();
+
+    // cockpit
+    ctx.fillStyle = '#bfe8ff';
+    ctx.beginPath();
+    ctx.ellipse(6,-2,7,6,0,0,Math.PI*2);
+    ctx.fill();
+
+    // skids
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-14,10); ctx.lineTo(14,10);
+    ctx.moveTo(-10,6); ctx.lineTo(-10,12);
+    ctx.moveTo(10,6); ctx.lineTo(10,12);
+    ctx.stroke();
+
+    // tail rotor spin
+    ctx.strokeStyle = '#555';
+    ctx.beginPath();
+    ctx.ellipse(-22,-2, 5, 5*Math.abs(Math.cos(ra*3)), 0,0,Math.PI*2);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // carried hostages indicator (little dots above chopper)
+    for (let i=0;i<carried;i++){
+      ctx.fillStyle = '#ffe066';
+      ctx.beginPath();
+      ctx.arc(sx - 12 + i*8, sy-28, 3, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawBullets(){
+    ctx.fillStyle = '#fff700';
+    for (const b of playerBullets){
+      ctx.fillRect(b.x-camera-3, b.y-1, 6, 2);
+    }
+    ctx.fillStyle = '#ff3b3b';
+    for (const b of enemyBullets){
+      ctx.beginPath();
+      ctx.arc(b.x-camera, b.y, 3, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawHUD(){
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
+    ctx.fillText('Score: ' + score, 12, 22);
+    ctx.fillText('Lives: ' + '♥'.repeat(Math.max(0,lives)), 12, 42);
+    ctx.fillText('Hostages: ' + carried + '/' + CARRY_MAX + '  (Rescued ' + rescued + '/' + TOTAL_HOSTAGES + ')', 12, 62);
+
+    // fuel bar
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(W-160, 12, 148, 16);
+    ctx.fillStyle = fuel > 25 ? '#4caf50' : '#e53935';
+    ctx.fillRect(W-158, 14, 144*(fuel/100), 12);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth=1;
+    ctx.strokeRect(W-160, 12, 148, 16);
+    ctx.fillStyle = '#fff';
+    ctx.font = '11px monospace';
+    ctx.fillText('FUEL', W-160, 40);
+
+    if (flashTimer > 0){
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 18px monospace';
+      ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1,flashTimer) + ')';
+      ctx.fillText(messageFlash, W/2, 40);
+    }
+
+    // minimap
+    const mw = W-24, mh=8, mx=12, my=H-20;
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(mx,my,mw,mh);
+    ctx.fillStyle = '#ffe066';
+    const px = mx + (player.x/WORLD_W)*mw;
+    ctx.fillRect(px-2, my-2, 4, mh+4);
+    ctx.fillStyle = '#3366ff';
+    ctx.fillRect(mx + (HOME_X/WORLD_W)*mw - 2, my, 4, mh);
+    ctx.fillStyle = '#c33';
+    ctx.fillRect(mx + (CAMP_X/WORLD_W)*mw - 2, my, 4, mh);
+  }
+
+  function render(){
+    drawBackground();
+    drawGround();
+    drawHomeBase();
+    drawCamp();
+    drawHostages();
+    drawTanks();
+    drawBullets();
+    drawPlayer();
+    drawHUD();
+  }
+
+  function loop(now){
+    const dt = Math.min(0.05, (now-lastTime)/1000);
+    lastTime = now;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', () => {
+    resetGame();
+    state = 'playing';
+    overlay.classList.add('hidden');
+  });
+
+  resetGame();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

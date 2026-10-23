@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en"><head><script src="suite-users.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tidy Suite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: suite home. App shelf grouped by part of life on the left, the chosen app's spotlight on the right, every app as a tile below. */
+:root{
+  --bg:#EEF2F5; --surface:#FFFFFF; --ink:#1B2530; --muted:#5A6876; --line:#D8E0E7; --soft:#E4EAEF;
+  --ok:#1F9D62; --warn:#B87400; --warn-soft:#FBEBCC;
+  --tidy:#3F6E63; --neat:#C2694F; --spruce:#C99A1E; --steady:#E8682A; --clearout:#23824A; --handy:#3E3AA0; --sorted:#C99312; --hearty:#2E6A3E;
+  --ready:#2B63B5; --snug:#7A3E8C; --stocked:#2F6F7E; --polished:#33415C; --chipper:#D9446F; --rugged:#C4561D;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --body:"Figtree","Segoe UI",system-ui,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121820; --surface:#1A222C; --ink:#E8EEF4; --muted:#9AA8B6; --line:#2A3542; --soft:#222C38;
+  --ok:#3CCF8A; --warn:#F2B13C; --warn-soft:#3A2D13;
+  --tidy:#7FB3A5; --neat:#E8957D; --spruce:#EBC254; --steady:#FF9458; --clearout:#4FBF7D; --handy:#8F8BF0; --sorted:#F2C14E; --hearty:#7FC690;
+  --ready:#7DA8EA; --snug:#C890DA; --stocked:#5DB3C4; --polished:#9DB0D6; --chipper:#F27499; --rugged:#E57A3E;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121820; --surface:#1A222C; --ink:#E8EEF4; --muted:#9AA8B6; --line:#2A3542; --soft:#222C38;
+  --ok:#3CCF8A; --warn:#F2B13C; --warn-soft:#3A2D13;
+  --tidy:#7FB3A5; --neat:#E8957D; --spruce:#EBC254; --steady:#FF9458; --clearout:#4FBF7D; --handy:#8F8BF0; --sorted:#F2C14E; --hearty:#7FC690;
+  --ready:#7DA8EA; --snug:#C890DA; --stocked:#5DB3C4; --polished:#9DB0D6; --chipper:#F27499; --rugged:#E57A3E;
+  color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--c,var(--ready));outline-offset:2px}
+.wrap{max-width:1160px;margin:0 auto;padding-inline:20px;padding-block:0 48px;display:flex;flex-direction:column;gap:26px}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-block:22px 0}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{display:grid;grid-template-columns:repeat(5,9px);gap:3px}
+.mark i{width:9px;height:9px;border-radius:3px;display:block}
+.brand h1{font-family:var(--display);font-weight:800;font-size:1.6rem;letter-spacing:-.02em;margin:0}
+.brand h1 span{color:var(--muted);font-weight:500}
+.hright{display:flex;gap:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:8px;font-size:.82rem;font-weight:600;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:6px 12px;border-radius:99px;text-decoration:none}
+.pill b{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
+.pill.warn{background:var(--warn-soft);color:var(--ink);border-color:transparent}
+.pill.warn b{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 22%,transparent)}
+a.pill:hover{border-color:var(--snug)}
+.intro{max-width:64ch;margin:0;color:var(--muted);font-size:1.02rem}
+
+.main{display:grid;grid-template-columns:270px minmax(0,1fr);gap:24px;align-items:start}
+nav{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px}
+.navlabel{font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:10px 10px 4px}
+.navlabel:first-child{padding-top:4px}
+nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:12px;padding:7px 10px;border-radius:10px;transition:background .15s}
+nav button:hover{background:var(--soft)}
+nav button:focus-visible{outline:2px solid var(--c);outline-offset:1px}
+nav button[aria-current="true"]{background:color-mix(in srgb,var(--c) 15%,transparent)}
+.ico{width:34px;height:34px;border-radius:10px;background:var(--c);color:#fff;display:grid;place-items:center;flex:none}
+.ico svg{width:19px;height:19px}
+.navtext{display:flex;flex-direction:column;min-width:0}
+.navtext strong{font-family:var(--display);font-weight:700;font-size:.98rem;line-height:1.2}
+.navtext small{color:var(--muted);font-size:.78rem}
+
+.spot{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;min-width:0}
+.spot-head{padding:26px 28px 20px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 18%,var(--surface)),var(--surface) 70%);display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.spot-head .ico{width:64px;height:64px;border-radius:18px}
+.spot-head .ico svg{width:34px;height:34px}
+.kind{font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--c)}
+.spot-head h2{font-family:var(--display);font-weight:800;font-size:2.4rem;letter-spacing:-.03em;line-height:1;margin:4px 0 0}
+.open{margin-left:auto;display:inline-flex;align-items:center;gap:8px;background:var(--c);color:#fff;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:12px}
+.open:hover{filter:brightness(1.08)}
+.status{display:flex;align-items:center;gap:8px;margin:0 28px;padding:10px 14px;border-radius:10px;background:var(--soft);font-weight:600;font-size:.92rem}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.status.on i{background:var(--ok)}
+.spot-body{padding:16px 28px 28px;display:grid;grid-template-columns:1.2fr 1fr;gap:28px}
+.spot-body p{margin:0 0 4px;max-width:60ch;font-size:1.03rem}
+.tag{color:var(--muted);font-style:italic}
+h3{font-family:var(--display);font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:16px 0 10px;font-weight:700}
+ul.feat{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+ul.feat li{display:flex;gap:10px;align-items:flex-start}
+ul.feat li::before{content:"";flex:none;width:7px;height:7px;border-radius:2px;background:var(--c);margin-top:.6em}
+.pairs{display:flex;flex-wrap:wrap;gap:8px}
+.pair{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:.86rem;font-weight:600;padding:5px 11px 5px 7px;border-radius:99px;border:1px solid var(--line);background:var(--bg)}
+.pair:hover{border-color:var(--pc)}
+.pair:focus-visible{outline:2px solid var(--pc)}
+.pair i{width:12px;height:12px;border-radius:4px;background:var(--pc)}
+
+.grid-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.grid-head h2{font-family:var(--display);font-weight:700;font-size:1.35rem;margin:0;letter-spacing:-.01em}
+.grid-head span{color:var(--muted);font-size:.9rem}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.tile{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;transition:transform .15s,border-color .15s}
+.tile:hover{transform:translateY(-2px);border-color:var(--c)}
+.tile:focus-visible{outline:2px solid var(--c);outline-offset:2px}
+.tile-top{display:flex;align-items:center;gap:12px}
+.tile strong{font-family:var(--display);font-size:1.12rem;font-weight:700}
+.tile small{display:block;color:var(--c);font-weight:700;font-size:.74rem;letter-spacing:.05em;text-transform:uppercase}
+.tile p{margin:0;color:var(--muted);font-size:.9rem}
+.tile .st{margin-top:auto;font-size:.8rem;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px}
+.tile .st i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.tile .st.on i{background:var(--ok)}
+.tile.wide{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:18px}
+.tile.wide .st{margin-top:0}
+@media (max-width:640px){.tile.wide{grid-template-columns:1fr;gap:10px}}
+
+footer{color:var(--muted);font-size:.85rem;text-align:center;line-height:1.6}
+@media (max-width:1000px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:860px){
+  .main{grid-template-columns:1fr}
+  nav{flex-direction:row;overflow-x:auto;padding:8px;gap:4px}
+  .navlabel{display:none}
+  nav button{flex:none}
+  .navtext small{display:none}
+  .spot-body{grid-template-columns:1fr;gap:0}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:540px){
+  .tiles{grid-template-columns:1fr}
+  .spot-head,.spot-body{padding-inline:18px}
+  .status{margin-inline:18px}
+  .spot-head h2{font-size:2rem}
+  .open{margin-left:0;width:100%;justify-content:center}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="mark" id="mark" aria-hidden="true"></div><h1>Tidy <span>Suite</span></h1></div>
+    <div class="hright">
+      <a class="pill" id="backupPill" href="snug/snug.html"><b></b><span id="backupText">Backup</span></a>
+      <span class="pill" title="Every Tidy Suite app shows this light when your work is saved"><b></b>Saved light on every app</span>
+    </div>
+  </header>
+
+  <p class="intro">Thirteen friendly apps for work, money and home life. They run in your web browser with no install and no account, and everything saves on this computer. Pick an app to see what it does, then open it.</p>
+
+  <div class="main">
+    <nav id="menu" aria-label="Tidy Suite apps"></nav>
+    <section class="spot" id="spot" aria-live="polite"></section>
+  </div>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div class="grid-head"><h2>All apps</h2><span id="countLine"></span></div>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <footer>Made by hardwaremack. Keep all the app folders together so the apps can share dates and backups.<br>Steady's Gmail scan and smart chat need Claude. Everything else works right here.</footer>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const raw=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const J=k=>{try{const s=raw(k);return s?JSON.parse(s):null}catch(e){return null}};
+const anyKey=pre=>{try{for(let i=0;i<localStorage.length;i++)if(localStorage.key(i).startsWith(pre))return true}catch(e){}return false};
+const money=n=>'$'+Math.round(+n||0).toLocaleString();
+const pl=(n,w)=>n+' '+w+(n===1?'':'s');
+const real=a=>(a||[]).filter(x=>x&&!x.ex&&!x.example);
+const pad=n=>String(n).padStart(2,'0'),now=new Date(),TODAY=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+
+/* Open links work when the suite runs from its folder or GitHub Pages; elsewhere they point to the file on GitHub. */
+const hn=location.hostname;
+const local=location.protocol==='file:'||/github\.io$/.test(hn)||/^(localhost|\d+\.\d+\.\d+\.\d+|\[[0-9a-f:]+\])$/i.test(hn)||/\.(local|lan|home)$/.test(hn)||!hn.includes('.');
+const href=id=>local?`${id}/${id}.html`:`https://github.com/hardwaremack-prog/tidy-suite/blob/main/${id}/${id}.html`;
+
+const I={
+ tidy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>',
+ neat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h7M9 7h3"/></svg>',
+ spruce:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8M8 12l3-3 2 2 3-3"/></svg>',
+ steady:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>',
+ clearout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 0 1 2-2h7l9 9-9 9-9-9z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+ handy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13V6a1.5 1.5 0 0 1 3 0v5M10 11V4.5a1.5 1.5 0 0 1 3 0V11M13 11V6a1.5 1.5 0 0 1 3 0v6M16 12v-2a1.5 1.5 0 0 1 3 0v5c0 4-3 7-7 7h-1c-2.5 0-4-1.3-5.3-3.3L3 15a1.5 1.5 0 0 1 2.5-1.6L7 15"/></svg>',
+ sorted:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7 6.3 21l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.6-.7-.7-2.6z"/></svg>',
+ hearty:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 7c0-1.5 1-2 1-3.5M12 7c0-1.5 1-2 1-3.5M16 7c0-1.5 1-2 1-3.5"/></svg>',
+ ready:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8.5 15l2.5 2.5 4.5-4.5"/></svg>',
+ snug:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
+ stocked:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+ polished:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18"/></svg>',
+ rugged:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>',
+ chipper:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 16.8l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>'};
+
+const GROUPS=[['Office',['tidy','neat','spruce']],['Money',['steady','clearout','handy','polished']],['Home & family',['hearty','sorted','stocked','chipper','ready']],['Keep it safe',['rugged','snug']]];
+const A={
+ tidy:{name:'Tidy',kind:'Spreadsheets',tag:'Where the suite started.',
+  desc:'A spreadsheet that stays out of your way. Build budgets, lists, trackers and tables, and keep every number in neat rows and columns.',
+  feats:['Formulas, charts and printing','Opens CSV and Excel files','Copy cells into Neat or Spruce as a table','A full manual in the tidy folder'],pairs:['neat','spruce','steady'],
+  status:()=>anyKey('tidy:')?'Your spreadsheets are saved here':null},
+ neat:{name:'Neat',kind:'Writing',tag:'Clean pages, ready to print.',
+  desc:'A writing pad for letters, notes and reports. The Sidekick panel tells you how easy your writing is to read.',
+  feats:['Markdown-style shortcuts and checklists','Word goals, find and replace','Printing built in','Saves as Word, web page, Markdown or plain text'],pairs:['spruce','tidy','polished'],
+  status:()=>{const s=J('neat.v1');if(!s)return null;const d=s.docs?Object.keys(s.docs).length:0;return d?pl(d,'document')+' saved':'Your writing is saved here'}},
+ spruce:{name:'Spruce',kind:'Slides',tag:'Spruce up your ideas.',
+  desc:'Slides that come together easily. Lay out your points, add pictures, present full screen, and print slides or handouts.',
+  feats:['Layouts, themes, pictures and tables','Present full screen with a timer','Print slides, notes pages or handouts','Saves as PowerPoint'],pairs:['neat','tidy'],
+  status:()=>raw('spruce.v1')?'Your slides are saved here':null},
+ steady:{name:'Steady',kind:'Bills & debt',tag:'Hope and a plan for your bills.',
+  desc:'Steady turns a pile of bills into a plan you can follow, with a debt-free date and a bright dashboard that shows your progress.',
+  feats:['Friendly questions build your plan','Bring bills in from email or a spreadsheet','Everyday spending and upkeep reminders','Debt-free date and paycheck-by-paycheck split'],pairs:['handy','clearout','hearty','ready'],
+  status:()=>{const s=J('steady-bills-v1');if(!s||s.example)return null;const b=s.bills||[];if(!b.length)return 'Started, no bills yet';
+   const d=now.getDate();const next=b.filter(x=>x.dueDay).sort((a,c)=>((a.dueDay-d+31)%31)-((c.dueDay-d+31)%31))[0];return pl(b.length,'bill')+' tracked'+(next?' · next: '+next.name+' on the '+next.dueDay+(['th','st','nd','rd'][next.dueDay%10>3||[11,12,13].includes(next.dueDay%100)?0:next.dueDay%10]):'')}},
+ clearout:{name:'Clearout',kind:'Selling',tag:'Turn stuff into money.',
+  desc:'Clearout helps you sell what you don\'t need. It prices your items, writes the listings, and helps you handle buyers.',
+  feats:['Price items and write listings','Pick the best places to sell','Handle lowballers and resellers','"Did it sell?" check-ins and a success bell'],pairs:['stocked','steady','handy'],
+  status:()=>{const s=J('clearout.items.v2');const n=Array.isArray(s)?real(s).length:0;return n?pl(n,'item')+' to sell':null}},
+ handy:{name:'Handy',kind:'Side income',tag:'Earn with your time and skills.',
+  desc:'Handy helps you offer local services, price yourself, tell your neighbors, and track every job. What you earn goes toward paying down debt in Steady.',
+  feats:['Find services you can offer','Confidence-building tips','Track jobs and earnings','Earnings feed your Steady plan'],pairs:['steady','sorted','ready'],
+  status:()=>{const s=J('handy.v1');const j=real(s&&s.jobs);return j.length?pl(j.length,'job')+' · '+money(j.reduce((t,x)=>t+(+x.paid||0),0))+' earned':null}},
+ sorted:{name:'Sorted',kind:'Repairs',tag:'Fix it the smart way.',
+  desc:'Step-by-step troubleshooting for jet skis, cars, ATVs, mowers, HVAC and appliances, so you don\'t replace parts you didn\'t need to.',
+  feats:['Cheapest, easiest checks first','Pick your goal: enjoy it, fix for money, fix to sell, sell as-is','What to bill, flip price and cost to own','Parts list that flags guesses'],pairs:['handy','clearout','stocked'],
+  status:()=>{const s=J('sorted.v1');const p=real(s&&s.projects);return p.length?pl(p.length,'project')+' going':null}},
+ hearty:{name:'Hearty',kind:'Meals',tag:'You are the chef. You\'ve got this.',
+  desc:'Plan a week of food you\'ll enjoy, get one shopping list, budget food and gas, and keep the drive-thru money.',
+  feats:['Pick meals and plan the week','One shopping list from your plan','Balance health and enjoyment','Food and gas budget, drive-thru savings'],pairs:['steady','ready'],
+  status:()=>raw('hearty.v1')?'Your meal plan is saved here':null},
+ ready:{name:'Ready',kind:'Calendar & to-dos',tag:'Here\'s what\'s coming. You\'re ready.',
+  desc:'Your dates and to-dos in one place, plus everything coming up from the rest of the suite: bills, Handy jobs, warranties, interviews and allowance day.',
+  feats:['Next 14 days at a glance','Month calendar with your own events','A simple to-do list','Pulls dates from Steady, Handy, Stocked, Polished and Chipper'],pairs:['steady','polished','chipper','stocked'],
+  status:()=>{const s=J('ready.v1');if(!s)return null;const t=real(s.todos).filter(x=>!x.done).length;const e=real(s.events).filter(x=>x.date>=TODAY).length;return (t||e)?[e?pl(e,'upcoming date'):'',t?pl(t,'to-do'):''].filter(Boolean).join(' · '):null}},
+ stocked:{name:'Stocked',kind:'Home inventory',tag:'Know what you own.',
+  desc:'List your things with a photo, what you paid and the warranty. If there\'s ever a fire, flood or break-in, your insurance list is one click away.',
+  feats:['Photos, rooms, serial numbers','What you paid and what it\'s worth today','Warranty dates show up in Ready','Print an insurance list or save it for Tidy'],pairs:['clearout','sorted','ready'],
+  status:()=>{const s=J('stocked.v1');const i=real(s&&s.items);return i.length?pl(i.length,'thing')+' listed · '+money(i.reduce((t,x)=>t+(+x.paid||0)*(+x.qty||1),0))+' paid':null}},
+ polished:{name:'Polished',kind:'Job hunt',tag:'Show them what you\'ve got.',
+  desc:'Build a resume you\'re proud of, write cover letters in minutes, practice interview answers out loud, and track every job you go after.',
+  feats:['Resume builder with a live preview and checklist','Cover letters from your resume','12 interview questions with tips and a timer','Job tracker with follow-up dates in Ready'],pairs:['handy','neat','ready'],
+  status:()=>{const s=J('polished.v1');if(!s)return null;const a=real(s.apps).filter(x=>x.status!=='no');return a.length?pl(a.length,'job')+' in progress':(!s.example&&s.resume&&s.resume.name?'Resume started':null)}},
+ chipper:{name:'Chipper',kind:'Chores & allowance',tag:'Do the chores. Earn the stars.',
+  desc:'A family chore chart. Kids tap a star when a chore is done, and on allowance day their money goes into save, spend and give jars.',
+  feats:['Tap-to-check week board','Save, spend and give jars','Savings goals with progress','Allowance day shows up in Ready'],pairs:['steady','ready'],
+  status:()=>{const s=J('chipper.v1');const k=real(s&&s.kids);return k.length?pl(k.length,'kid')+' · '+money(k.reduce((t,x)=>t+x.jars.save,0))+' saved':null}},
+ rugged:{name:'Rugged',kind:'Grid-down living',tag:'Lights out? Here\'s what to do next.',
+  desc:'A step-by-step plan for when the power and stores are down: safety, water, warmth, food, power and fuel, then trading and teaching.',
+  feats:['First 24 hours to first season, in order','Searchable offline field guide: food, planting, fuel, medical, leading','How many days your water, food, wood and fuel last','Barter board, comms plan and daily lessons'],pairs:['stocked','hearty','sorted','handy'],
+  status:()=>{const s=(J('rugged.v1')||J('hardy.v1'));if(!s)return null;const n=Object.values(s.done||{}).filter(Boolean).length;const t=real(s.trades).length;return (n||t)?[n?pl(n,'step')+' done':'',t?pl(t,'trade')+' logged':''].filter(Boolean).join(' · '):null}},
+ snug:{name:'Snug',kind:'Backup & restore',tag:'Keep your work safe.',
+  desc:'Saves all your Tidy Suite work into one small backup file, and brings it back if your browser is cleared or you move to a new computer.',
+  feats:['One file backs up every app','Pick which apps to restore','Undo a restore','Reminds you when it\'s time to back up'],pairs:['tidy','steady','stocked'],
+  status:()=>{const s=J('snug.v1');if(!s||!s.last)return null;const d=Math.floor((Date.now()-s.last)/864e5);return 'Last backup '+(d===0?'today':d===1?'yesterday':d+' days ago')}}};
+const ORDER=GROUPS.flatMap(g=>g[1]);
+const st=id=>{try{return A[id].status()}catch(e){return null}};
+
+$('mark').innerHTML=ORDER.map(id=>`<i style="background:var(--${id})"></i>`).join('');
+$('menu').innerHTML=GROUPS.map(([g,ids])=>`<div class="navlabel">${g}</div>`+ids.map(id=>`<button id="nav-${id}" style="--c:var(--${id})"><span class="ico">${I[id]}</span><span class="navtext"><strong>${A[id].name}</strong><small>${A[id].kind}</small></span></button>`).join('')).join('');
+$('menu').addEventListener('click',e=>{const b=e.target.closest('button');if(b)select(b.id.slice(4))});
+
+function renderTiles(){
+  const used=ORDER.filter(st).length;
+  $('countLine').textContent=ORDER.length+' apps · '+(used?used+' in use on this computer':'none started yet');
+  $('tiles').innerHTML=ORDER.map(id=>{const s=st(id);return `<button class="tile${id==='snug'?' wide':''}" data-id="${id}" style="--c:var(--${id})"><span class="tile-top"><span class="ico">${I[id]}</span><span><strong>${A[id].name}</strong><small>${A[id].kind}</small></span></span><p>${A[id].desc}</p><span class="st${s?' on':''}"><i></i>${esc(s||'Not started yet')}</span></button>`}).join('');
+}
+$('tiles').addEventListener('click',e=>{const t=e.target.closest('[data-id]');if(!t)return;select(t.dataset.id);$('spot').scrollIntoView({behavior:'smooth',block:'start'})});
+
+function select(id){
+  const a=A[id];if(!a)return;const s=st(id);
+  $('menu').querySelectorAll('button').forEach(b=>b.setAttribute('aria-current',b.id==='nav-'+id));
+  const sp=$('spot');sp.style.setProperty('--c',`var(--${id})`);
+  sp.innerHTML=`<div class="spot-head"><span class="ico">${I[id]}</span><div><div class="kind">${a.kind}</div><h2>${a.name}</h2></div>
+    <a class="open" href="${href(id)}">${local?'Open '+a.name:'See '+a.name+' on GitHub'} →</a></div>
+   <div class="status${s?' on':''}"><i></i>${esc(s||'Not started on this computer yet')}</div>
+   <div class="spot-body"><div><p class="tag">${a.tag}</p><p>${a.desc}</p><h3>Works well with</h3>
+     <div class="pairs">${a.pairs.map(p=>`<button class="pair" data-id="${p}" style="--pc:var(--${p})"><i></i>${A[p].name}</button>`).join('')}</div></div>
+    <div><h3>What it does</h3><ul class="feat">${a.feats.map(f=>`<li>${f}</li>`).join('')}</ul></div></div>`;
+  sp.querySelectorAll('.pair').forEach(p=>p.onclick=()=>select(p.dataset.id));
+  try{localStorage.setItem('suite.app',id)}catch(e){}
+}
+function renderBackup(){
+  const s=J('snug.v1'),used=ORDER.filter(id=>id!=='snug'&&st(id)).length,pill=$('backupPill');
+  if(!used){pill.className='pill';$('backupText').textContent='Backups with Snug';return}
+  const d=s&&s.last?Math.floor((Date.now()-s.last)/864e5):null,every=s&&s.every!=null?+s.every:14;
+  const due=d===null||(every&&d>=every);pill.className='pill'+(due?' warn':'');
+  $('backupText').textContent=d===null?'No backup yet. Back up now':due?'Backup is '+d+' days old':'Backed up '+(d===0?'today':d===1?'yesterday':d+' days ago');
+  if(!local)pill.href=href('snug');
+}
+let start='tidy';const h=location.hash.slice(1),saved=raw('suite.app');
+if(A[h])start=h;else if(A[saved])start=saved;
+renderTiles();renderBackup();select(start);
+window.addEventListener('storage',()=>{renderTiles();renderBackup();select(($('menu').querySelector('[aria-current=true]')||{id:'nav-tidy'}).id.slice(4))});
+})();
+</script>
+</body></html>

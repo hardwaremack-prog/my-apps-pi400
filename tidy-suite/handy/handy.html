@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en"><head><script src="../suite-users.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Handy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: app shell with a warm welcome strip, scrollable tabs, one panel at a time; progress ring and boosts keep confidence visible */
+:root{
+  --bg:#f4f3f9; --surface:#ffffff; --sunk:#e9e7f3; --ink:#1c1a2d; --muted:#5b5872; --line:#dad7e8;
+  --brand:#3e3aa0; --brand-ink:#ffffff; --sun:#ffb24a; --sun-ink:#3a2100; --sun-soft:#fff1dc;
+  --good:#23824a; --warn:#a96500; --bad:#b9352a;
+  --f-display:"Gabarito", "Trebuchet MS", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r:12px;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12111b; --surface:#1b1a28; --sunk:#16151f; --ink:#ebe9f6; --muted:#a6a3bf; --line:#2d2b42;
+  --brand:#9d98ff; --brand-ink:#14122c; --sun:#f0a63c; --sun-ink:#2a1700; --sun-soft:#2b2214;
+  --good:#5cc18a; --warn:#e6a53c; --bad:#f07264; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12111b; --surface:#1b1a28; --sunk:#16151f; --ink:#ebe9f6; --muted:#a6a3bf; --line:#2d2b42;
+  --brand:#9d98ff; --brand-ink:#14122c; --sun:#f0a63c; --sun-ink:#2a1700; --sun-soft:#2b2214;
+  --good:#5cc18a; --warn:#e6a53c; --bad:#f07264; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);padding:0 16px}
+[hidden]{display:none!important}
+img{max-width:100%}
+.wrap{max-width:1080px;margin:0 auto;padding-block:20px 60px}
+h1,h2,h3{font-family:var(--f-display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:1.6rem;font-weight:800}
+h3{font-size:1.12rem;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:46px;height:46px;flex:none}
+.brand h1{font-size:2.1rem;font-weight:800;letter-spacing:-.02em}
+.suite{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.boost{display:flex;gap:10px;align-items:center;background:var(--sun-soft);border:1px solid var(--sun);border-radius:999px;padding:8px 16px 8px 10px;max-width:520px;font-size:.95rem}
+.boost .heart{width:26px;height:26px;flex:none}
+
+nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:4px;background:var(--sunk);border-radius:12px;margin-bottom:22px;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;border:0;background:transparent;color:var(--muted);font:700 .95rem var(--f-body);padding:10px 16px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+
+.panel-head{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+.panel-head p{max-width:65ch;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+@media (max-width:480px){.fields{grid-template-columns:minmax(0,1fr)}}
+.full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:.85rem;font-weight:700;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;font-size:1rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;min-width:0}
+.hint{font-size:.8rem;font-weight:400;color:var(--muted)}
+.money{position:relative}
+.money span{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.money input{padding-left:24px}
+
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:700 .92rem var(--f-body);border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.sun{background:var(--sun);border-color:var(--sun);color:var(--sun-ink)}
+.btn.small{padding:6px 10px;font-size:.82rem}
+.btn:hover{filter:brightness(.97)}
+
+/* welcome */
+.welcome{background:var(--brand);color:var(--brand-ink);border-radius:16px;padding:26px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:24px;align-items:center}
+@media (max-width:760px){.welcome{grid-template-columns:minmax(0,1fr)}}
+.welcome h2{font-size:clamp(1.8rem,4.5vw,2.6rem);line-height:1.05;letter-spacing:-.02em}
+.welcome p{margin-top:10px;max-width:52ch;opacity:.92;font-size:1.05rem}
+.payoff{background:var(--surface);color:var(--ink);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:4px}
+.payoff small{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.payoff .big{font:800 2.6rem var(--f-display);letter-spacing:-.02em;color:var(--brand);line-height:1}
+.payoff p{font-size:.92rem;color:var(--muted)}
+
+.steps{display:flex;flex-direction:column;gap:8px}
+.step{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.step .dot{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:800 .95rem var(--f-display);background:var(--sunk);color:var(--muted)}
+.step.done .dot{background:var(--good);color:var(--brand-ink)}
+.step.done b{text-decoration:line-through;text-decoration-color:var(--muted)}
+.step span{font-size:.85rem;color:var(--muted)}
+
+.note{border-left:4px solid var(--sun);padding:2px 0 2px 14px;display:flex;flex-direction:column;gap:6px}
+.note p{font-size:.97rem}
+
+/* services */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 .88rem var(--f-body);border-radius:999px;padding:7px 13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.svcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.svc{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.svc.on{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.svc .range{font-family:var(--f-num);font-weight:600;font-size:1.05rem;color:var(--brand)}
+.svc .unit{font-family:var(--f-body);font-size:.8rem;font-weight:400;color:var(--muted)}
+.svc p{font-size:.88rem;color:var(--muted)}
+.svc .row{display:flex;gap:8px;margin-top:auto;padding-top:6px;flex-wrap:wrap}
+.love{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 10px;font:700 .82rem var(--f-body);color:var(--muted);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.love svg{width:16px;height:16px}
+.love[aria-pressed="true"]{color:var(--bad);border-color:var(--bad);background:var(--surface)}
+.love[aria-pressed="true"] path{fill:var(--bad)}
+.empty{padding:22px;border:1px dashed var(--line);border-radius:var(--r);text-align:center;color:var(--muted)}
+
+/* pricing */
+.ptable{display:flex;flex-direction:column;gap:10px}
+.prow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 130px;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+@media (max-width:560px){.prow{grid-template-columns:minmax(0,1fr) 120px}.prow .fit{grid-column:1/-1}}
+.prow .fit{font-size:.85rem}
+.ok{color:var(--good);font-weight:700} .lowp{color:var(--warn);font-weight:700}
+.rate{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+.rate .big{font:800 2.4rem var(--f-display);letter-spacing:-.02em;color:var(--brand)}
+ul.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:.95rem}
+
+/* spread */
+.where{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.wcard{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:6px}
+.wcard p{font-size:.9rem;color:var(--muted)}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+@media (max-width:760px){.week{grid-template-columns:minmax(0,1fr)}}
+.day{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);font-size:.85rem;display:flex;flex-direction:column;gap:4px}
+.day b{font-family:var(--f-display);font-size:.95rem}
+.out{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;font-size:.95rem;min-width:0;overflow-wrap:anywhere}
+.tpl{display:flex;flex-direction:column;gap:6px}
+.tpl-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--sunk);border-radius:9px;padding:3px;gap:3px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;font:700 .85rem var(--f-body);color:var(--muted);padding:7px 12px;border-radius:7px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+
+/* messages */
+.msgs{display:grid;grid-template-columns:240px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:760px){.msgs{grid-template-columns:minmax(0,1fr)}}
+.mlist{display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.mlist{flex-direction:row;overflow-x:auto;padding-bottom:4px}}
+.mbtn{text-align:left;border:1px solid transparent;background:transparent;color:var(--ink);font:400 .95rem var(--f-body);padding:9px 12px;border-radius:8px;cursor:pointer;flex:none}
+.mbtn[aria-current="true"]{background:var(--surface);border-color:var(--line);font-weight:700}
+.mgroup{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--muted);padding:10px 12px 2px}
+@media (max-width:760px){.mgroup{display:none}}
+
+/* progress */
+.totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.totals{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tot{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.tot small{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.tot b{display:block;font:800 1.8rem var(--f-display)}
+.ringbox{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.ring{width:150px;height:150px;flex:none}
+.ring .lbl{font:800 30px var(--f-display);fill:var(--ink)}
+.ring .sub{font:700 11px var(--f-body);fill:var(--muted);letter-spacing:.08em}
+.ringtext{flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px}
+.debtbar{height:16px;background:var(--sunk);border-radius:999px;overflow:hidden}
+.debtbar i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--good));border-radius:999px}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{width:100%;border-collapse:collapse;min-width:620px;font-size:.95rem}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+td.r,th.r{text-align:right}
+tr:last-child td{border-bottom:0}
+.ex{font-size:.68rem;font-weight:700;color:var(--warn);margin-left:6px;text-transform:uppercase;letter-spacing:.08em}
+.star{color:var(--sun);font-weight:700}
+.win{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:16px;border-radius:var(--r);background:var(--sun-soft);border:1px solid var(--sun)}
+.win .gj{font:800 2rem var(--f-display);color:var(--good)}
+.bell{width:64px;height:64px;transform-origin:50% 10%}
+.win.go .bell{animation:ring 1.1s ease-out}
+@keyframes ring{0%{transform:rotate(0)}15%{transform:rotate(22deg)}30%{transform:rotate(-18deg)}45%{transform:rotate(13deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}100%{transform:rotate(0)}}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:5}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;font-size:.9rem;opacity:0;transition:opacity .2s;pointer-events:none;z-index:6}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}.win.go .bell{animation:none}}
+
+/* saved light */
+.save-status{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted,#667);white-space:nowrap;padding:3px 10px;border:1px solid var(--line,#ccd);border-radius:99px;background:var(--surface,transparent)}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--good,#2C8A57);flex:none}
+.save-dot.saving{background:var(--warn,#E39A00);animation:svpulse .9s infinite ease-in-out}
+.save-dot.error{background:var(--bad,#C2453A)}
+.save-dot.example{background:var(--muted,#889)}
+@keyframes svpulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.save-dot.saving{animation:none}}
+</style></head><body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 46 46" aria-hidden="true">
+        <rect x="2" y="2" width="42" height="42" rx="12" fill="var(--brand)"/>
+        <path d="M14 25v-9a2.5 2.5 0 0 1 5 0v7M19 22v-9a2.5 2.5 0 0 1 5 0v9M24 22v-7a2.5 2.5 0 0 1 5 0v9M29 24v-4a2.5 2.5 0 0 1 5 0v7c0 6-4 10-10 10h-1c-4 0-6-2-8-5l-4-6a2.4 2.4 0 0 1 4-2.6L14 25" fill="none" stroke="var(--sun)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div><div class="suite">Tidy suite</div><h1>Handy</h1></div>
+      <div class="save-status" aria-live="polite" title="Your work saves automatically in this browser"><span class="save-dot" id="saveDot"></span><span id="saveText">Saved</span></div>
+    </div>
+    <div class="boost" aria-live="polite">
+      <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.5-9.3C1 8 3.4 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.6 0 6 3.5 4.5 7.2C19.5 16.4 12 21 12 21z" fill="var(--bad)"/></svg>
+      <span id="boost"></span>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Handy sections">
+    <button class="tab" role="tab" id="t-start" aria-controls="p-start" aria-selected="true">Start here</button>
+    <button class="tab" role="tab" id="t-svc" aria-controls="p-svc" aria-selected="false">What I can do</button>
+    <button class="tab" role="tab" id="t-price" aria-controls="p-price" aria-selected="false">My prices</button>
+    <button class="tab" role="tab" id="t-spread" aria-controls="p-spread" aria-selected="false">Get the word out</button>
+    <button class="tab" role="tab" id="t-msg" aria-controls="p-msg" aria-selected="false">What to say</button>
+    <button class="tab" role="tab" id="t-prog" aria-controls="p-prog" aria-selected="false">Jobs &amp; progress</button>
+  </nav>
+
+  <!-- START -->
+  <section class="panel" id="p-start" role="tabpanel" aria-labelledby="t-start">
+    <div class="stack">
+      <div class="welcome">
+        <div>
+          <h2>You need money. That's okay. Your neighbors need you.</h2>
+          <p>Someone near you needs a lawn mowed, a TV hung, a dog walked, or a computer fixed today. You can do that, and they will happily pay you for it. Let's set up your plan. You're in control of every step.</p>
+        </div>
+        <div class="payoff">
+          <small>Your plan</small>
+          <div class="big num" id="s-months">–</div>
+          <p id="s-payoff"></p>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="box">
+          <h3>A few quick things about you</h3>
+          <div class="fields">
+            <label class="f">Your first name<input id="u-name" value="Mack"></label>
+            <label class="f">Your area <span class="hint">How neighbors would say it</span><input id="u-area" value="our neighborhood"></label>
+            <label class="f">Extra money you'd like each month
+              <div class="money"><span>$</span><input id="u-goal" type="number" min="0" value="600"></div></label>
+            <label class="f">Hours you can give each week<input id="u-hours" type="number" min="1" value="8"></label>
+            <label class="f full">Debt you want to pay down <span class="hint">Your total from Steady, or any number. Leave 0 to skip.</span>
+              <div class="money"><span>$</span><input id="u-debt" type="number" min="0" value="4800"></div></label>
+          </div>
+        </div>
+        <div class="box">
+          <h3>Your first steps</h3>
+          <div class="steps" id="steps"></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="box note">
+          <h3>If you enjoy it, it's not work</h3>
+          <p>Start with the things you like doing. You'll do them better, people will notice, and they'll call you back.</p>
+          <p>Picking up side work isn't something to be embarrassed about. It's how a lot of people get ahead. Every job is a step, and every step counts.</p>
+        </div>
+        <div class="box note">
+          <h3>You set the rules</h3>
+          <p>You choose which jobs to take, when you work, and what you charge. Saying no to a job that isn't right is part of running your own thing.</p>
+          <p>Go at your own pace. One job this week is a win. Rest assured, it adds up.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="panel" id="p-svc" role="tabpanel" aria-labelledby="t-svc" hidden>
+    <div class="panel-head">
+      <h2>What can you do?</h2>
+      <p>Tap what you have and what you know. Then tap the heart on things you'd enjoy, and <b>Offer this</b> on the ones you want to do.</p>
+    </div>
+    <div class="stack">
+      <div class="box">
+        <h3>Tools and things you have</h3>
+        <div class="chips" id="c-tools"></div>
+        <h3>Things you're good at</h3>
+        <div class="chips" id="c-skills"></div>
+      </div>
+      <div class="tpl-head"><h3 id="svc-count"></h3><span class="muted">Starting prices are rough. Check what others near you charge.</span></div>
+      <div class="svcs" id="svc-list"></div>
+    </div>
+  </section>
+
+  <!-- PRICES -->
+  <section class="panel" id="p-price" role="tabpanel" aria-labelledby="t-price" hidden>
+    <div class="panel-head">
+      <h2>Price yourself with confidence</h2>
+      <p>Your time is worth money. Set a fair price, say it plainly, and don't apologize for it.</p>
+    </div>
+    <div class="grid2">
+      <div class="stack">
+        <div class="box">
+          <h3>What you need to earn</h3>
+          <div class="fields">
+            <label class="f">Costs per hour of work <span class="hint">Gas, supplies, wear on tools</span>
+              <div class="money"><span>$</span><input id="u-cost" type="number" min="0" value="4"></div></label>
+            <label class="f">Minimum charge per job <span class="hint">So small jobs are worth the trip</span>
+              <div class="money"><span>$</span><input id="u-min" type="number" min="0" value="40"></div></label>
+          </div>
+          <div class="rate"><span class="big num" id="p-rate">$0/hr</span><span class="muted" id="p-rate-note"></span></div>
+        </div>
+        <div class="box">
+          <h3>Your prices</h3>
+          <div class="ptable" id="p-list"></div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="box note">
+          <h3>Pricing tips</h3>
+          <ul class="tips">
+            <li>Too cheap makes people wonder why. A fair price says you know what you're doing.</li>
+            <li>Give the price before you start, in writing. No surprises for either of you.</li>
+            <li>Charge a minimum for small jobs. Your drive and setup time count.</li>
+            <li>After 5 good reviews, raise your price a little. You've earned it.</li>
+            <li>Offer regulars a small deal, like every 4th mow at half price. It keeps them coming back.</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h3>When someone asks “can you do it cheaper?”</h3>
+          <div class="out" id="p-pushback"></div>
+          <button class="btn small" data-copy="p-pushback" style="align-self:flex-start">Copy</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPREAD -->
+  <section class="panel" id="p-spread" role="tabpanel" aria-labelledby="t-spread" hidden>
+    <div class="panel-head">
+      <h2>Let's tell your neighbors</h2>
+      <p>People can't hire you if they don't know you're there. One friendly post is all it takes to start.</p>
+    </div>
+    <div class="stack">
+      <div class="where">
+        <div class="wcard"><h3>Nextdoor</h3><p>Your actual neighbors, and they trust each other. Post in your neighborhood and answer people asking for recommendations.</p></div>
+        <div class="wcard"><h3>Facebook groups</h3><p>Join your town's community and buy-sell groups. Read the rules. Many have a day set aside for business posts.</p></div>
+        <div class="wcard"><h3>Facebook Marketplace</h3><p>Has a services section. A listing with a clear photo and a starting price gets messages.</p></div>
+        <div class="wcard"><h3>Paper flyers</h3><p>Library, coffee shop, laundromat, and grocery boards. Add tear-off tabs with your number.</p></div>
+        <div class="wcard"><h3>Word of mouth</h3><p>Tell friends, family and church or club members. Ask every happy customer to tell one neighbor.</p></div>
+      </div>
+
+      <div class="box">
+        <div class="tpl-head">
+          <h3>Your post</h3>
+          <div class="seg" id="tone" role="group" aria-label="Post style">
+            <button aria-pressed="true" data-tone="friendly">Friendly</button>
+            <button aria-pressed="false" data-tone="pro">Professional</button>
+            <button aria-pressed="false" data-tone="flyer">Flyer</button>
+          </div>
+        </div>
+        <div class="out" id="post"></div>
+        <div class="btns">
+          <button class="btn" data-copy="post">Copy post</button>
+          <button class="btn sun" id="posted">I posted it!</button>
+        </div>
+        <p class="muted" style="font-size:.88rem">Add a photo of you or your work. Posts with a friendly face get far more replies.</p>
+      </div>
+
+      <div class="box">
+        <h3>An easy week</h3>
+        <div class="week">
+          <div class="day"><b>Mon</b>Post your offer on Nextdoor.</div>
+          <div class="day"><b>Tue</b>Post in one Facebook group.</div>
+          <div class="day"><b>Wed</b>Reply to everyone within a few hours.</div>
+          <div class="day"><b>Thu</b>Put up two flyers.</div>
+          <div class="day"><b>Fri</b>Answer one “who can recommend…” post.</div>
+          <div class="day"><b>Sat</b>Share a before and after photo.</div>
+          <div class="day"><b>Sun</b>Rest. Log your jobs and look how far you've come.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MESSAGES -->
+  <section class="panel" id="p-msg" role="tabpanel" aria-labelledby="t-msg" hidden>
+    <div class="panel-head">
+      <h2>What to say</h2>
+      <p>Ready-made messages for every moment, filled in with your name and prices. Being clear and polite is what makes you look professional.</p>
+    </div>
+    <div class="msgs">
+      <div class="box" style="padding:8px"><div class="mlist" id="mlist"></div></div>
+      <div class="stack">
+        <div class="box">
+          <div class="fields">
+            <label class="f">Service<select id="m-svc"></select></label>
+            <label class="f">Customer's first name<input id="m-who" value="Linda"></label>
+          </div>
+          <div class="tpl">
+            <div class="tpl-head"><b id="m-title"></b><button class="btn small" data-copy="m-out">Copy</button></div>
+            <div class="out" id="m-out"></div>
+          </div>
+          <p class="muted" id="m-tip" style="font-size:.92rem"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section class="panel" id="p-prog" role="tabpanel" aria-labelledby="t-prog" hidden>
+    <div class="panel-head">
+      <h2>Look how far you've come</h2>
+      <p>Log each job when you get paid. Watch the month fill up and the debt go down.</p>
+    </div>
+    <div class="stack">
+      <div class="totals">
+        <div class="tot"><small>This month</small><b class="num" id="g-month">$0</b></div>
+        <div class="tot"><small>All time</small><b class="num" id="g-all">$0</b></div>
+        <div class="tot"><small>Jobs done</small><b class="num" id="g-jobs">0</b></div>
+        <div class="tot"><small>You make, per hour</small><b class="num" id="g-hr">–</b></div>
+      </div>
+
+      <div class="grid2">
+        <div class="box">
+          <div class="ringbox">
+            <svg class="ring" viewBox="0 0 150 150" role="img" aria-labelledby="ring-t">
+              <title id="ring-t">Progress toward this month's goal</title>
+              <circle cx="75" cy="75" r="62" fill="none" stroke="var(--sunk)" stroke-width="14"/>
+              <circle id="ring-arc" cx="75" cy="75" r="62" fill="none" stroke="var(--good)" stroke-width="14" stroke-linecap="round" transform="rotate(-90 75 75)" stroke-dasharray="0 390"/>
+              <text x="75" y="80" text-anchor="middle" class="lbl" id="ring-pct">0%</text>
+              <text x="75" y="100" text-anchor="middle" class="sub">OF GOAL</text>
+            </svg>
+            <div class="ringtext">
+              <h3 id="g-msg"></h3>
+              <p class="muted" id="g-sub"></p>
+            </div>
+          </div>
+          <div id="debt-wrap">
+            <div class="tpl-head"><b>Paid toward your debt</b><span class="num" id="g-debt"></span></div>
+            <div class="debtbar"><i id="g-debtbar"></i></div>
+            <p class="muted" id="g-debtnote" style="font-size:.88rem;margin-top:6px"></p>
+          </div>
+        </div>
+        <div class="box">
+          <h3>Log a job</h3>
+          <div class="fields">
+            <label class="f">Date<input id="j-date" type="date"></label>
+            <label class="f">Customer<input id="j-who" placeholder="First name"></label>
+            <label class="f full">Service<select id="j-svc"></select></label>
+            <label class="f">Hours<input id="j-hours" type="number" min="0" step="0.25" value="2"></label>
+            <label class="f">You were paid<div class="money"><span>$</span><input id="j-paid" type="number" min="0" value="80"></div></label>
+            <label class="f full" style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input id="j-review" type="checkbox" style="width:18px;height:18px"> They left a review or said they'd recommend me</label>
+          </div>
+          <button class="btn primary" id="j-add" style="align-self:flex-start">Log it, I got paid!</button>
+          <div id="j-win" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="box">
+        <div class="tpl-head"><h3>Your jobs</h3><span class="muted" id="g-extra"></span></div>
+        <div id="j-table"></div>
+        <div class="btns" id="j-btns"></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+function saveLight(s){const d=document.getElementById('saveDot'),t=document.getElementById('saveText');if(!d)return;
+ d.className='save-dot'+(s==='saved'?'':' '+s);t.textContent={saved:'Saved',saving:'Saving…',error:'Not saved. Check browser settings',example:'Example, not saved'}[s];
+ clearTimeout(saveLight.t);if(s==='saving')saveLight.t=setTimeout(()=>{if(d.classList.contains('saving'))saveLight('saved')},4000);}
+function storeOK(k,v){try{localStorage.setItem(k,v);return localStorage.getItem(k)===v}catch(e){return false}}
+
+(function(){
+const $ = id => document.getElementById(id);
+const money = n => "$" + Math.round(n).toLocaleString();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const DAY = 864e5;
+const iso = d => { const x=new Date(d); return new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const today = () => iso(Date.now());
+const ago = n => iso(Date.now()-n*DAY);
+
+const BOOSTS = [
+  "You've got this. One job at a time.",
+  "Your neighbors need what you know how to do.",
+  "If you enjoy it, it's not work.",
+  "Every dollar you earn is a dollar off that debt.",
+  "You're in control. You pick the jobs, the hours and the price.",
+  "Small steps add up faster than you think.",
+  "Doing good work for good people. That's something to be proud of.",
+  "Rest is part of the plan too.",
+  "Showing up on time already puts you ahead of most.",
+  "The first job is the hardest. After that, it gets easier."
+];
+const doy = Math.floor((Date.now() - new Date(new Date().getFullYear(),0,0))/DAY);
+$("boost").textContent = BOOSTS[doy % BOOSTS.length];
+
+/* ---------- catalog ---------- */
+const TOOLS = [
+  {id:"mower",l:"Lawn mower"},{id:"truck",l:"Truck or van"},{id:"car",l:"Car"},{id:"washer",l:"Pressure washer"},
+  {id:"tools",l:"Hand & power tools"},{id:"ladder",l:"Ladder"},{id:"shovel",l:"Snow shovel / blower"},{id:"sewing",l:"Sewing machine"},
+  {id:"camera",l:"Good camera / phone"},{id:"laptop",l:"Computer"},{id:"bucket",l:"Car-wash supplies"},{id:"paint",l:"Paint gear"}
+];
+const SKILLS = [
+  {id:"tech",l:"Computers & phones"},{id:"fix",l:"Fixing things"},{id:"engines",l:"Small engines"},{id:"pets",l:"Animals"},
+  {id:"clean",l:"Cleaning"},{id:"teach",l:"Teaching a subject"},{id:"strong",l:"Lifting & moving"},{id:"organize",l:"Organizing"},
+  {id:"cook",l:"Cooking & baking"},{id:"people",l:"Talking with people"},{id:"plants",l:"Plants & gardening"},{id:"write",l:"Writing"}
+];
+const SVCS = [
+  {id:"mow",n:"Lawn mowing",uses:["mower"],lo:30,hi:60,u:"per yard",hr:false,d:"Weekly or every two weeks. Regulars are steady income."},
+  {id:"yard",n:"Yard cleanup & leaves",uses:["mower","strong","plants","truck"],lo:25,hi:45,u:"per hour",hr:true,d:"Big demand in spring and fall."},
+  {id:"garden",n:"Garden help & weeding",uses:["plants"],lo:20,hi:40,u:"per hour",hr:true,d:"Planting, weeding, mulching, watering while people travel."},
+  {id:"snow",n:"Snow shoveling",uses:["shovel","strong"],lo:25,hi:60,u:"per driveway",hr:false,d:"Sign people up for the season before the first storm."},
+  {id:"power",n:"Pressure washing",uses:["washer"],lo:100,hi:250,u:"per driveway or deck",hr:false,d:"Before and after photos sell this job for you."},
+  {id:"carwash",n:"Car washing & detailing",uses:["bucket","clean"],lo:40,hi:150,u:"per car",hr:false,d:"Come to them. Interior detailing pays the most."},
+  {id:"haul",n:"Junk hauling",uses:["truck","strong"],lo:75,hi:200,u:"per load",hr:false,d:"Charge by how full the truck is, plus any dump fees."},
+  {id:"move",n:"Moving help",uses:["strong","truck"],lo:25,hi:40,u:"per hour",hr:true,d:"Loading, unloading, moving furniture between rooms."},
+  {id:"handy",n:"Handyman jobs",uses:["tools","fix","ladder"],lo:40,hi:75,u:"per hour",hr:true,d:"Shelves, TV mounting, doors that stick, small fixes."},
+  {id:"assembly",n:"Furniture assembly",uses:["tools","fix"],lo:40,hi:90,u:"per piece",hr:false,d:"Beds, desks, swing sets. People hate doing this."},
+  {id:"lights",n:"Holiday light hanging",uses:["ladder"],lo:150,hi:400,u:"per house",hr:false,d:"Up in November, down in January. Book the take-down too."},
+  {id:"gutter",n:"Gutter cleaning",uses:["ladder"],lo:75,hi:175,u:"per house",hr:false,d:"Be careful on ladders and have someone spot you."},
+  {id:"paint",n:"Painting",uses:["paint","fix"],lo:30,hi:55,u:"per hour",hr:true,d:"Rooms, fences, sheds and trim."},
+  {id:"engine",n:"Small engine repair",uses:["engines","tools"],lo:50,hi:90,u:"per job",hr:false,d:"Mowers, blowers, trimmers. Spring tune-ups are big."},
+  {id:"tech",n:"Tech help",uses:["tech","laptop"],lo:30,hi:60,u:"per hour",hr:true,d:"Phones, printers, Wi‑Fi and TVs. Older neighbors love this."},
+  {id:"pc",n:"Computer setup & cleanup",uses:["tech","laptop"],lo:60,hi:120,u:"per computer",hr:false,d:"Speed-ups, new computer setup, moving files and photos."},
+  {id:"clean",n:"House cleaning",uses:["clean"],lo:25,hi:45,u:"per hour",hr:true,d:"Move-out cleans pay more."},
+  {id:"pet",n:"Dog walking & pet sitting",uses:["pets"],lo:15,hi:30,u:"per visit",hr:false,d:"Busy around holidays and summer trips."},
+  {id:"house",n:"House sitting & plant care",uses:["plants","pets","people"],lo:20,hi:40,u:"per day",hr:false,d:"Mail, plants and a look around while people travel."},
+  {id:"tutor",n:"Tutoring",uses:["teach"],lo:25,hi:50,u:"per hour",hr:true,d:"Homework help, reading, math, test prep."},
+  {id:"errand",n:"Errands & rides",uses:["car","people"],lo:20,hi:30,u:"per hour, plus gas",hr:true,d:"Groceries, pharmacy pickups, appointments."},
+  {id:"company",n:"Senior companion visits",uses:["people"],lo:18,hi:30,u:"per hour",hr:true,d:"Conversation, a walk, a game of cards, light help around the house."},
+  {id:"org",n:"Home organizing",uses:["organize","clean"],lo:30,hi:60,u:"per hour",hr:true,d:"Garages, closets, and help clearing out clutter."},
+  {id:"photo",n:"Photos for families & sellers",uses:["camera"],lo:75,hi:200,u:"per session",hr:false,d:"Portraits, small events, photos for listings."},
+  {id:"sew",n:"Alterations & repairs",uses:["sewing"],lo:10,hi:30,u:"per item",hr:false,d:"Hems, zippers, patches."},
+  {id:"bake",n:"Baked goods & meals",uses:["cook"],lo:15,hi:40,u:"per order",hr:false,d:"Check your state's home-kitchen rules before selling food."},
+  {id:"write",n:"Resumes & letters",uses:["write","laptop"],lo:40,hi:100,u:"per resume",hr:false,d:"Resumes, cover letters, help filling out forms."}
+];
+const svcById = id => SVCS.find(s=>s.id===id);
+
+/* ---------- state ---------- */
+const KEY = "handy.v1";
+const DEFAULT = {
+  name:"Mack", area:"our neighborhood", goal:600, hours:8, debt:4800, cost:4, min:40,
+  have:["tools","fix","tech","laptop","car","engines"], love:["engine","tech","handy"], offer:["handy","tech","engine","assembly"],
+  prices:{}, posted:false, tone:"friendly",
+  jobs:[
+    {id:1,date:ago(1),who:"Linda",svc:"handy",hours:2.5,paid:120,review:true,ex:true},
+    {id:2,date:ago(3),who:"Tom",svc:"tech",hours:1,paid:45,review:false,ex:true},
+    {id:3,date:ago(8),who:"Linda",svc:"engine",hours:1.5,paid:70,review:true,ex:true},
+    {id:4,date:ago(13),who:"Rosa",svc:"assembly",hours:2,paid:90,review:false,ex:true}
+  ]
+};
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch(e){ S = null; }
+if (!S || typeof S !== "object") S = JSON.parse(JSON.stringify(DEFAULT));
+for (const k in DEFAULT) if (S[k] === undefined) S[k] = JSON.parse(JSON.stringify(DEFAULT[k]));
+function save(){ saveLight('saving'); const ok=storeOK(KEY, JSON.stringify(S)); setTimeout(()=>saveLight(ok?'saved':'error'),350); }
+const priceOf = s => S.prices[s.id] != null ? S.prices[s.id] : Math.round((s.lo+s.hi)/2/5)*5;
+const neededRate = () => S.goal/(Math.max(1,S.hours)*4.33) + (+S.cost||0);
+
+/* ---------- start ---------- */
+const bind = (id,key,num) => { const el=$(id); el.value=S[key]; el.addEventListener("input",()=>{ S[key]= num ? (+el.value||0) : el.value; save(); renderAll(); }); };
+bind("u-name","name"); bind("u-area","area"); bind("u-goal","goal",1); bind("u-hours","hours",1); bind("u-debt","debt",1);
+bind("u-cost","cost",1); bind("u-min","min",1);
+
+function renderStart(){
+  const rate = neededRate();
+  if (S.debt > 0 && S.goal > 0){
+    const months = Math.ceil(S.debt/S.goal);
+    $("s-months").textContent = months + (months==1?" month":" months");
+    $("s-payoff").textContent = `At ${money(S.goal)} a month from side jobs, your ${money(S.debt)} could be paid off in about ${months} month${months==1?"":"s"}, on top of what Steady already has planned. That's about ${money(rate)} an hour for ${S.hours} hours a week.`;
+  } else {
+    $("s-months").textContent = money(rate) + "/hr";
+    $("s-payoff").textContent = `To make ${money(S.goal)} a month working ${S.hours} hours a week.`;
+  }
+  const jobs = S.jobs.filter(j=>!j.ex);
+  const steps = [
+    {t:"Pick what you'll offer", s:"Choose 1 to 3 services you'd enjoy", done:S.offer.length>0, go:"t-svc"},
+    {t:"Set your prices", s:"A fair price you can say with confidence", done:Object.keys(S.prices).length>0, go:"t-price"},
+    {t:"Post your first offer", s:"Nextdoor or a Facebook group", done:S.posted, go:"t-spread"},
+    {t:"Do your first job", s:"Log it when you get paid", done:jobs.length>0, go:"t-prog"},
+    {t:"Get your first review", s:"Ask a happy customer", done:jobs.some(j=>j.review), go:"t-msg"}
+  ];
+  $("steps").innerHTML = steps.map((st,i)=>`
+    <div class="step ${st.done?"done":""}"><div class="dot">${st.done?"✓":i+1}</div>
+      <div><b>${st.t}</b><br><span>${st.s}</span></div>
+      <button class="btn small ${!st.done && steps.findIndex(x=>!x.done)===i?"primary":""}" data-go="${st.go}">${st.done?"View":"Go"}</button></div>`).join("");
+}
+
+/* ---------- services ---------- */
+function chips(el, list){
+  $(el).innerHTML = list.map(c=>`<button class="chip" data-have="${c.id}" aria-pressed="${S.have.includes(c.id)}">${c.l}</button>`).join("");
+}
+document.addEventListener("click", ev=>{
+  const c = ev.target.closest("[data-have]"); if(!c) return;
+  const id=c.dataset.have; S.have = S.have.includes(id) ? S.have.filter(x=>x!==id) : [...S.have,id];
+  c.setAttribute("aria-pressed", S.have.includes(id)); save(); renderSvcs();
+});
+const heart = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.5-9.3C1 8 3.4 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.6 0 6 3.5 4.5 7.2C19.5 16.4 12 21 12 21z" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
+function renderSvcs(){
+  let list = SVCS.filter(s=>s.uses.some(u=>S.have.includes(u)) || S.offer.includes(s.id));
+  list.sort((a,b)=>(S.offer.includes(b.id)-S.offer.includes(a.id)) || (S.love.includes(b.id)-S.love.includes(a.id)));
+  $("svc-count").textContent = list.length ? `${list.length} things you could offer` : "Pick a few things above";
+  $("svc-list").innerHTML = list.length ? list.map(s=>{
+    const on = S.offer.includes(s.id), lv = S.love.includes(s.id);
+    return `<div class="svc ${on?"on":""}">
+      <h3>${s.n}</h3>
+      <div class="range">${money(s.lo)}–${money(s.hi)} <span class="unit">${s.u}</span></div>
+      <p>${s.d}</p>
+      <div class="row">
+        <button class="love" data-love="${s.id}" aria-pressed="${lv}">${heart}${lv?"I'd enjoy this":"Would I enjoy it?"}</button>
+        <button class="btn small ${on?"primary":""}" data-offer="${s.id}">${on?"✓ Offering":"Offer this"}</button>
+      </div></div>`;}).join("")
+    : `<div class="empty">Tap the tools and skills you have, and ideas will show up here.</div>`;
+}
+$("svc-list").addEventListener("click", ev=>{
+  const l = ev.target.closest("[data-love]"), o = ev.target.closest("[data-offer]");
+  if (l){ const id=l.dataset.love; S.love = S.love.includes(id)?S.love.filter(x=>x!==id):[...S.love,id]; if(S.love.includes(id)) toast("If you enjoy it, it's not work"); }
+  if (o){ const id=o.dataset.offer; S.offer = S.offer.includes(id)?S.offer.filter(x=>x!==id):[...S.offer,id]; if(S.offer.includes(id)) toast(`Added ${svcById(id).n.toLowerCase()}`); }
+  if (l||o){ save(); renderAll(); }
+});
+
+/* ---------- prices ---------- */
+function renderPrices(){
+  const rate = neededRate();
+  $("p-rate").textContent = money(rate) + "/hr";
+  $("p-rate-note").textContent = `is what you need to make ${money(S.goal)} a month in ${S.hours} hours a week`;
+  const offered = S.offer.map(svcById).filter(Boolean);
+  $("p-list").innerHTML = offered.length ? offered.map(s=>{
+    const p = priceOf(s);
+    let fit;
+    if (s.hr) fit = p >= rate ? `<span class="ok">Meets your goal</span>` : `<span class="lowp">Below the ${money(rate)}/hr you need</span>`;
+    else fit = `<span class="muted">Covers ${Math.max(0.25,Math.round(p/rate*4)/4)} hr at your rate</span>`;
+    if (p < s.lo) fit += ` · <span class="lowp">under the usual range</span>`;
+    if (p > s.hi) fit += ` · <span class="lowp">above the usual range</span>`;
+    return `<div class="prow"><div><b>${s.n}</b><br><span class="muted" style="font-size:.85rem">Usually ${money(s.lo)}–${money(s.hi)} ${s.u}</span></div>
+      <div class="fit">${fit}</div>
+      <label class="money"><span>$</span><input id="pr-${s.id}" data-price="${s.id}" type="number" min="0" value="${p}" aria-label="Your price for ${s.n}"></label></div>`;
+  }).join("") : `<div class="empty">Pick services to offer first, then set prices here.</div>`;
+  const s = offered[0] || SVCS[0];
+  $("p-pushback").textContent =
+`Thanks for asking! My price for ${s.n.toLowerCase()} is ${money(priceOf(s))} ${s.u}. That covers doing the job right, cleaning up after, and showing up when I say I will.
+
+If the budget is tight, I could do a smaller version of the job for less. Just let me know what matters most to you.`;
+}
+$("p-list").addEventListener("change", ev=>{
+  const id = ev.target.dataset.price; if(!id) return;
+  S.prices[id] = +ev.target.value||0; save(); renderAll(); toast("Price saved");
+});
+
+/* ---------- spread ---------- */
+function offeredList(){ const o=S.offer.map(svcById).filter(Boolean); return o.length?o:[svcById("handy")]; }
+function renderPost(){
+  const o = offeredList(), name=S.name||"[your name]", area=S.area||"the area";
+  const lines = o.map(s=>`• ${s.n}, from ${money(priceOf(s))} ${s.u}`).join("\n");
+  const names = o.map(s=>s.n.toLowerCase());
+  const nameList = names.length>1 ? names.slice(0,-1).join(", ")+" and "+names[names.length-1] : names[0];
+  let t;
+  if (S.tone==="pro") t =
+`${name} – Local help around ${area}
+
+I offer:
+${lines}
+
+Clear price before any work starts. On time, careful, and I clean up after.
+Minimum charge ${money(S.min)}. Evenings and weekends available.
+
+Send me a message with what you need and I'll get back to you the same day.`;
+  else if (S.tone==="flyer") t =
+`NEED A HAND?
+
+${o.map(s=>s.n.toUpperCase()).join("  •  ")}
+
+${lines}
+
+Friendly, reliable, local. Your neighbor ${name}.
+Free quotes. Call or text: [your number]
+
+✂ - - - - - - - - - - - - - - - - - - - - - -
+Tear-off tabs: ${name} · ${o[0].n} · [your number]`;
+  else t =
+`Hi neighbors! 👋 I'm ${name}, I live right here in ${area}, and I'm taking on ${nameList} jobs.
+
+${lines}
+
+I'll always give you the price up front, show up when I say I will, and leave things tidy. Happy to do small jobs too.
+
+Send me a message if I can help. Thanks for supporting a neighbor!`;
+  $("post").textContent = t;
+}
+$("tone").addEventListener("click", ev=>{
+  const b = ev.target.closest("[data-tone]"); if(!b) return;
+  S.tone = b.dataset.tone; save();
+  [...$("tone").children].forEach(x=>x.setAttribute("aria-pressed", x===b));
+  renderPost();
+});
+$("posted").addEventListener("click", ()=>{ S.posted = true; save(); renderAll(); toast("You did it! Now watch for replies"); });
+
+/* ---------- messages ---------- */
+const MSGS = [
+  {g:"Getting the job", id:"first", t:"First reply", tip:"Reply within a few hours. Fast replies win most jobs.",
+    f:(c)=>`Hi ${c.who}, thanks for reaching out! I'd be glad to help with that.\n\nCould you tell me a little more about the job, and send a photo if you can? Then I'll give you a price.\n\nI'm available ${c.when}. What works for you?\n\n– ${c.name}`},
+  {g:"Getting the job", id:"quote", t:"Send a price", tip:"Put the price in writing so there are no surprises later.",
+    f:(c)=>`Hi ${c.who}, here's my price for ${c.svc}:\n\n${c.price} ${c.unit}${c.hr?`, about ${c.est}`:""}. That includes doing the job carefully and cleaning up after.\n\nIf that works, just let me know a day and time and I'll put you on my schedule.\n\n– ${c.name}`},
+  {g:"Getting the job", id:"cheaper", t:"“Can you do it cheaper?”", tip:"Stay friendly and firm. Offering a smaller job is better than cutting your price.",
+    f:(c)=>`I understand, ${c.who}. My price is ${c.price} ${c.unit}. That's what lets me do it right and show up when I promise.\n\nIf you'd like to spend less, I could do part of the job now and the rest later. Would that help?`},
+  {g:"Getting the job", id:"no", t:"Saying no politely", tip:"Not every job is right for you. Saying no keeps you safe and happy.",
+    f:(c)=>`Thanks for thinking of me, ${c.who}! This one isn't a good fit for me, so I'll pass. I hope you find the right person, and keep me in mind for ${c.svc} anytime.`},
+  {g:"Before the job", id:"confirm", t:"Confirm the booking", tip:"A confirmation makes you look organized and cuts down on no-shows.",
+    f:(c)=>`Great, you're all set, ${c.who}! I'll see you on [day] at [time] for ${c.svc}.\n\nThe price is ${c.price} ${c.unit}. You can pay by cash, Venmo or Zelle when I'm done.\n\nSee you then!\n– ${c.name}`},
+  {g:"Before the job", id:"remind", t:"Day-before reminder", tip:"Send it the evening before.",
+    f:(c)=>`Hi ${c.who}, just a reminder I'll be there tomorrow at [time] for ${c.svc}. Text me if anything changes. See you then!`},
+  {g:"Before the job", id:"late", t:"Running late", tip:"Text the moment you know. People forgive late, not silent.",
+    f:(c)=>`Hi ${c.who}, I'm running about [15] minutes behind. Sorry about that! I'm on my way and will be there by [time].`},
+  {g:"After the job", id:"done", t:"Job done, here's the total", tip:"Thank them first, then the total.",
+    f:(c)=>`Thanks so much for having me today, ${c.who}! The total is ${c.price}. You can pay by [cash / Venmo / Zelle].\n\nIt was a pleasure. I'm happy to come back anytime.\n– ${c.name}`},
+  {g:"After the job", id:"review", t:"Ask for a review", tip:"Ask within a day, while they're still happy.",
+    f:(c)=>`Hi ${c.who}, I hope everything's still looking good! If you were happy with the work, would you mind leaving me a quick recommendation on Nextdoor or Facebook? It really helps me get started. Thank you!`},
+  {g:"After the job", id:"refer", t:"Ask for a referral", tip:"Happy customers are your best ads.",
+    f:(c)=>`Thanks again, ${c.who}! If you know a neighbor who could use help with ${c.svc}, I'd be grateful if you passed my name along.`},
+  {g:"After the job", id:"pay", t:"Friendly payment reminder", tip:"Most late payments are just forgotten. Keep it light.",
+    f:(c)=>`Hi ${c.who}, just a friendly reminder about the ${c.price} for ${c.svc} on [date]. You can send it by [Venmo / Zelle] or I can stop by. Thanks so much!`},
+  {g:"Regulars", id:"regular", t:"Offer a regular spot", tip:"Regulars are steady income. Make it easy to say yes.",
+    f:(c)=>`Hi ${c.who}, I really enjoyed helping you. Would you like a regular spot? I could come every [week / two weeks] for ${c.svc} at ${c.price} ${c.unit}, and you'd never have to think about it.`},
+  {g:"Regulars", id:"raise", t:"Raising your price", tip:"Give a month's notice and thank them. Most people understand.",
+    f:(c)=>`Hi ${c.who}, thank you for being such a great customer! Starting [date], my price for ${c.svc} will be [new price]. I'll keep doing the same careful work. Thanks for understanding, and for your support.`}
+];
+let msgId = "first";
+function renderMsgList(){
+  let g="", h="";
+  MSGS.forEach(m=>{ if(m.g!==g){ h+=`<div class="mgroup">${m.g}</div>`; g=m.g; } h+=`<button class="mbtn" data-msg="${m.id}" aria-current="${m.id===msgId}">${m.t}</button>`; });
+  $("mlist").innerHTML = h;
+}
+$("mlist").addEventListener("click", ev=>{ const b=ev.target.closest("[data-msg]"); if(!b) return; msgId=b.dataset.msg; renderMsgList(); renderMsg(); });
+function renderSvcSelects(){
+  const o = offeredList();
+  ["m-svc","j-svc"].forEach(id=>{
+    const el=$(id), cur=el.value;
+    const list = id==="j-svc" ? [...o, ...SVCS.filter(s=>!o.includes(s))] : o;
+    el.innerHTML = list.map(s=>`<option value="${s.id}">${s.n}</option>`).join("");
+    if (cur && list.find(s=>s.id===cur)) el.value = cur;
+  });
+}
+$("m-svc").addEventListener("input", renderMsg); $("m-who").addEventListener("input", renderMsg);
+function renderMsg(){
+  const m = MSGS.find(x=>x.id===msgId), s = svcById($("m-svc").value) || offeredList()[0];
+  const p = priceOf(s);
+  const c = {who:$("m-who").value.trim()||"there", name:S.name||"[your name]", svc:s.n.toLowerCase(), price:money(p), unit:s.u, hr:s.hr,
+    est: s.hr ? `[2] hours, so about ${money(p*2)} total` : "", when:"most evenings and weekends"};
+  $("m-title").textContent = m.t; $("m-out").textContent = m.f(c); $("m-tip").textContent = m.tip;
+}
+
+/* ---------- progress ---------- */
+$("j-date").value = today();
+function renderProg(){
+  const ym = today().slice(0,7);
+  const month = S.jobs.filter(j=>j.date.slice(0,7)===ym).reduce((a,j)=>a+(+j.paid||0),0);
+  const all = S.jobs.reduce((a,j)=>a+(+j.paid||0),0);
+  const hrs = S.jobs.reduce((a,j)=>a+(+j.hours||0),0);
+  $("g-month").textContent = money(month); $("g-all").textContent = money(all);
+  $("g-jobs").textContent = S.jobs.length; $("g-hr").textContent = hrs ? money(all/hrs)+"/hr" : "–";
+  const pct = S.goal ? Math.min(1, month/S.goal) : 0, C = 2*Math.PI*62;
+  $("ring-arc").setAttribute("stroke-dasharray", `${(pct*C).toFixed(1)} ${C.toFixed(1)}`);
+  $("ring-pct").textContent = Math.round(pct*100)+"%";
+  const left = Math.max(0, S.goal-month);
+  let msg, sub;
+  if (month === 0){ msg="A fresh month. Let's go!"; sub=`One job gets this ring moving. Your goal is ${money(S.goal)}.`; }
+  else if (pct < .35){ msg="You've started. That's the hard part."; sub=`${money(month)} so far. ${money(left)} to go this month.`; }
+  else if (pct < .7){ msg="Look at you go!"; sub=`${money(month)} this month. You're well on your way, ${money(left)} left.`; }
+  else if (pct < 1){ msg="Almost there!"; sub=`Just ${money(left)} more to hit your goal this month.`; }
+  else { msg=`Goal reached, ${S.name||"friend"}! 🎉`; sub=`${money(month)} this month. Everything from here is extra. Be proud.`; }
+  $("g-msg").textContent = msg; $("g-sub").textContent = sub;
+  $("debt-wrap").hidden = !(S.debt>0);
+  if (S.debt>0){
+    const d = Math.min(1, all/S.debt);
+    $("g-debt").textContent = `${money(all)} of ${money(S.debt)}`;
+    $("g-debtbar").style.width = Math.max(2, d*100)+"%";
+    $("g-debtnote").textContent = d>=1 ? "You've earned enough to clear it. Incredible work." :
+      `${Math.round(d*100)}% of the way. Put it toward your bills in Steady and watch both go down.`;
+  }
+  const custs = {}; S.jobs.forEach(j=>{ if(j.who) custs[j.who.toLowerCase()]=(custs[j.who.toLowerCase()]||0)+1; });
+  const repeat = Object.values(custs).filter(n=>n>1).length, reviews = S.jobs.filter(j=>j.review).length;
+  $("g-extra").textContent = `${reviews} review${reviews==1?"":"s"} · ${repeat} repeat customer${repeat==1?"":"s"}`;
+  const sorted = [...S.jobs].sort((a,b)=>b.date.localeCompare(a.date));
+  $("j-table").innerHTML = sorted.length ? `<div class="tablebox"><table>
+    <thead><tr><th>Date</th><th>Customer</th><th>Service</th><th class="r">Hours</th><th class="r">Paid</th><th class="r">Per hour</th><th></th></tr></thead>
+    <tbody>${sorted.map(j=>{ const s=svcById(j.svc); return `<tr>
+      <td>${new Date(j.date+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"})}</td>
+      <td>${esc(j.who||"–")}${custs[(j.who||"").toLowerCase()]>1?' <span class="star" title="Repeat customer">★</span>':""}${j.ex?'<span class="ex">Example</span>':""}</td>
+      <td>${s?s.n:"–"}${j.review?' <span class="muted" style="font-size:.8rem">· reviewed</span>':""}</td>
+      <td class="r num">${j.hours||"–"}</td><td class="r num">${money(j.paid)}</td>
+      <td class="r num">${j.hours?money(j.paid/j.hours):"–"}</td>
+      <td class="r"><button class="btn small" data-del="${j.id}">Remove</button></td></tr>`;}).join("")}</tbody></table></div>`
+    : `<div class="empty">Your jobs will show up here. The first one is the biggest step.</div>`;
+  $("j-btns").innerHTML = S.jobs.some(j=>j.ex) ? `<button class="btn small" id="j-clear">Remove examples</button>` : "";
+}
+$("j-table").addEventListener("click", ev=>{ const b=ev.target.closest("[data-del]"); if(!b) return; S.jobs=S.jobs.filter(j=>j.id!=b.dataset.del); save(); renderAll(); });
+$("j-btns").addEventListener("click", ev=>{ if(ev.target.id==="j-clear"){ S.jobs=S.jobs.filter(j=>!j.ex); save(); renderAll(); }});
+$("j-add").addEventListener("click", ()=>{
+  const paid = +$("j-paid").value||0;
+  if (!paid){ toast("Enter what you were paid"); $("j-paid").focus(); return; }
+  const firstReal = !S.jobs.some(j=>!j.ex);
+  const job = {id:Date.now(), date:$("j-date").value||today(), who:$("j-who").value.trim(), svc:$("j-svc").value, hours:+$("j-hours").value||0, paid, review:$("j-review").checked};
+  S.jobs.push(job); save();
+  const all = S.jobs.reduce((a,j)=>a+(+j.paid||0),0);
+  const line = firstReal ? "Your first job! This is how it starts." : BOOSTS[Math.floor(Math.random()*BOOSTS.length)];
+  $("j-win").innerHTML = `<div class="win" id="winbox">
+    <svg class="bell" viewBox="0 0 72 72" aria-hidden="true"><rect x="33" y="3" width="6" height="8" rx="3" fill="var(--warn)"/><path d="M36 9c-12 0-19 9-19 21v12l-6 9h50l-6-9V30C55 18 48 9 36 9z" fill="var(--sun)" stroke="var(--warn)" stroke-width="2"/><circle cx="36" cy="58" r="6" fill="var(--warn)"/></svg>
+    <div class="gj">Good job, ${esc(S.name||"friend")}!</div>
+    <div class="num" style="font-size:1.2rem;font-weight:600">+${money(paid)}</div>
+    <p>${esc(line)}</p>
+    <p class="muted">${money(all)} earned in all${S.debt?`, ${Math.min(100,Math.round(all/S.debt*100))}% of your debt`:""}.</p></div>`;
+  requestAnimationFrame(()=>$("winbox").classList.add("go"));
+  bell(); confetti();
+  $("j-who").value=""; $("j-review").checked=false;
+  renderAll();
+});
+
+function bell(){
+  try{
+    const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    const ctx = new AC(), now = ctx.currentTime;
+    [[1046.5,0],[1318.5,.14],[1568,.28],[2093,.42]].forEach(([f,t])=>{
+      [[f,.3],[f*2.76,.07]].forEach(([fq,vol])=>{
+        const o=ctx.createOscillator(), g=ctx.createGain();
+        o.type="sine"; o.frequency.value=fq;
+        g.gain.setValueAtTime(.0001,now+t); g.gain.exponentialRampToValueAtTime(vol,now+t+.01); g.gain.exponentialRampToValueAtTime(.0001,now+t+1.8);
+        o.connect(g); g.connect(ctx.destination); o.start(now+t); o.stop(now+t+1.9);
+      });
+    });
+    setTimeout(()=>ctx.close&&ctx.close(),2600);
+  }catch(e){}
+}
+function confetti(){
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const cv=document.createElement("canvas"); cv.className="confetti"; document.body.appendChild(cv);
+  const dpr=window.devicePixelRatio||1; cv.width=innerWidth*dpr; cv.height=innerHeight*dpr;
+  const c=cv.getContext("2d"); c.scale(dpr,dpr);
+  const cs=getComputedStyle(document.documentElement);
+  const cols=["--sun","--good","--brand","--bad"].map(k=>cs.getPropertyValue(k).trim()||"#ffb24a");
+  const P=Array.from({length:140},()=>({x:innerWidth/2+(Math.random()-.5)*120,y:innerHeight*.35,vx:(Math.random()-.5)*12,vy:-Math.random()*12-4,r:Math.random()*Math.PI,vr:(Math.random()-.5)*.3,w:6+Math.random()*6,h:4+Math.random()*4,col:cols[Math.floor(Math.random()*cols.length)]}));
+  const start=performance.now();
+  (function frame(t){ const el=t-start; c.clearRect(0,0,innerWidth,innerHeight);
+    P.forEach(p=>{p.vy+=.35;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;c.save();c.globalAlpha=Math.max(0,1-el/2200);c.translate(p.x,p.y);c.rotate(p.r);c.fillStyle=p.col;c.fillRect(-p.w/2,-p.h/2,p.w,p.h);c.restore();});
+    el<2200?requestAnimationFrame(frame):cv.remove(); })(start);
+}
+
+/* ---------- tabs, copy, toast ---------- */
+const tabs=[...document.querySelectorAll(".tab")];
+function show(id){
+  tabs.forEach(t=>{ const on=t.id===id; t.setAttribute("aria-selected",on); $(t.getAttribute("aria-controls")).hidden=!on; });
+  try{ localStorage.setItem("handy.tab",id); }catch(e){}
+  window.scrollTo({top:0});
+}
+tabs.forEach(t=>t.addEventListener("click",()=>show(t.id)));
+document.addEventListener("click", ev=>{
+  const g=ev.target.closest("[data-go]"); if(g) show(g.dataset.go);
+  const c=ev.target.closest("[data-copy]"); if(c) copy($(c.dataset.copy));
+});
+function copy(el){
+  const fallback=()=>{ const r=document.createRange(); r.selectNodeContents(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected. Press copy on your device"); };
+  try{ navigator.clipboard.writeText(el.textContent).then(()=>toast("Copied"),fallback); }catch(e){ fallback(); }
+}
+let tt;
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("show"),1900); }
+
+function renderAll(){ renderStart(); renderSvcs(); renderPrices(); renderPost(); renderSvcSelects(); renderMsg(); renderProg(); }
+chips("c-tools",TOOLS); chips("c-skills",SKILLS);
+[...$("tone").children].forEach(x=>x.setAttribute("aria-pressed", x.dataset.tone===S.tone));
+renderMsgList(); renderAll();
+try{ const last=localStorage.getItem("handy.tab"); if(last && $(last)) show(last); }catch(e){}
+})();
+</script>
+</body></html>

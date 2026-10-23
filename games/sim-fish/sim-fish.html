@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0;font-size:14px}[hidden]{display:none!important}</style>
+<title>Sim Fish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Layout: full-bleed ocean canvas, thin HUD strip on top, glassy panels float over the water for menus.
+   Single deliberate deep-sea look in every theme. */
+:root{
+  --abyss:#04121f; --deep:#0b2c46; --lagoon:#2bb3c0; --coral:#ff7a59; --gold:#ffd166; --foam:#eafcff; --muted:#8fb7c8;
+  --panel:rgba(6,28,46,.78); --line:rgba(143,183,200,.22);
+  --display:'Lilita One','Arial Rounded MT Bold',system-ui,sans-serif;
+  --body:'Nunito',system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--abyss);color:var(--foam);font-family:var(--body);overflow:hidden;user-select:none;-webkit-user-select:none}
+#game{position:relative;width:100%;height:100%;overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+
+/* HUD */
+.hud{position:absolute;left:0;right:0;top:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding:12px 16px;pointer-events:none;font-variant-numeric:tabular-nums}
+.hud[hidden]{display:none!important}
+.hud .score{font-family:var(--display);font-size:clamp(26px,5vw,38px);line-height:1;letter-spacing:.5px;text-shadow:0 3px 0 rgba(0,0,0,.35)}
+.hud .label{font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.left{display:flex;align-items:center;gap:12px}
+.mult{font-family:var(--display);font-size:20px;color:var(--abyss);background:var(--gold);border-radius:999px;padding:2px 12px;transform-origin:center;transition:transform .12s}
+.mult.off{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.mid{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:180px;flex:1;max-width:340px}
+.zone{font-family:var(--display);font-size:16px;letter-spacing:.3px}
+.zone small{font-family:var(--body);font-weight:800;color:var(--muted);font-size:12px;margin-left:6px}
+.bar{width:100%;height:10px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--lagoon),var(--gold));border-radius:999px;transition:width .2s}
+.right{display:flex;align-items:center;gap:12px}
+.lives{display:flex;gap:4px;font-size:20px}
+.lives span{filter:drop-shadow(0 2px 0 rgba(0,0,0,.35))}
+.lives .gone{opacity:.2}
+.btn-icon{pointer-events:auto;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(4,18,31,.55);color:var(--foam);font:900 14px var(--body);cursor:pointer}
+.btn-icon:focus-visible,.btn:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.fx{position:absolute;left:16px;bottom:16px;display:flex;gap:8px;pointer-events:none;flex-wrap:wrap}
+.chip{font:900 12px var(--body);letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line);display:flex;gap:6px;align-items:center}
+.chip b{font-variant-numeric:tabular-nums;color:var(--gold)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+/* Screens */
+.screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-inline:16px;padding-block:24px;background:radial-gradient(ellipse at center,rgba(4,18,31,.25),rgba(4,18,31,.7));overflow-y:auto}
+.panel{width:100%;max-width:460px;background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:22px;padding:24px;display:flex;flex-direction:column;gap:16px;margin:auto}
+.logo{font-family:var(--display);font-size:clamp(52px,13vw,84px);line-height:.9;text-align:center;color:var(--gold);text-shadow:0 5px 0 #c26a00,0 10px 24px rgba(0,0,0,.45);letter-spacing:1px;transform:rotate(-3deg)}
+.logo span{color:var(--foam);text-shadow:0 5px 0 #1b6f7a,0 10px 24px rgba(0,0,0,.45)}
+.tag{text-align:center;color:var(--muted);font-weight:800;line-height:1.45;text-wrap:balance}
+h2{font-family:var(--display);font-weight:400;font-size:34px;margin:0;text-align:center;text-wrap:balance}
+h3{margin:0;font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.btn{font-family:var(--display);font-size:24px;letter-spacing:.5px;border:0;border-radius:16px;padding:14px 18px;background:var(--gold);color:#3b2400;cursor:pointer;box-shadow:0 5px 0 #c27c00;transition:transform .08s,box-shadow .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 #c27c00}
+.btn.alt{background:var(--lagoon);color:#032a30;box-shadow:0 5px 0 #157480;font-size:18px;padding:10px 16px}
+.btn:disabled{opacity:.5;cursor:default}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:13px;font-weight:800}
+.legend div{display:flex;align-items:center;gap:8px;min-width:0}
+.how{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:700;line-height:1.4}
+.how p{margin:0}
+.how kbd{font:900 12px var(--body);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+td{padding:6px 4px;border-top:1px solid var(--line)}
+td:first-child{width:28px;color:var(--muted);font-weight:900}
+td.s{text-align:right;font-family:var(--display);font-size:17px}
+td.l{text-align:right;color:var(--muted);font-weight:800;width:60px;font-size:12px}
+tr.me td{color:var(--gold)}
+.empty{color:var(--muted);font-size:14px;font-weight:700;text-align:center;padding:8px}
+.big{font-family:var(--display);font-size:56px;text-align:center;color:var(--gold);line-height:1;text-shadow:0 4px 0 #c26a00}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:rgba(0,0,0,.25);border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-family:var(--display);font-size:22px;font-weight:400}
+.stat span{font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.save{display:flex;gap:8px}
+.save input{flex:1;min-width:0;font:800 16px var(--body);padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--foam);text-transform:uppercase}
+.newbest{text-align:center;font-weight:900;color:var(--coral);letter-spacing:.12em;text-transform:uppercase;font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row .btn{flex:1}
+
+/* Level banner */
+.banner{position:absolute;left:0;right:0;top:38%;text-align:center;pointer-events:none;opacity:0}
+.banner.show{animation:ban 2.4s ease-out forwards}
+.banner .b1{font-family:var(--display);font-size:clamp(40px,9vw,72px);color:var(--gold);text-shadow:0 5px 0 #c26a00,0 10px 30px rgba(0,0,0,.5)}
+.banner .b2{font-weight:900;letter-spacing:.2em;text-transform:uppercase;color:var(--foam);font-size:14px}
+@keyframes ban{0%{opacity:0;transform:scale(.6)}12%{opacity:1;transform:scale(1.08)}20%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-20px)}}
+@media (prefers-reduced-motion:reduce){.banner.show{animation:none;opacity:1}.btn{transition:none}}
+@media (max-width:560px){.mid{order:3;max-width:none;flex-basis:100%}.hud{padding:10px 16px}}
+</style>
+
+</head>
+<body>
+<div id="game">
+  <canvas id="c" aria-label="Sim Fish game"></canvas>
+
+  <div class="hud" id="hud" hidden>
+    <div class="left">
+      <div><div class="label">Score</div><div class="score" id="score">0</div></div>
+      <div class="mult off" id="mult">×1</div>
+    </div>
+    <div class="mid">
+      <div class="zone" id="zone">Reef Shallows <small>10 m</small></div>
+      <div class="bar" aria-label="Growth to next zone"><i id="grow"></i></div>
+    </div>
+    <div class="right">
+      <div class="lives" id="lives"></div>
+      <button class="btn-icon" id="mute" title="Sound">♪</button>
+      <button class="btn-icon" id="pauseBtn" title="Pause (P)">II</button>
+    </div>
+  </div>
+  <div class="fx" id="fx"></div>
+
+  <div class="banner" id="banner"><div class="b1" id="b1">Level 2</div><div class="b2" id="b2">Kelp Forest</div></div>
+
+  <div class="screen" id="title">
+    <div class="panel">
+      <div class="logo">SIM <span>FISH</span></div>
+      <div class="tag">Eat smaller fish. Dodge bigger ones. Grow big enough to dive into the next zone.</div>
+      <button class="btn" id="play">Dive in</button>
+      <div class="how">
+        <p>Move with your mouse, finger, or <kbd>WASD</kbd> / arrows. <kbd>P</kbd> pauses.</p>
+        <p>Chain bites fast to build a combo multiplier up to ×10. Fish with <b style="color:var(--coral)">red eyes</b> can eat you. Watch for the <b style="color:var(--coral)">!</b> warning: sharks.</p>
+      </div>
+      <div class="legend">
+        <div><span class="dot" style="background:#6fd3ff"></span>Shield bubble</div>
+        <div><span class="dot" style="background:#7dff9b"></span>Turbo fins</div>
+        <div><span class="dot" style="background:#ff6bd6"></span>Frenzy ×2 points</div>
+        <div><span class="dot" style="background:#ff5a6a"></span>Extra life</div>
+      </div>
+      <h3>Top divers</h3>
+      <div id="boardTitle"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="pause" hidden>
+    <div class="panel">
+      <h2>Paused</h2>
+      <div class="row"><button class="btn" id="resume">Resume</button><button class="btn alt" id="quit">Quit</button></div>
+    </div>
+  </div>
+
+  <div class="screen" id="over" hidden>
+    <div class="panel">
+      <h2 id="overTitle">Gulp! You got eaten</h2>
+      <div class="big" id="finalScore">0</div>
+      <div class="newbest" id="newBest" hidden>New personal best</div>
+      <div class="stats">
+        <div class="stat"><b id="stZone">1</b><span>Zone</span></div>
+        <div class="stat"><b id="stEaten">0</b><span>Fish eaten</span></div>
+        <div class="stat"><b id="stCombo">0</b><span>Best combo</span></div>
+      </div>
+      <form class="save" id="saveForm">
+        <input id="name" maxlength="10" placeholder="Your name" autocomplete="off">
+        <button class="btn alt" id="saveBtn" type="submit">Save</button>
+      </form>
+      <h3>Leaderboard</h3>
+      <div id="boardOver"></div>
+      <div class="row"><button class="btn" id="again">Swim again</button><button class="btn alt" id="menu">Menu</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const cv=$('c'),ctx=cv.getContext('2d');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W=0,H=0,DPR=1;
+
+const ZONES=[['Reef Shallows',10],['Kelp Forest',40],['Open Blue',120],['Twilight Zone',400],['Midnight Zone',1200],['The Abyss',4000],['Hadal Trench',8000]];
+const zoneOf=l=>ZONES[Math.min(l-1,ZONES.length-1)];
+const SPECIES=[
+ {top:'#ff9a3c',body:'#ff7a1a',belly:'#ffe0b8',fin:'#ff5e1a',stripe:'#fff4e6',stripes:3,ratio:.8},
+ {top:'#2a6df4',body:'#3d8bff',belly:'#bfe0ff',fin:'#ffd23f',stripes:0,ratio:.85},
+ {top:'#b23cc7',body:'#e45be0',belly:'#ffd0fb',fin:'#8b2ab5',stripes:0,ratio:.7},
+ {top:'#2f9e6e',body:'#47c48a',belly:'#d7f7e4',fin:'#2a7f58',stripe:'#1d5e43',stripes:4,ratio:.65},
+ {top:'#8d9dab',body:'#c7d3dc',belly:'#f2f6f9',fin:'#7d8b96',stripes:0,ratio:.5},
+ {top:'#c93a3a',body:'#f05a5a',belly:'#ffd6cc',fin:'#b52a2a',stripes:0,ratio:.95},
+ {top:'#e8b520',body:'#ffd84a',belly:'#fff6c8',fin:'#e09a10',stripe:'#2b2b2b',stripes:2,ratio:1},
+ {top:'#1f8fa3',body:'#3cc4d6',belly:'#d9fbff',fin:'#ff7a59',stripes:0,ratio:.6},
+];
+const PLAYER_SP={top:'#ffa600',body:'#ffcf33',belly:'#fff3c4',fin:'#ff7b00',stripes:0,ratio:.78};
+const SHARK_SP={top:'#3e505d',body:'#61768a',belly:'#e3eaef',fin:'#33434f',stripes:0,ratio:.42,shark:true};
+const POWERS={shield:{c:'#6fd3ff',label:'Shield',dur:8},speed:{c:'#7dff9b',label:'Turbo',dur:7},frenzy:{c:'#ff6bd6',label:'Frenzy',dur:9},life:{c:'#ff5a6a',label:'Life',dur:0}};
+const START=14,GOAL=48;
+
+let state='title',t=0,last=performance.now();
+let P,fishes=[],parts=[],bubbles=[],texts=[],powers=[],warns=[];
+let score=0,lives=3,level=1,combo=0,comboT=0,bestCombo=0,eaten=0,shake=0,spawnT=0,powerT=0,sharkT=0,fx={shield:0,speed:0,frenzy:0};
+let weeds=[],far=[],saved=false;
+
+/* ---------- audio ---------- */
+let AC=null,muted=store.get('simfish.muted',false);
+function initAudio(){if(AC)return;try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+function tone(f,d,type='sine',v=.07,slide=0,delay=0){if(muted||!AC)return;try{const s=AC.currentTime+delay,o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,s);if(slide)o.frequency.exponentialRampToValueAtTime(f*slide,s+d);g.gain.setValueAtTime(v,s);g.gain.exponentialRampToValueAtTime(.0001,s+d);o.connect(g).connect(AC.destination);o.start(s);o.stop(s+d+.02)}catch(e){}}
+const sfx={
+  eat:c=>tone(320+Math.min(c,20)*40,.12,'triangle',.08,1.8),
+  hurt:()=>{tone(180,.35,'sawtooth',.06,.4);tone(90,.4,'square',.04,.5)},
+  power:()=>{[0,.07,.14].forEach((d,i)=>tone(520+i*180,.15,'sine',.07,1.2,d))},
+  level:()=>{[0,.1,.2,.3].forEach((d,i)=>tone([523,659,784,1046][i],.25,'triangle',.08,1,d))},
+  warn:()=>{tone(700,.12,'square',.04);tone(700,.12,'square',.04,1,.18)},
+  shield:()=>tone(900,.3,'sine',.07,.3)
+};
+
+/* ---------- setup ---------- */
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  W=cv.clientWidth;H=cv.clientHeight;
+  cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  weeds=[];const n=Math.max(6,Math.round(W/70));
+  for(let i=0;i<n;i++)weeds.push({x:(i+Math.random()*.8)*W/n,h:40+Math.random()*Math.min(160,H*.25),w:3+Math.random()*4,ph:Math.random()*6,c:Math.random()<.5?'#1f6b4a':'#2b8a5a'});
+  far=[];for(let i=0;i<5;i++)far.push({x:Math.random()*W,y:H*(.2+Math.random()*.55),s:.6+Math.random()*.8,v:8+Math.random()*12,n:5+(Math.random()*6|0)});
+}
+addEventListener('resize',resize);
+
+function rnd(a,b){return a+Math.random()*(b-a)}
+
+function spawnFish(anywhere){
+  const ps=P?P.size:START;
+  const r=Math.random();let size;
+  if(r<.6)size=ps*rnd(.3,.85);
+  else if(r<.68)size=ps*rnd(.95,1.05);
+  else size=ps*rnd(1.15,2.4+level*.1);
+  size=Math.max(5,Math.min(95,size));
+  if(Math.random()<.12)size=rnd(5,9);
+  const dir=Math.random()<.5?1:-1;
+  const sp=SPECIES[(Math.random()*SPECIES.length)|0];
+  const speed=rnd(45,110)*(1+(level-1)*.08)*(size>40?.8:1);
+  const x=anywhere?rnd(0,W):(dir>0?-size*2:W+size*2);
+  fishes.push({x,y:rnd(80,H-60),size,dir,sp,speed,phase:rnd(0,6),wf:rnd(.5,1.6),wp:rnd(0,6),wa:rnd(8,30),hunter:Math.random()<.35+level*.05});
+}
+function spawnShark(w){
+  const size=95+level*4;
+  fishes.push({x:w.dir>0?-size*2:W+size*2,y:w.y,size,dir:w.dir,sp:SHARK_SP,speed:250+level*18,phase:0,wf:1,wp:0,wa:10,hunter:true,shark:true});
+}
+
+function newGame(){
+  P={x:W/2,y:H/2,vx:0,vy:0,size:START,dir:1,phase:0,inv:1.5,trail:0};
+  fishes=[];parts=[];texts=[];powers=[];warns=[];
+  score=0;lives=3;level=1;combo=0;comboT=0;bestCombo=0;eaten=0;shake=0;spawnT=0;powerT=9;sharkT=28;
+  fx={shield:0,speed:0,frenzy:0};
+  for(let i=0;i<12;i++)spawnFish(true);
+  fishes=fishes.filter(f=>Math.hypot(f.x-P.x,f.y-P.y)>160);
+  target.x=P.x;target.y=P.y;
+  state='play';saved=false;
+  show('hud');hide('title');hide('over');hide('pause');
+  cv.style.cursor='none';
+  updateLives();updateZone();
+}
+
+/* ---------- input ---------- */
+const target={x:0,y:0,active:false},keys={};
+function ptr(e){const r=cv.getBoundingClientRect();target.x=e.clientX-r.left;target.y=e.clientY-r.top;target.active=true}
+cv.addEventListener('pointermove',ptr);cv.addEventListener('pointerdown',ptr);
+addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  const k=e.key.toLowerCase();keys[k]=true;
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();
+  if(k==='p'||k==='escape'){if(state==='play')pause();else if(state==='paused')resume()}
+  if((k==='enter'||k===' ')&&state==='title')start();
+});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;if(state==='play')pause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='play')pause()});
+
+/* ---------- effects ---------- */
+function burst(x,y,c,n,sp=160){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=rnd(30,sp);parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(.4,.9),max:.9,r:rnd(1.5,4),c})}}
+function popText(x,y,s,c,big){texts.push({x,y,s,c,life:1,big})}
+function bubble(x,y,r){bubbles.push({x,y,r:r||rnd(1.5,5),v:rnd(25,60),ph:rnd(0,6)})}
+
+/* ---------- game logic ---------- */
+function eat(f,i){
+  fishes.splice(i,1);eaten++;combo++;comboT=2.4;bestCombo=Math.max(bestCombo,combo);
+  const mult=Math.min(10,1+Math.floor(combo/3));
+  const pts=Math.round((5+f.size*2)*mult*(fx.frenzy>0?2:1)*(1+(level-1)*.25));
+  score+=pts;
+  P.size=Math.sqrt(P.size*P.size+f.size*f.size*.4);
+  burst(f.x,f.y,f.sp.body,8+(f.size/4|0));for(let k=0;k<3;k++)bubble(f.x,f.y);
+  popText(f.x,f.y-f.size,'+'+pts,mult>1||fx.frenzy>0?'#ffd166':'#eafcff',mult>=5);
+  sfx.eat(combo);
+  bumpMult();
+  if(P.size>=GOAL){levelUp();return true}
+  return false;
+}
+function levelUp(){
+  level++;const bonus=500*level;score+=bonus;
+  for(const f of fishes)burst(f.x,f.y,f.sp.body,4);
+  fishes=[];P.size=START;P.inv=2.5;spawnT=.6;
+  for(let i=0;i<8;i++)spawnFish(true);
+  fishes=fishes.filter(f=>Math.hypot(f.x-P.x,f.y-P.y)>180);
+  const z=zoneOf(level);
+  $('b1').textContent='Zone '+level;$('b2').textContent=z[0]+' · +'+bonus.toLocaleString()+' bonus';
+  const b=$('banner');b.classList.remove('show');void b.offsetWidth;b.classList.add('show');
+  sfx.level();updateZone();
+  for(let i=0;i<40;i++)bubble(rnd(0,W),H+rnd(0,80),rnd(2,7));
+}
+function hurt(f){
+  if(P.inv>0)return;
+  if(fx.shield>0){fx.shield=0;P.inv=1.2;burst(P.x,P.y,'#6fd3ff',24,240);sfx.shield();popText(P.x,P.y-30,'Blocked!','#6fd3ff');return}
+  lives--;P.inv=2.2;shake=reduced?0:16;combo=0;
+  burst(P.x,P.y,'#ff5a6a',26,260);sfx.hurt();
+  P.size=Math.max(START,P.size*.85);
+  updateLives();bumpMult();
+  if(lives<=0)gameOver();
+}
+function collect(p){
+  if(p.type==='life'){lives=Math.min(5,lives+1);updateLives()}
+  else fx[p.type]=POWERS[p.type].dur;
+  burst(p.x,p.y,POWERS[p.type].c,20,200);popText(p.x,p.y-20,POWERS[p.type].label+'!',POWERS[p.type].c,true);sfx.power();
+}
+
+function update(dt,playing){
+  t+=dt;
+  // ambient bubbles & far fish
+  if(Math.random()<dt*6)bubble(rnd(0,W),H+10);
+  for(const s of far){s.x+=s.v*dt;if(s.x>W+120)s.x=-160}
+  for(let i=bubbles.length-1;i>=0;i--){const b=bubbles[i];b.y-=b.v*dt;b.x+=Math.sin(t*2+b.ph)*12*dt;if(b.y<-10)bubbles.splice(i,1)}
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.92;p.vy*=.92;p.life-=dt;if(p.life<=0)parts.splice(i,1)}
+  for(let i=texts.length-1;i>=0;i--){const x=texts[i];x.y-=40*dt;x.life-=dt*.9;if(x.life<=0)texts.splice(i,1)}
+
+  // spawning
+  spawnT-=dt;
+  const cap=playing?18+level*2:14;
+  if(spawnT<=0&&fishes.length<cap){spawnFish(false);spawnT=Math.max(.3,1-level*.06)*rnd(.6,1.2)}
+
+  // fish movement
+  for(let i=fishes.length-1;i>=0;i--){
+    const f=fishes[i];
+    f.phase+=dt*(5+f.speed*.04);
+    f.x+=f.dir*f.speed*dt;
+    f.y+=Math.sin(t*f.wf+f.wp)*f.wa*dt;
+    if(playing&&f.hunter&&f.size>P.size*1.08){
+      const dx=(P.x-f.x)*f.dir,dy=P.y-f.y;
+      if(dx>0&&dx<280&&Math.abs(dy)<220)f.y+=Math.sign(dy)*Math.min(Math.abs(dy),f.speed*(.35+level*.03)*dt);
+    }
+    f.y=Math.max(50,Math.min(H-40,f.y));
+    if((f.dir>0&&f.x>W+f.size*3)||(f.dir<0&&f.x<-f.size*3))fishes.splice(i,1);
+  }
+  if(!playing)return;
+
+  // timers
+  for(const k in fx)fx[k]=Math.max(0,fx[k]-dt);
+  P.inv=Math.max(0,P.inv-dt);
+  if(comboT>0){comboT-=dt;if(comboT<=0){combo=0;bumpMult()}}
+  shake=Math.max(0,shake-dt*40);
+
+  // player motion
+  const maxSp=(230+P.size*1.5)*(fx.speed>0?1.65:1);
+  const kx=((keys.arrowright||keys.d)?1:0)-((keys.arrowleft||keys.a)?1:0);
+  const ky=((keys.arrowdown||keys.s)?1:0)-((keys.arrowup||keys.w)?1:0);
+  let tvx=0,tvy=0;
+  if(kx||ky){const m=Math.hypot(kx,ky);tvx=kx/m*maxSp;tvy=ky/m*maxSp;target.active=false}
+  else if(target.active){const dx=target.x-P.x,dy=target.y-P.y,d=Math.hypot(dx,dy);if(d>2){const w=Math.min(maxSp,d*4.5);tvx=dx/d*w;tvy=dy/d*w}}
+  const k=Math.min(1,dt*7);P.vx+=(tvx-P.vx)*k;P.vy+=(tvy-P.vy)*k;
+  P.x=Math.max(P.size,Math.min(W-P.size,P.x+P.vx*dt));
+  P.y=Math.max(P.size+40,Math.min(H-P.size-10,P.y+P.vy*dt));
+  if(Math.abs(P.vx)>10)P.dir=P.vx>0?1:-1;
+  const spd=Math.hypot(P.vx,P.vy);
+  P.phase+=dt*(5+spd*.05);
+  P.trail-=dt;if(P.trail<=0&&spd>60){bubble(P.x-P.dir*P.size*1.4,P.y,rnd(1.5,3));P.trail=fx.speed>0?.03:.12}
+
+  // collisions
+  for(let i=fishes.length-1;i>=0;i--){
+    const f=fishes[i];if(!f)continue;
+    const d=Math.hypot(f.x-P.x,f.y-P.y);
+    if(d<(P.size+f.size)*.6){
+      if(!f.shark&&f.size<P.size*.94){if(eat(f,i))break}
+      else if(f.shark||f.size>P.size*1.06){hurt(f);if(state!=='play')return}
+    }
+  }
+
+  // power-ups
+  powerT-=dt;
+  if(powerT<=0){
+    const pool=['shield','speed','frenzy','frenzy','shield','speed'];if(lives<3)pool.push('life','life');
+    powers.push({type:pool[(Math.random()*pool.length)|0],x:rnd(60,W-60),y:-20,ph:rnd(0,6),age:0});
+    powerT=rnd(9,15);
+  }
+  for(let i=powers.length-1;i>=0;i--){
+    const p=powers[i];p.age+=dt;p.y+=34*dt;p.x+=Math.sin(t*1.5+p.ph)*30*dt;
+    if(Math.hypot(p.x-P.x,p.y-P.y)<P.size+16){collect(p);powers.splice(i,1);continue}
+    if(p.y>H+30)powers.splice(i,1);
+  }
+
+  // sharks
+  if(level>=2||t>45){sharkT-=dt}
+  if(sharkT<=0){
+    const y=Math.max(90,Math.min(H-80,P.y+rnd(-60,60)));
+    warns.push({y,dir:Math.random()<.5?1:-1,t:1.6});sfx.warn();
+    sharkT=Math.max(8,rnd(16,26)-level*1.5);
+  }
+  for(let i=warns.length-1;i>=0;i--){const w=warns[i];w.t-=dt;if(w.t<=0){spawnShark(w);warns.splice(i,1)}}
+}
+
+/* ---------- drawing ---------- */
+function drawFish(x,y,s,dir,sp,phase,danger,glow){
+  ctx.save();ctx.translate(x,y);ctx.scale(dir,1);
+  const L=s*1.25,h=s*sp.ratio*.8,wag=Math.sin(phase)*.35;
+  if(glow){ctx.shadowColor=glow;ctx.shadowBlur=s*.9}
+  // tail
+  ctx.save();ctx.translate(-L*.82,0);ctx.rotate(wag);
+  ctx.fillStyle=sp.fin;ctx.beginPath();ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.35,-h*.6,-s*.75,-h*(sp.shark?1.4:1.05));
+  ctx.quadraticCurveTo(-s*.5,0,-s*.75,h*(sp.shark?.9:1.05));
+  ctx.quadraticCurveTo(-s*.35,h*.6,0,0);ctx.fill();ctx.restore();
+  // dorsal
+  ctx.fillStyle=sp.fin;ctx.beginPath();
+  if(sp.shark){ctx.moveTo(-L*.15,-h*.85);ctx.quadraticCurveTo(-L*.05,-h*2.2,-L*.45,-h*2.1);ctx.quadraticCurveTo(-L*.35,-h*1.2,-L*.55,-h*.7)}
+  else{ctx.moveTo(-L*.45,-h*.75);ctx.quadraticCurveTo(-L*.1,-h*1.75,L*.3,-h*.8)}
+  ctx.closePath();ctx.fill();
+  ctx.shadowBlur=0;
+  // body
+  const g=ctx.createLinearGradient(0,-h,0,h);g.addColorStop(0,sp.top);g.addColorStop(.55,sp.body);g.addColorStop(1,sp.belly);
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(L,sp.shark?h*.15:0);
+  ctx.bezierCurveTo(L*.8,-h*1.15,-L*.5,-h*1.15,-L*.9,0);
+  ctx.bezierCurveTo(-L*.5,h*1.15,L*.8,h*1.15,L,sp.shark?h*.15:0);ctx.closePath();ctx.fill();
+  if(sp.stripes){ctx.save();ctx.clip();ctx.fillStyle=sp.stripe;for(let i=0;i<sp.stripes;i++){const sx=L*.45-i*L*.55;ctx.beginPath();ctx.ellipse(sx,0,s*.11,h*1.3,0,0,Math.PI*2);ctx.fill()}ctx.restore()}
+  // shine
+  ctx.fillStyle='rgba(255,255,255,.18)';ctx.beginPath();ctx.ellipse(L*.1,-h*.45,L*.45,h*.22,-.1,0,Math.PI*2);ctx.fill();
+  // pectoral fin
+  ctx.save();ctx.translate(L*.1,h*.25);ctx.rotate(.5+Math.sin(phase*1.3)*.3);
+  ctx.fillStyle=sp.fin;ctx.globalAlpha=.85;ctx.beginPath();ctx.ellipse(-s*.18,0,s*.24,s*.09,0,0,Math.PI*2);ctx.fill();ctx.restore();
+  // gill
+  ctx.strokeStyle='rgba(0,0,0,.18)';ctx.lineWidth=Math.max(1,s*.05);ctx.beginPath();ctx.arc(L*.35,0,h*.6,Math.PI*.65,Math.PI*1.35);ctx.stroke();
+  // mouth for shark
+  if(sp.shark){ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(L*.92,h*.35);ctx.quadraticCurveTo(L*.7,h*.6,L*.5,h*.4);ctx.stroke()}
+  // eye
+  const er=Math.max(1.8,s*(sp.shark?.07:.15)),ex=L*.6,ey=-h*.25;
+  if(danger){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(ex,ey,er*1.9,0,Math.PI*2);ctx.fill()}
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ex,ey,er,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=danger?'#e0102a':'#0a1a24';ctx.beginPath();ctx.arc(ex+er*.25,ey,er*.6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ex+er*.4,ey-er*.3,er*.22,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+function draw(){
+  const hueTop=195-(level-1)*9,hueBot=215-(level-1)*4,lt=Math.max(8,30-(level-1)*4);
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,`hsl(${hueTop},70%,${lt}%)`);bg.addColorStop(1,`hsl(${hueBot},75%,${Math.max(3,7-(level-1))}%)`);
+  ctx.save();
+  if(shake>0)ctx.translate(rnd(-shake,shake)*.5,rnd(-shake,shake)*.5);
+  ctx.fillStyle=bg;ctx.fillRect(-20,-20,W+40,H+40);
+
+  // light rays
+  ctx.globalCompositeOperation='lighter';
+  const rayA=Math.max(.02,.07-(level-1)*.01);
+  for(let i=0;i<6;i++){
+    const x0=W*(i+.5)/6+Math.sin(t*.25+i*1.7)*70,w=50+i%3*30;
+    const rg=ctx.createLinearGradient(0,0,0,H*.85);rg.addColorStop(0,`rgba(180,240,255,${rayA})`);rg.addColorStop(1,'rgba(180,240,255,0)');
+    ctx.fillStyle=rg;ctx.beginPath();ctx.moveTo(x0,0);ctx.lineTo(x0+w,0);ctx.lineTo(x0+w+180,H*.85);ctx.lineTo(x0+60,H*.85);ctx.fill();
+  }
+  ctx.globalCompositeOperation='source-over';
+
+  // far school silhouettes
+  ctx.fillStyle='rgba(2,14,26,.35)';
+  for(const s of far)for(let j=0;j<s.n;j++){
+    const fx_=s.x+(j%3)*18*s.s+Math.sin(t+j)*3,fy=s.y+(j/3|0)*12*s.s+(j%2)*6;
+    ctx.beginPath();ctx.ellipse(fx_,fy,7*s.s,3*s.s,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.moveTo(fx_-6*s.s,fy);ctx.lineTo(fx_-11*s.s,fy-3*s.s);ctx.lineTo(fx_-11*s.s,fy+3*s.s);ctx.fill();
+  }
+
+  // seafloor
+  const fl=H-26;
+  for(const w of weeds){
+    ctx.strokeStyle=w.c;ctx.lineWidth=w.w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(w.x,fl+8);
+    const seg=6;for(let i=1;i<=seg;i++){const yy=fl+8-w.h*i/seg;const xx=w.x+Math.sin(t*1.2+w.ph+i*.6)*i*2.6;ctx.lineTo(xx,yy)}ctx.stroke();
+  }
+  const sg=ctx.createLinearGradient(0,fl-10,0,H);sg.addColorStop(0,`hsl(${38-level*3},35%,${Math.max(10,34-level*4)}%)`);sg.addColorStop(1,`hsl(${30},30%,${Math.max(5,16-level*2)}%)`);
+  ctx.fillStyle=sg;ctx.beginPath();ctx.moveTo(0,H);
+  for(let x=0;x<=W+20;x+=20)ctx.lineTo(x,fl+Math.sin(x*.02)*6+Math.sin(x*.007)*8);
+  ctx.lineTo(W,H);ctx.fill();
+
+  // power-ups
+  for(const p of powers){
+    const c=POWERS[p.type].c,r=13+Math.sin(t*4+p.ph)*1.5;
+    ctx.save();ctx.shadowColor=c;ctx.shadowBlur=18;
+    const pg=ctx.createRadialGradient(p.x-4,p.y-4,2,p.x,p.y,r);pg.addColorStop(0,'#fff');pg.addColorStop(.35,c);pg.addColorStop(1,c+'55');
+    ctx.fillStyle=pg;ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();ctx.restore();
+    ctx.fillStyle='#04121f';ctx.font='900 12px Nunito, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText({shield:'S',speed:'T',frenzy:'×2',life:'♥'}[p.type],p.x,p.y+1);
+  }
+
+  // fishes
+  const playing=state==='play'||state==='paused';
+  for(const f of fishes){
+    const danger=playing&&(f.shark||f.size>P.size*1.06);
+    drawFish(f.x,f.y,f.size,f.dir,f.sp,f.phase,danger,null);
+  }
+
+  // warnings
+  for(const w of warns){
+    const x=w.dir>0?28:W-28,a=.5+.5*Math.sin(t*18);
+    ctx.fillStyle=`rgba(255,90,90,${.25+a*.6})`;ctx.beginPath();ctx.moveTo(x,w.y-20);ctx.lineTo(x+20*(w.dir>0?-1:1)*-1,w.y);ctx.lineTo(x,w.y+20);ctx.fill();
+    ctx.font='28px "Lilita One", sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=`rgba(255,220,220,${.5+a*.5})`;
+    ctx.fillText('!',x+(w.dir>0?-1:1)*-30,w.y+2);
+  }
+
+  // player
+  if(playing){
+    const blink=P.inv>0&&Math.floor(t*14)%2===0;
+    if(fx.speed>0){ctx.fillStyle='rgba(125,255,155,.15)';ctx.beginPath();ctx.ellipse(P.x-P.dir*P.size*1.6,P.y,P.size*1.4,P.size*.5,0,0,Math.PI*2);ctx.fill()}
+    if(!blink)drawFish(P.x,P.y,P.size,P.dir,PLAYER_SP,P.phase,false,fx.frenzy>0?'#ff6bd6':'rgba(255,210,80,.55)');
+    if(fx.shield>0){
+      const r=P.size*1.7+Math.sin(t*6)*2,warn=fx.shield<2&&Math.floor(t*8)%2===0;
+      ctx.strokeStyle=warn?'rgba(111,211,255,.25)':'rgba(111,211,255,.8)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(P.x,P.y,r,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='rgba(111,211,255,.1)';ctx.fill();
+    }
+  }
+
+  // particles
+  for(const p of parts){ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()}
+  ctx.globalAlpha=1;
+  // bubbles
+  ctx.strokeStyle='rgba(220,250,255,.45)';ctx.lineWidth=1;
+  for(const b of bubbles){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.stroke();ctx.fillStyle='rgba(255,255,255,.5)';ctx.beginPath();ctx.arc(b.x-b.r*.35,b.y-b.r*.35,b.r*.25,0,Math.PI*2);ctx.fill()}
+  // texts
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const x of texts){
+    ctx.globalAlpha=Math.min(1,x.life*1.5);ctx.font=`${x.big?26:18}px "Lilita One", sans-serif`;
+    ctx.fillStyle='rgba(0,0,0,.4)';ctx.fillText(x.s,x.x,x.y+2);ctx.fillStyle=x.c;ctx.fillText(x.s,x.x,x.y);
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+
+  // vignette
+  const vg=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.max(W,H)*.75);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,6,14,.55)');ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+  if(state==='play'&&lives===1&&!reduced){ctx.fillStyle=`rgba(255,40,60,${.05+.04*Math.sin(t*4)})`;ctx.fillRect(0,0,W,H)}
+}
+
+/* ---------- HUD ---------- */
+let shownScore=0;
+function hud(){
+  shownScore+=(score-shownScore)*.25;if(Math.abs(score-shownScore)<1)shownScore=score;
+  $('score').textContent=Math.round(shownScore).toLocaleString();
+  $('grow').style.width=Math.min(100,(P.size-START)/(GOAL-START)*100)+'%';
+  let h='';
+  for(const k of ['shield','speed','frenzy'])if(fx[k]>0)h+=`<div class="chip"><span class="dot" style="background:${POWERS[k].c}"></span>${POWERS[k].label}<b>${Math.ceil(fx[k])}s</b></div>`;
+  if(combo>=2)h+=`<div class="chip">Combo<b>${combo}</b></div>`;
+  const fxEl=$('fx');if(fxEl.innerHTML!==h)fxEl.innerHTML=h;
+}
+function bumpMult(){
+  const m=Math.min(10,1+Math.floor(combo/3)),el=$('mult');
+  el.textContent='×'+m;el.classList.toggle('off',m===1);
+  if(m>1&&!reduced){el.style.transform='scale(1.25)';setTimeout(()=>el.style.transform='',120)}
+}
+function updateLives(){let h='';for(let i=0;i<Math.max(3,lives);i++)h+=`<span class="${i<lives?'':'gone'}">🐟</span>`;$('lives').innerHTML=h}
+function updateZone(){const z=zoneOf(level);$('zone').innerHTML=`${z[0]} <small>${(z[1]+(level>ZONES.length?(level-ZONES.length)*1000:0)).toLocaleString()} m</small>`}
+function show(id){$(id).hidden=false}function hide(id){$(id).hidden=true}
+
+/* ---------- leaderboard ---------- */
+const getBoard=()=>{const b=store.get('simfish.scores',[]);return Array.isArray(b)?b:[]};
+function renderBoard(el,n,hi){
+  const b=getBoard().slice(0,n);
+  if(!b.length){el.innerHTML='<div class="empty">No scores yet. Be the first fish on the board.</div>';return}
+  el.innerHTML='<table>'+b.map((r,i)=>`<tr class="${i===hi?'me':''}"><td>${i+1}</td><td>${esc(r.name)}</td><td class="l">Zone ${r.level}</td><td class="s">${r.score.toLocaleString()}</td></tr>`).join('')+'</table>';
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function gameOver(){
+  state='over';cv.style.cursor='default';
+  burst(P.x,P.y,'#ffcf33',40,300);
+  const best=getBoard()[0];
+  $('finalScore').textContent=score.toLocaleString();
+  $('newBest').hidden=!(score>0&&(!best||score>best.score));
+  $('stZone').textContent=level;$('stEaten').textContent=eaten;$('stCombo').textContent=bestCombo;
+  $('overTitle').textContent=['Gulp! You got eaten','Chomped!','Lunch for a bigger fish'][(Math.random()*3)|0];
+  $('name').value=store.get('simfish.name','');
+  $('saveBtn').disabled=false;$('name').disabled=false;
+  renderBoard($('boardOver'),10,-1);
+  setTimeout(()=>{if(state==='over'){hide('hud');$('fx').innerHTML='';show('over');try{$('name').focus()}catch(e){}}},700);
+}
+$('saveForm').addEventListener('submit',e=>{
+  e.preventDefault();if(saved)return;
+  const name=($('name').value.trim()||'FISH').toUpperCase().slice(0,10);
+  store.set('simfish.name',name);
+  const b=getBoard();const entry={name,score,level,ts:Date.now()};b.push(entry);
+  b.sort((a,c)=>c.score-a.score);const top=b.slice(0,10);store.set('simfish.scores',top);
+  saved=true;$('saveBtn').disabled=true;$('name').disabled=true;
+  renderBoard($('boardOver'),10,top.indexOf(entry));
+});
+
+/* ---------- flow ---------- */
+function start(){initAudio();if(AC&&AC.state==='suspended')AC.resume();newGame()}
+function pause(){state='paused';show('pause');cv.style.cursor='default'}
+function resume(){state='play';hide('pause');cv.style.cursor='none';last=performance.now()}
+function toMenu(){state='title';hide('over');hide('pause');hide('hud');$('fx').innerHTML='';show('title');cv.style.cursor='default';renderBoard($('boardTitle'),5,-1);level=1}
+$('play').onclick=start;$('again').onclick=start;$('menu').onclick=toMenu;
+$('resume').onclick=resume;$('quit').onclick=()=>{hide('pause');lives=0;gameOver()};
+$('pauseBtn').onclick=()=>state==='play'?pause():resume();
+function setMute(){$('mute').textContent=muted?'✕':'♪';$('mute').title=muted?'Sound off':'Sound on'}
+$('mute').onclick=()=>{muted=!muted;store.set('simfish.muted',muted);setMute();initAudio()};
+setMute();
+
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  requestAnimationFrame(loop);
+  try{
+    if(state==='play'){update(dt,true);hud()}
+    else if(state!=='paused')update(dt,false);
+    draw();
+  }catch(e){console.error('Sim Fish frame error',e)}
+}
+
+resize();
+level=1;for(let i=0;i<14;i++)spawnFish(true);
+renderBoard($('boardTitle'),5,-1);
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>

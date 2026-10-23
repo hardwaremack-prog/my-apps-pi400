@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deep Drill</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#141925; --panel2:#1b2130; --accent:#ffb020;
+    --accent2:#38d996; --danger:#ff5c5c; --text:#e8ecf3; --muted:#8a93a6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family: 'Segoe UI', Arial, sans-serif; display:flex; justify-content:center;
+    padding:20px; min-height:100vh;
+  }
+  .app{ display:flex; gap:16px; max-width:900px; width:100%; }
+  .game-col{ display:flex; flex-direction:column; align-items:center; }
+  canvas{
+    background:#05070c; border:3px solid #2a3244; border-radius:8px;
+    image-rendering:pixelated;
+  }
+  h1{ font-size:20px; margin:0 0 10px 0; letter-spacing:1px; color:var(--accent);}
+  .sub{color:var(--muted); font-size:12px; margin-bottom:10px;}
+  .panel{
+    background:var(--panel); border:1px solid #2a3244; border-radius:10px;
+    padding:14px; width:260px; flex-shrink:0;
+  }
+  .stat-row{display:flex; justify-content:space-between; font-size:13px; margin:4px 0;}
+  .stat-row b{color:var(--text);}
+  .bar-wrap{ background:#0d1119; border-radius:5px; height:10px; overflow:hidden; margin:3px 0 8px 0;}
+  .bar{ height:100%; border-radius:5px; transition:width .15s; }
+  .cash{ color:var(--accent); font-weight:bold; font-size:16px; margin:8px 0;}
+  .depth{ color:var(--accent2); font-weight:bold;}
+  h3{font-size:13px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin:14px 0 6px;}
+  .upg{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--panel2); border-radius:6px; padding:6px 8px; margin:5px 0;
+    font-size:12px;
+  }
+  .upg button{
+    background:var(--accent); border:none; color:#111; font-weight:bold;
+    padding:4px 8px; border-radius:5px; cursor:pointer; font-size:11px;
+  }
+  .upg button:disabled{ background:#3a3f4b; color:#777; cursor:not-allowed; }
+  .log{
+    background:var(--panel2); border-radius:6px; padding:6px 8px; font-size:11px;
+    color:var(--muted); height:70px; overflow-y:auto; margin-top:10px;
+  }
+  .log div{margin:2px 0;}
+  .controls{ font-size:11px; color:var(--muted); margin-top:10px; text-align:center; line-height:1.5;}
+  .toast{
+    position:absolute; top:20px; left:50%; transform:translateX(-50%);
+    background:#1b2130; border:1px solid var(--accent); padding:8px 16px;
+    border-radius:8px; font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+  .mute-btn{
+    position:absolute; top:0; right:0; background:var(--panel2);
+    border:1px solid #2a3244; color:var(--text); border-radius:6px;
+    padding:5px 9px; font-size:14px; cursor:pointer;
+  }
+  .mute-btn:hover{ border-color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="game-col" style="position:relative;">
+    <button class="mute-btn" id="muteBtn" title="Toggle sound">🔊</button>
+    <h1>⛏️ DEEP DRILL</h1>
+    <div class="sub">Dig down, haul ore, upgrade your rig.</div>
+    <canvas id="c" width="390" height="600"></canvas>
+    <div class="controls">Arrows / WASD to move & dig &nbsp;|&nbsp; Return to the surface to sell cargo &amp; refuel</div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="panel">
+    <div class="cash">$<span id="cash">0</span></div>
+    <div class="stat-row"><span>Depth</span><b class="depth"><span id="depth">0</span>m <span id="best" style="color:var(--muted);font-weight:normal;"></span></b></div>
+
+    <div class="stat-row"><span>Fuel</span><span id="fuelTxt"></span></div>
+    <div class="bar-wrap"><div class="bar" id="fuelBar" style="background:var(--accent2); width:100%;"></div></div>
+
+    <div class="stat-row"><span>Hull</span><span id="hullTxt"></span></div>
+    <div class="bar-wrap"><div class="bar" id="hullBar" style="background:var(--danger); width:100%;"></div></div>
+
+    <div class="stat-row"><span>Cargo</span><span id="cargoTxt"></span></div>
+    <div class="bar-wrap"><div class="bar" id="cargoBar" style="background:#7aa2ff; width:0%;"></div></div>
+
+    <h3>Upgrades</h3>
+    <div id="upgrades"></div>
+
+    <h3>Log</h3>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+// ---------- Audio ----------
+let audioCtx = null;
+let muted = false;
+function ensureAudio(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if(audioCtx.state==='suspended') audioCtx.resume();
+}
+
+function playTone({freq=440, dur=0.12, type='sine', vol=0.18, slideTo=null, delay=0}={}){
+  if(muted) return;
+  ensureAudio();
+  const t0 = audioCtx.currentTime + delay;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if(slideTo!==null) osc.frequency.exponentialRampToValueAtTime(Math.max(1,slideTo), t0+dur);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(vol, t0+0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(t0);
+  osc.stop(t0+dur+0.02);
+}
+
+function playNoise({dur=0.15, vol=0.15, delay=0, filterFreq=1200}={}){
+  if(muted) return;
+  ensureAudio();
+  const t0 = audioCtx.currentTime + delay;
+  const bufferSize = audioCtx.sampleRate * dur;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufferSize);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = filterFreq;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+  src.connect(filter).connect(gain).connect(audioCtx.destination);
+  src.start(t0);
+}
+
+const sfx = {
+  step: ()=> playTone({freq:180, dur:0.05, type:'square', vol:0.05}),
+  digHit: ()=> playNoise({dur:0.08, vol:0.12, filterFreq:2200}),
+  breakDirt: ()=> { playNoise({dur:0.12, vol:0.15, filterFreq:1500}); playTone({freq:220, dur:0.08, type:'triangle', vol:0.08}); },
+  ore: (value)=> {
+    const base = 500 + Math.min(600, value*1.2);
+    playTone({freq:base, dur:0.09, type:'sine', vol:0.16, slideTo:base*1.6});
+    playTone({freq:base*1.5, dur:0.12, type:'sine', vol:0.1, delay:0.05, slideTo:base*2});
+  },
+  lava: ()=> { playNoise({dur:0.3, vol:0.2, filterFreq:700}); playTone({freq:120, dur:0.35, type:'sawtooth', vol:0.15, slideTo:40}); },
+  sell: (amount)=> {
+    for(let i=0;i<3;i++) playTone({freq:700+i*140, dur:0.09, type:'square', vol:0.1, delay:i*0.06});
+  },
+  upgrade: ()=> {
+    playTone({freq:440, dur:0.1, type:'triangle', vol:0.15, delay:0});
+    playTone({freq:660, dur:0.1, type:'triangle', vol:0.15, delay:0.08});
+    playTone({freq:880, dur:0.16, type:'triangle', vol:0.15, delay:0.16});
+  },
+  cargoFull: ()=> playTone({freq:300, dur:0.15, type:'square', vol:0.1, slideTo:180}),
+  gameOver: ()=> {
+    playTone({freq:300, dur:0.25, type:'sawtooth', vol:0.18, slideTo:100});
+    playTone({freq:220, dur:0.35, type:'sawtooth', vol:0.15, delay:0.2, slideTo:60});
+  },
+};
+
+document.getElementById('muteBtn').addEventListener('click', ()=>{
+  muted = !muted;
+  document.getElementById('muteBtn').textContent = muted ? '🔇' : '🔊';
+  if(!muted) ensureAudio();
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const BLOCK = 30;
+const COLS = 13;
+const VISIBLE_ROWS = 20;
+
+// ---------- Ore & block definitions ----------
+const ORES = [
+  {id:'copper',   color:'#c47b4a', value:6,   hardness:3,  minDepth:3,  rarity:40},
+  {id:'iron',     color:'#b7bcc4', value:14,  hardness:5,  minDepth:8,  rarity:32},
+  {id:'silver',   color:'#d6d9e0', value:28,  hardness:8,  minDepth:16, rarity:22},
+  {id:'gold',     color:'#f2c14e', value:55,  hardness:12, minDepth:26, rarity:16},
+  {id:'ruby',     color:'#e0435a', value:95,  hardness:16, minDepth:38, rarity:11},
+  {id:'emerald',  color:'#3fcf8e', value:150, hardness:20, minDepth:52, rarity:8},
+  {id:'diamond',  color:'#9fe8ff', value:240, hardness:26, minDepth:70, rarity:5},
+  {id:'mythril',  color:'#b98cff', value:420, hardness:34, minDepth:95, rarity:3},
+  {id:'voidstone',color:'#5b4fff', value:750, hardness:44, minDepth:130,rarity:2},
+];
+const ORE_MAP = Object.fromEntries(ORES.map(o=>[o.id,o]));
+
+function fillerHardness(depth){ return 1 + Math.floor(depth/14); }
+
+function genBlock(row, col){
+  // border walls
+  if(col===0 || col===COLS-1) return {type:'bedrock', hp:9999, maxHp:9999};
+  if(row<=0) return {type:'empty', hp:0, maxHp:0};
+
+  const depth = row;
+  // hazard chance
+  if(depth>=35 && Math.random()<0.025){
+    return {type:'lava', hp:6, maxHp:6};
+  }
+  const fillerType = depth<7 ? 'dirt' : 'stone';
+  const candidates = [{id:'__filler', weight:110}];
+  ORES.forEach(o=>{ if(depth>=o.minDepth) candidates.push({id:o.id, weight:o.rarity}); });
+  const total = candidates.reduce((s,c)=>s+c.weight,0);
+  let r = Math.random()*total;
+  let picked = '__filler';
+  for(const c of candidates){ if(r<c.weight){ picked=c.id; break;} r-=c.weight; }
+
+  if(picked==='__filler'){
+    const hp = fillerHardness(depth);
+    return {type:fillerType, hp, maxHp:hp};
+  } else {
+    const ore = ORE_MAP[picked];
+    const hp = ore.hardness + Math.floor(depth/40);
+    return {type:picked, hp, maxHp:hp};
+  }
+}
+
+const FILLER_COLORS = {dirt:'#5b4630', stone:'#6b6f76', bedrock:'#2a2e36', lava:'#ff5227', empty:null};
+
+// ---------- Game state ----------
+const grid = new Map();
+function key(r,c){ return r+','+c; }
+function getBlock(r,c){
+  const k = key(r,c);
+  if(!grid.has(k)) grid.set(k, genBlock(r,c));
+  return grid.get(k);
+}
+function setBlock(r,c,b){ grid.set(key(r,c), b); }
+
+const player = {
+  row:0, col: Math.floor(COLS/2),
+  cash: 0,
+  fuel: 100, maxFuel: 100,
+  hull: 100, maxHull: 100,
+  cargo: {}, cargoUsed:0, maxCargo: 20,
+  drillPower: 3,
+  moveCooldown: 180,
+  bestDepth: 0,
+};
+let lastMove = 0;
+
+const upgradeDefs = [
+  {id:'drill', name:'Drill Power', base:22, mult:1.55, get:(p)=>p.drillPower, apply:(p)=>p.drillPower+=1, desc:'+1 power'},
+  {id:'fuel', name:'Fuel Tank', base:16, mult:1.45, get:(p)=>p.maxFuel, apply:(p)=>{p.maxFuel+=25; p.fuel=p.maxFuel;}, desc:'+25 max fuel'},
+  {id:'hull', name:'Hull Plating', base:16, mult:1.45, get:(p)=>p.maxHull, apply:(p)=>{p.maxHull+=25; p.hull=p.maxHull;}, desc:'+25 max hull'},
+  {id:'cargo', name:'Cargo Bay', base:26, mult:1.5, get:(p)=>p.maxCargo, apply:(p)=>p.maxCargo+=6, desc:'+6 capacity'},
+  {id:'speed', name:'Drill Motor', base:30, mult:1.55, get:(p)=>p.moveCooldown, apply:(p)=>p.moveCooldown=Math.max(60,p.moveCooldown-15), desc:'-15ms delay'},
+];
+const upgradeLevels = {drill:0, fuel:0, hull:0, cargo:0, speed:0};
+
+function upgradeCost(def){
+  return Math.round(def.base * Math.pow(def.mult, upgradeLevels[def.id]));
+}
+
+function buyUpgrade(id){
+  const def = upgradeDefs.find(d=>d.id===id);
+  const cost = upgradeCost(def);
+  if(player.cash>=cost){
+    player.cash -= cost;
+    def.apply(player);
+    upgradeLevels[id]++;
+    sfx.upgrade();
+    log(`Upgraded ${def.name}! (${def.desc})`);
+    renderUpgrades();
+    updateHUD();
+  }
+}
+
+function log(msg){
+  const el = document.getElementById('log');
+  const d = document.createElement('div');
+  d.textContent = msg;
+  el.prepend(d);
+  while(el.children.length>25) el.removeChild(el.lastChild);
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._h);
+  toast._h = setTimeout(()=>t.classList.remove('show'), 1400);
+}
+
+function cargoTotal(){
+  return Object.values(player.cargo).reduce((a,b)=>a+b,0);
+}
+
+function sellCargo(){
+  let total = 0;
+  for(const [type,count] of Object.entries(player.cargo)){
+    const ore = ORE_MAP[type];
+    if(ore) total += ore.value*count;
+  }
+  if(total>0){
+    player.cash += total;
+    sfx.sell(total);
+    toast(`Sold cargo for $${total}`);
+    log(`Sold cargo for $${total}`);
+  }
+  player.cargo = {};
+}
+
+function attemptMove(dr,dc){
+  const now = performance.now();
+  if(now - lastMove < player.moveCooldown) return;
+
+  const nr = player.row+dr, nc = player.col+dc;
+  if(nr<0) return; // can't go above surface
+  if(nc<1 || nc>COLS-2) return;
+
+  const block = getBlock(nr,nc);
+
+  if(block.type==='bedrock') return;
+
+  if(block.type==='empty'){
+    lastMove = now;
+    player.row = nr; player.col = nc;
+    consumeFuel(1);
+    sfx.step();
+    if(nr>player.bestDepth) player.bestDepth = nr;
+    if(nr===0 && (Object.keys(player.cargo).length>0 || player.fuel<player.maxFuel || player.hull<player.maxHull)){
+      sellCargo();
+      player.fuel = player.maxFuel;
+      player.hull = player.maxHull;
+    }
+    updateHUD();
+    return;
+  }
+
+  // solid block: dig
+  lastMove = now;
+  consumeFuel(2);
+  block.hp -= player.drillPower;
+  sfx.digHit();
+  if(block.hp<=0){
+    if(block.type==='lava'){
+      player.hull -= 22;
+      sfx.lava();
+      toast('Hit lava! Hull damaged.');
+      log('Drilled into lava — hull damaged.');
+    } else {
+      const ore = ORE_MAP[block.type];
+      if(ore){
+        if(cargoTotal() < player.maxCargo){
+          player.cargo[block.type] = (player.cargo[block.type]||0)+1;
+          sfx.ore(ore.value);
+          log(`Found ${block.type}! (worth $${ore.value})`);
+        } else {
+          sfx.cargoFull();
+          toast('Cargo full!');
+        }
+      } else {
+        sfx.breakDirt();
+      }
+    }
+    setBlock(nr,nc,{type:'empty', hp:0, maxHp:0});
+  }
+  checkGameOver();
+  updateHUD();
+}
+
+function consumeFuel(amount){
+  if(player.fuel>0){
+    player.fuel = Math.max(0, player.fuel-amount);
+  } else {
+    player.hull -= amount; // stranded: costs hull instead
+  }
+  checkGameOver();
+}
+
+function checkGameOver(){
+  if(player.hull<=0){
+    sfx.gameOver();
+    toast('Rig destroyed! Emergency evac...');
+    log('Hull failed. Evacuated to surface, lost half your cash & cargo.');
+    player.cash = Math.floor(player.cash/2);
+    player.cargo = {};
+    player.row = 0; player.col = Math.floor(COLS/2);
+    player.fuel = player.maxFuel;
+    player.hull = player.maxHull;
+    updateHUD();
+  }
+}
+
+// ---------- Rendering ----------
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const camRow = Math.max(0, player.row - Math.floor(VISIBLE_ROWS/2));
+
+  for(let r=0; r<VISIBLE_ROWS+1; r++){
+    const gr = camRow + r;
+    for(let c=0; c<COLS; c++){
+      const b = getBlock(gr,c);
+      const x = c*BLOCK, y = r*BLOCK;
+      if(gr===0){
+        ctx.fillStyle = '#0e1420';
+        ctx.fillRect(x,y,BLOCK,BLOCK);
+        ctx.fillStyle = '#1c2536';
+        ctx.fillRect(x,y+BLOCK-4,BLOCK,4);
+        continue;
+      }
+      if(b.type==='empty'){
+        ctx.fillStyle = '#05070c';
+        ctx.fillRect(x,y,BLOCK,BLOCK);
+        continue;
+      }
+      if(b.type==='bedrock'){
+        ctx.fillStyle = FILLER_COLORS.bedrock;
+        ctx.fillRect(x,y,BLOCK,BLOCK);
+        continue;
+      }
+      let color;
+      if(b.type==='dirt'||b.type==='stone'||b.type==='lava'){
+        color = FILLER_COLORS[b.type];
+      } else {
+        color = ORE_MAP[b.type].color;
+      }
+      ctx.fillStyle = color;
+      ctx.fillRect(x+1,y+1,BLOCK-2,BLOCK-2);
+
+      // damage cracks based on hp remaining
+      if(b.maxHp>0 && b.hp < b.maxHp){
+        const dmgRatio = 1 - b.hp/b.maxHp;
+        ctx.strokeStyle = 'rgba(0,0,0,'+(0.25+0.4*dmgRatio)+')';
+        ctx.lineWidth=1;
+        ctx.beginPath();
+        ctx.moveTo(x+4,y+4); ctx.lineTo(x+BLOCK-6, y+BLOCK-6);
+        ctx.moveTo(x+BLOCK-6,y+4); ctx.lineTo(x+4, y+BLOCK-6);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // player
+  const pr = player.row - camRow, pc = player.col;
+  const px = pc*BLOCK, py = pr*BLOCK;
+  ctx.fillStyle = '#ffd76a';
+  ctx.beginPath();
+  ctx.moveTo(px+4, py+4);
+  ctx.lineTo(px+BLOCK-4, py+4);
+  ctx.lineTo(px+BLOCK-4, py+BLOCK-10);
+  ctx.lineTo(px+BLOCK/2, py+BLOCK-2);
+  ctx.lineTo(px+4, py+BLOCK-10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='#8a5a00';
+  ctx.lineWidth=2;
+  ctx.stroke();
+
+  requestAnimationFrame(draw);
+}
+
+// ---------- HUD ----------
+function updateHUD(){
+  document.getElementById('cash').textContent = player.cash;
+  document.getElementById('depth').textContent = player.row;
+  document.getElementById('best').textContent = player.bestDepth>0 ? `(best ${player.bestDepth}m)` : '';
+
+  document.getElementById('fuelTxt').textContent = Math.round(player.fuel)+' / '+player.maxFuel;
+  document.getElementById('fuelBar').style.width = (100*player.fuel/player.maxFuel)+'%';
+
+  document.getElementById('hullTxt').textContent = Math.round(player.hull)+' / '+player.maxHull;
+  document.getElementById('hullBar').style.width = (100*player.hull/player.maxHull)+'%';
+
+  const ct = cargoTotal();
+  document.getElementById('cargoTxt').textContent = ct+' / '+player.maxCargo;
+  document.getElementById('cargoBar').style.width = (100*ct/player.maxCargo)+'%';
+
+  renderUpgrades();
+}
+
+function renderUpgrades(){
+  const el = document.getElementById('upgrades');
+  el.innerHTML = '';
+  upgradeDefs.forEach(def=>{
+    const cost = upgradeCost(def);
+    const row = document.createElement('div');
+    row.className = 'upg';
+    row.innerHTML = `<span>${def.name}<br><span style="color:var(--muted)">Lv ${upgradeLevels[def.id]} · $${cost}</span></span>`;
+    const btn = document.createElement('button');
+    btn.textContent = 'Buy';
+    btn.disabled = player.cash < cost;
+    btn.onclick = ()=>buyUpgrade(def.id);
+    row.appendChild(btn);
+    el.appendChild(row);
+  });
+}
+
+// ---------- Input ----------
+window.addEventListener('keydown', (e)=>{
+  ensureAudio();
+  switch(e.key){
+    case 'ArrowUp': case 'w': case 'W': attemptMove(-1,0); e.preventDefault(); break;
+    case 'ArrowDown': case 's': case 'S': attemptMove(1,0); e.preventDefault(); break;
+    case 'ArrowLeft': case 'a': case 'A': attemptMove(0,-1); e.preventDefault(); break;
+    case 'ArrowRight': case 'd': case 'D': attemptMove(0,1); e.preventDefault(); break;
+  }
+});
+
+log('Welcome! Drill down, mine ore, and return to the surface to cash in.');
+updateHUD();
+draw();
+</script>
+</body>
+</html>

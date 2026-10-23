@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ham Radio Museum</title>
+<meta name="description" content="Rigs, bands, antennas, amplifiers, shack computers, WebSDRs and an offline toolkit for amateur radio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a radio shack bench. Sticky band-switch nav, a live slide-rule dial hero, then exhibit halls as sections of cards and tables. */
+:root{
+  --bg:#edefea; --surface:#f8f9f5; --sunk:#e3e6e0; --ink:#1a1f22; --muted:#596366; --line:#cdd2cb;
+  --accent:#a95c06; --accent-soft:#f3e2c8; --signal:#0b746e; --signal-soft:#d3ebe7;
+  --tech:#2f6fb0; --gen:#7a4fb0; --extra:#b23a48; --good:#2d7a3a; --warn:#a3640a;
+  /* hardware colors: rigs look the same in both themes */
+  --rig-body:#24292c; --rig-face:#2f3538; --rig-gray:#8d9294; --rig-knob:#121516; --rig-glow:#ffb547; --rig-vfd:#5ef0c8; --rig-wf1:#0d2a5c; --rig-wf2:#2fd0ff; --rig-wf3:#ffe066; --rig-chrome:#c9cdcf;
+  --f-display:"Big Shoulders Display","Arial Narrow","Roboto Condensed",Impact,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"DejaVu Sans Mono",Menlo,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111518; --surface:#192024; --sunk:#0d1113; --ink:#e5e8e3; --muted:#97a2a4; --line:#2a3439;
+  --accent:#f2a93b; --accent-soft:#3a2a12; --signal:#46c4b6; --signal-soft:#123532;
+  --tech:#6aa8e8; --gen:#b18ee6; --extra:#ec7482; --good:#6cc47a; --warn:#e8b04a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111518; --surface:#192024; --sunk:#0d1113; --ink:#e5e8e3; --muted:#97a2a4; --line:#2a3439;
+  --accent:#f2a93b; --accent-soft:#3a2a12; --signal:#46c4b6; --signal-soft:#123532;
+  --tech:#6aa8e8; --gen:#b18ee6; --extra:#ec7482; --good:#6cc47a; --warn:#e8b04a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);margin:0}
+a{color:var(--signal)}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;letter-spacing:.01em;line-height:1.05;margin:0}
+h2{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;text-transform:uppercase}
+h3{font-size:1.35rem;font-weight:800}
+p{margin:0}
+.mono{font-family:var(--f-mono)}
+.eyebrow{font:500 .72rem/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted);max-width:68ch}
+/* nav */
+nav.bandsw{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+nav.bandsw .wrap{display:flex;gap:4px;overflow-x:auto;padding-block:8px;scrollbar-width:thin}
+nav.bandsw a{flex:none;font:500 .78rem/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:var(--muted);padding:8px 11px;border:1px solid var(--line);border-radius:3px;background:var(--surface)}
+nav.bandsw a:hover{color:var(--ink);border-color:var(--accent)}
+nav.bandsw a .pos{color:var(--accent);margin-right:6px}
+/* hero */
+header.hero{padding-block:44px 28px}
+.hero-top{display:flex;flex-wrap:wrap;gap:20px 40px;align-items:end;justify-content:space-between}
+.hero h1{font-size:clamp(3.2rem,10vw,7rem);font-weight:800;text-transform:uppercase;line-height:.88}
+.hero h1 span{color:var(--accent)}
+.hero .lede{margin-top:14px}
+.clock{font-family:var(--f-mono);display:grid;grid-template-columns:auto auto;gap:2px 14px;font-size:.85rem;color:var(--muted)}
+.clock b{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums;font-size:1.05rem}
+.dialbox{margin-top:26px;background:var(--rig-body);border-radius:10px;padding:16px;box-shadow:inset 0 0 0 1px #000,0 10px 30px -18px #000}
+.vfd{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;font-family:var(--f-mono);color:var(--rig-vfd);text-shadow:0 0 8px rgba(94,240,200,.45);padding:6px 10px 12px}
+.vfd .f{font-size:clamp(1.6rem,5vw,2.4rem);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.vfd .b{color:var(--rig-glow);text-shadow:0 0 8px rgba(255,181,71,.5);font-size:1rem}
+.vfd .n{color:var(--rig-chrome);text-shadow:none;font-size:.85rem;flex-basis:100%}
+.dialscroll{overflow-x:auto}
+#dial{display:block;width:100%;min-width:640px;height:auto;cursor:crosshair;touch-action:pan-y}
+.dialhint{font:.75rem var(--f-mono);color:var(--rig-gray);padding:8px 10px 0}
+.spots{display:flex;flex-wrap:wrap;gap:6px;padding:10px 10px 2px}
+.spots button{font:500 .72rem/1 var(--f-mono);background:var(--rig-face);color:var(--rig-chrome);border:1px solid #444b4f;border-radius:3px;padding:6px 8px;cursor:pointer}
+.spots button:hover{color:var(--rig-glow);border-color:var(--rig-glow)}
+/* sections */
+section{padding-block:56px;border-top:1px solid var(--line)}
+.sec-head{display:grid;gap:10px;margin-bottom:24px}
+.sec-head .eyebrow{display:flex;gap:10px;align-items:center}
+/* filters */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:20px}
+.chip{font:500 .8rem/1 var(--f-body);padding:8px 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.search{flex:1 1 220px;min-width:0;max-width:340px;font:inherit;padding:8px 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.count{font:.8rem var(--f-mono);color:var(--muted)}
+/* rig cards */
+.rigs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.rig{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.rig .plate{background:var(--sunk);border-bottom:1px solid var(--line);padding:14px;display:flex;justify-content:center}
+.rig .plate svg{width:100%;max-width:280px;height:auto;display:block}
+.rig .body{padding:14px 16px 16px;display:grid;gap:10px}
+.rig .top{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.rig .mk{font:.75rem var(--f-mono);color:var(--muted);letter-spacing:.04em}
+.rig .price{font:500 .85rem var(--f-mono);color:var(--accent);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.rig .price small{display:block;color:var(--muted);font-size:.68rem}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{font:500 .68rem/1 var(--f-mono);letter-spacing:.05em;text-transform:uppercase;padding:4px 6px;border-radius:3px;background:var(--sunk);color:var(--muted)}
+.tag.cat{background:var(--accent-soft);color:var(--accent)}
+.rig .note{font-size:.9rem;color:var(--muted)}
+.rig h4{font:600 .72rem/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;margin:0 0 5px}
+.rig h4.iss{color:var(--extra)} .rig h4.up{color:var(--good)}
+.rig ul{margin:0;padding-left:18px;font-size:.88rem}
+.rig li+li{margin-top:3px}
+/* tables */
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 .7rem/1.2 var(--f-mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);background:var(--sunk);position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+td.num,th.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.open td:first-child{box-shadow:inset 3px 0 0 var(--good)}
+.lic{display:inline-flex;gap:3px}
+.lic i{font:600 .66rem/1 var(--f-mono);font-style:normal;padding:4px 5px;border-radius:2px;color:var(--surface)}
+.lic .t{background:var(--tech)} .lic .g{background:var(--gen)} .lic .e{background:var(--extra)}
+.lic .p{background:transparent;color:var(--muted);border:1px dashed var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted);margin:12px 0 0}
+.opennow{display:inline-block;font:600 .66rem/1 var(--f-mono);color:var(--good);border:1px solid var(--good);padding:3px 5px;border-radius:2px;margin-left:6px;text-transform:uppercase}
+/* spectrum bar */
+.spec{margin:0 0 22px;display:grid;gap:6px}
+.spec svg{width:100%;height:auto;display:block}
+/* generic grids */
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:8px;align-content:start;min-width:0}
+.card p{font-size:.9rem;color:var(--muted)}
+.card .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:.84rem}
+.card .kv dt{font:.7rem/1.6 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.card .kv dd{margin:0}
+.proscons{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.84rem}
+.proscons b{font:600 .68rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:2px}
+.proscons .pro b{color:var(--good)} .proscons .con b{color:var(--extra)}
+.split{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:24px;align-items:start}
+@media (max-width:820px){.split{grid-template-columns:1fr}}
+.sub{margin:34px 0 14px;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.sub h3{font-size:1.7rem;text-transform:uppercase}
+.sub p{color:var(--muted);font-size:.9rem}
+/* calculators */
+.calc{background:var(--rig-body);color:var(--rig-chrome);border-radius:var(--r);padding:18px;display:grid;gap:12px;align-content:start}
+.calc h3{color:#fff;text-transform:uppercase}
+.calc label{font:500 .7rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--rig-gray);display:grid;gap:4px}
+.calc input,.calc select,.calc textarea{font:500 1rem var(--f-mono);background:#111416;color:var(--rig-vfd);border:1px solid #454c50;border-radius:3px;padding:8px 10px;width:100%;min-width:0}
+.calc .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.calc .out{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-family:var(--f-mono);font-size:.9rem;border-top:1px dashed #454c50;padding-top:10px}
+.calc .out span{color:var(--rig-gray)} .calc .out b{color:var(--rig-glow);font-weight:500;font-variant-numeric:tabular-nums}
+.calc button{font:600 .8rem var(--f-mono);letter-spacing:.06em;text-transform:uppercase;background:var(--rig-glow);color:#1a1205;border:0;border-radius:3px;padding:10px 14px;cursor:pointer;justify-self:start}
+.calc button.ghost{background:transparent;color:var(--rig-chrome);border:1px solid #454c50}
+.calc .note{font-size:.78rem;color:var(--rig-gray)}
+.callout{border-left:3px solid var(--warn);background:var(--surface);padding:12px 16px;border-radius:0 var(--r) var(--r) 0;font-size:.9rem;max-width:80ch}
+.callout b{color:var(--warn)}
+/* morse / ref */
+.morse{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+.morse button{display:grid;gap:2px;justify-items:center;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:8px 4px;cursor:pointer;color:var(--ink)}
+.morse button b{font:800 1.3rem/1 var(--f-display)}
+.morse button span{font:500 .9rem/1 var(--f-mono);color:var(--accent);letter-spacing:.08em}
+.morse button small{font-size:.68rem;color:var(--muted)}
+.morse button:hover{border-color:var(--accent)}
+.links{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.link{display:grid;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;text-decoration:none;color:var(--ink)}
+.link:hover{border-color:var(--signal)}
+.link b{font-weight:600}
+.link .u{font:.74rem var(--f-mono);color:var(--signal);overflow-wrap:anywhere}
+.link p{font-size:.86rem;color:var(--muted)}
+.steps{counter-reset:s;display:grid;gap:10px;margin:0;padding:0;list-style:none;max-width:78ch}
+.steps li{counter-increment:s;display:grid;grid-template-columns:2.2rem 1fr;gap:10px;font-size:.92rem}
+.steps li::before{content:counter(s);font:800 1.4rem/1 var(--f-display);color:var(--accent)}
+.vgrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.vcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);display:grid;grid-template-rows:auto 1fr;overflow:hidden;min-width:0}
+.vcard.top{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.vhead{display:flex;justify-content:space-between;gap:12px;align-items:start;padding:14px 16px;background:var(--sunk);border-bottom:1px solid var(--line)}
+.vhead .tier{font:600 .68rem/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.vhead h3{margin-top:6px}
+.vprice{font:500 1.3rem/1 var(--f-mono);color:var(--ink);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.vprice small{display:block;font-size:.68rem;color:var(--muted);margin-top:4px}
+.vbody{padding:14px 16px 16px;display:grid;gap:10px;align-content:start}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px}
+.stat b{display:block;font:500 1rem var(--f-mono);font-variant-numeric:tabular-nums}
+.stat span{font:.64rem var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.meter{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font:.7rem var(--f-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.meter .bar{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden;border:1px solid var(--line)}
+.meter .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--signal),var(--accent))}
+.meter b{color:var(--ink);font-weight:500}
+.vbody p{font-size:.9rem}
+.vbody .catch{color:var(--muted);font-size:.86rem}
+.vbody .catch b{color:var(--extra);font:600 .68rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;margin-right:4px}
+.vbody .alt{font-size:.84rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.kit table td.num{text-align:right}
+.kit tfoot td{font-weight:600;border-top:1px solid var(--line)}
+@media (max-width:520px){.vgrid{grid-template-columns:1fr}}
+footer{border-top:1px solid var(--line);padding-block:30px 50px;color:var(--muted);font-size:.84rem}
+footer p+p{margin-top:6px}
+@media (max-width:520px){.wrap{padding-inline:16px}.proscons{grid-template-columns:1fr}.rigs{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+</head><body>
+<nav class="bandsw" aria-label="Sections">
+  <div class="wrap">
+    <a href="#museum"><span class="pos">1</span>Rig museum</a>
+    <a href="#value"><span class="pos">2</span>Best value</a>
+    <a href="#bands"><span class="pos">3</span>Bands</a>
+    <a href="#antennas"><span class="pos">4</span>Antennas</a>
+    <a href="#amps"><span class="pos">5</span>Amplifiers</a>
+    <a href="#shack"><span class="pos">6</span>Shack tech</a>
+    <a href="#websdr"><span class="pos">7</span>WebSDR</a>
+    <a href="#toolkit"><span class="pos">8</span>Offline toolkit</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-top">
+      <div>
+        <div class="eyebrow">Amateur radio · 1935 to today</div>
+        <h1>Ham Radio<br><span>Museum</span></h1>
+        <p class="lede">Rigs from the boatanchor era to direct-sampling SDRs, with what breaks, what they cost and how people upgrade them. Plus band plans, antennas, amplifiers, the computers that pair with them, receivers you can tune from a browser, and a toolkit that works with no internet.</p>
+      </div>
+      <div class="clock" aria-live="off">
+        <span>UTC</span><b id="utc">--:--:--</b>
+        <span>Local</span><b id="loc">--:--:--</b>
+        <span>Date (UTC)</span><b id="utcd">----</b>
+      </div>
+    </div>
+    <div class="dialbox">
+      <div class="vfd" aria-live="polite">
+        <span class="f" id="vfdF">14.074.00</span><span class="b" id="vfdB">20 m · MHz</span>
+        <span class="n" id="vfdN">FT8 watering hole. The busiest 3 kHz on the planet.</span>
+      </div>
+      <div class="dialscroll"><svg id="dial" viewBox="0 0 1000 120" role="img" aria-label="HF slide-rule dial from 1.8 to 54 MHz. Click or drag to tune."></svg></div>
+      <div class="spots" id="spots"></div>
+      <div class="dialhint">Click or drag the dial. HF scale is logarithmic, like the band spread on a classic receiver.</div>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- MUSEUM -->
+<section id="museum"><div class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">Hall 1 · Rig museum</div>
+    <h2>Fifty rigs worth knowing</h2>
+    <p class="lede">Each card lists the faults owners actually report, the upgrades people do, and a ballpark price. Prices are rough 2026 USD (used unless marked new); check recent sold listings before you buy.</p>
+  </div>
+  <div class="filters" id="rigFilters"></div>
+  <div class="rigs" id="rigs"></div>
+</div></section>
+
+<!-- VALUE -->
+<section id="value"><div class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">Hall 2 · Best value</div>
+    <h2>Best value you can buy today</h2>
+    <p class="lede">New-in-box radios still in production, ranked by what each dollar gets you at its price point. Street prices as of October 2026; dealers run sales and Yaesu/Icom rebates often, so check two or three before buying.</p>
+  </div>
+  <div class="filters" id="valFilters"></div>
+  <div class="vgrid" id="valCards"></div>
+
+  <div class="sub"><h3>Complete starter stations</h3><p>Everything you need to get on the air, totaled.</p></div>
+  <div class="grid" id="kits"></div>
+
+  <div class="sub"><h3>Where used beats new</h3><p>The best dollar value is often a one-owner used rig.</p></div>
+  <div class="tablebox"><table>
+    <thead><tr><th>Used rig</th><th class="num">Used price</th><th>Instead of</th><th>Why</th></tr></thead>
+    <tbody id="usedRows"></tbody>
+  </table></div>
+  <div class="callout" style="margin-top:18px"><b>Buying used.</b> Ask for a video of it receiving and transmitting into a dummy load with a power meter. Check the serial number against the museum card's known issues (backup battery, finals, display) and price in the fix.</div>
+</div></section>
+
+<!-- BANDS -->
+<section id="bands"><div class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">Hall 3 · Bands</div>
+    <h2>The amateur bands</h2>
+    <p class="lede">US allocations under FCC Part 97 with who can transmit where. A green edge marks bands that are usually open at your local hour right now (a rule of thumb, not a forecast). Dipole length is a starting point for a half-wave wire cut at band center.</p>
+  </div>
+  <div class="spec"><svg id="specbar" viewBox="0 0 1000 70" role="img" aria-label="HF bands on a logarithmic spectrum from 1.8 to 54 MHz"></svg></div>
+  <div class="tablebox"><table>
+    <thead><tr><th>Band</th><th class="num">Range (MHz)</th><th>License</th><th>Character</th><th>Typical use</th><th class="num">½λ dipole</th></tr></thead>
+    <tbody id="bandRows"></tbody>
+  </table></div>
+  <div class="legend">
+    <span class="lic"><i class="t">T</i></span> Technician
+    <span class="lic"><i class="g">G</i></span> General
+    <span class="lic"><i class="e">E</i></span> Extra
+    <span class="lic"><i class="p">T·p</i></span> Technician partial (CW or limited segment)
+  </div>
+  <div class="callout" style="margin-top:18px"><b>Check before you key up.</b> Sub-band edges for each license class, 60 m channel rules and power limits change from time to time. Confirm against the current ARRL band chart or Part 97 before transmitting.</div>
+</div></section>
+
+<!-- ANTENNAS -->
+<section id="antennas"><div class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">Hall 4 · Antennas</div>
+    <h2>Antenna selection</h2>
+    <p class="lede">The antenna matters more than the radio. A $600 rig on a good dipole beats a $4,000 rig on a compromise. Filter by the space you have.</p>
+  </div>
+  <div class="filters" id="antFilters"></div>
+  <div class="grid" id="ants"></div>
+
+  <div class="sub"><h3>Cut it to length</h3><p>Formulas use the classic 468/234 constants, then trim with an analyzer.</p></div>
+  <div class="split">
+    <div class="calc">
+      <h3>Wire calculator</h3>
+      <div class="row">
+        <label for="lenF">Frequency (MHz)<input id="lenF" type="number" step="0.001" value="14.150"></label>
+        <label for="lenBand">Or pick a band<select id="lenBand"></select></label>
+      </div>
+      <div class="out" id="lenOut"></div>
+      <p class="note">Cut 3 to 5 percent long, then trim. Insulation, height and nearby objects all shift resonance lower.</p>
+    </div>
+    <div>
+      <h3 style="margin-bottom:10px">Coax loss per 100 ft</h3>
+      <div class="tablebox"><table>
+        <thead><tr><th>Cable</th><th class="num">10 MHz</th><th class="num">50 MHz</th><th class="num">150 MHz</th><th class="num">450 MHz</th><th>Notes</th></tr></thead>
+        <tbody id="coaxRows"></tbody>
+      </table></div>
+      <p class="lede" style="font-size:.82rem;margin-top:8px">Approximate matched-line loss in dB. Varies by manufacturer. High SWR adds more.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- AMPS -->
+<section id="amps"><div class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">Hall 5 · Amplifiers</div>
+    <h2>Amplifiers</h2>
+    <p class="lede">An amp turns 100 W into 500 to 1,500 W. That's one to two and a half S-units at the other end. Worth it for DX, contests and weak paths, but fix the antenna first.</p>
+  </div>
+  <div class="callout" style="margin-bottom:22px"><b>Tube amps hold lethal voltage.</b> Plate supplies run 2,000 to 3,500 V and filter capacitors stay charged after power-off if a bleeder resistor has failed. Unplug, wait, and discharge with a grounded shorting stick before reaching inside.</div>
+  <div class="rigs" id="ampCards"></div>
+
+  <div class="sub"><h3>Is the amp worth it?</h3><p>Every 4× in power is about 6 dB, roughly one S-unit.</p></div>
+  <div class="split">
+    <div class="calc">
+      <h3>Power gain calculator</h3>
+      <div class="row">
+        <label for="p1">Now (watts)<input id="p1" type="number" value="100" min="0.1"></label>
+        <label for="p2">With amp (watts)<input id="p2" type="number" value="1000" min="0.1"></label>
+      </div>
+      <div class="out" id="pOut"></div>
+      <p class="note">A good antenna upgrade (dipole to 3-element Yagi) gives 5 to 7 dB on both transmit and receive. An amp only helps transmit.</p>
+    </div>
+    <div class="card">
+      <h3>Know before you buy</h3>
+      <dl class="kv">
+        <dt>US limit</dt><dd>1,500 W PEP output for General and Extra on most bands. 30 m is 200 W PEP. 60 m is 100 W ERP. Technician HF privileges cap at 200 W PEP.</dd>
+        <dt>Drive</dt><dd>Match the amp to your exciter. Most legal-limit amps want 50 to 100 W. QRP rigs need a small amp like the Hardrock-50.</dd>
+        <dt>Keying</dt><dd>Old tube rigs and amps can switch high relay voltage. Use a keying interface before connecting to a modern radio.</dd>
+        <dt>RF exposure</dt><dd>FCC rules require a routine RF exposure evaluation of your station. Run it again when you add an amp.</dd>
+        <dt>Power</dt><dd>Legal-limit amps want a 240 V circuit. A 120 V 15 A outlet tops out around 800 to 1,000 W out.</dd>
+        <dt>Tuner</dt><dd>Your tuner must handle the amp's output. A 100 W internal ATU goes between radio and amp only if the amp is bypassed.</dd>
+      </dl>
+    </div>
+  </div>
+</div></section>
+
+<!-- SHACK -->
+<section id="shack"><div class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">Hall 6 · Shack tech</div>
+    <h2>Computers that pair with radios</h2>
+    <p class="lede">Digital modes, logging, rig control and remote operation. Most of this runs on a Raspberry Pi as well as on a Windows or Linux PC.</p>
+  </div>
+  <div class="filters" id="swFilters"></div>
+  <div class="tablebox"><table>
+    <thead><tr><th>Software</th><th>What it does</th><th>Runs on</th><th>Cost</th></tr></thead>
+    <tbody id="swRows"></tbody>
+  </table></div>
+
+  <div class="sub"><h3>Hardware that helps</h3></div>
+  <div class="grid" id="hwCards"></div>
+
+  <div class="sub"><h3>Raspberry Pi digital station</h3><p>A low-power FT8, Winlink and APRS station.</p></div>
+  <div class="split">
+    <ol class="steps">
+      <li><span><b>Hardware.</b> Pi 4 (4 GB) or Pi 5, a good 5 V supply, SSD over USB rather than an SD card for logging, and a DigiRig or the radio's own USB audio.</span></li>
+      <li><span><b>Time.</b> FT8 needs a clock within about one second. Install <span class="mono">chrony</span>; add a USB GPS for field use with no internet.</span></li>
+      <li><span><b>Rig control.</b> Install Hamlib (<span class="mono">rigctld</span>) or flrig so every program shares the same CAT connection.</span></li>
+      <li><span><b>Modes.</b> WSJT-X for FT8/FT4/WSPR, JS8Call for keyboard messaging, fldigi for PSK and RTTY, Direwolf for APRS and packet.</span></li>
+      <li><span><b>Map and log.</b> GridTracker reads WSJT-X traffic and maps it. Log to QLog or CQRLog, upload to LoTW with TQSL.</span></li>
+      <li><span><b>Remote.</b> Run wfview (Icom) or VNC over a home VPN so you can operate from another room or another town.</span></li>
+    </ol>
+    <div class="card">
+      <h3>Interface cheat sheet</h3>
+      <dl class="kv">
+        <dt>USB built in</dt><dd>IC-7300, IC-705, IC-9700, FT-991A, FT-710, FTDX10, TS-590SG, TS-890S. One cable carries audio and CAT.</dd>
+        <dt>CAT only</dt><dd>FT-891, FT-857D, FT-817/818. Add a DigiRig or SignaLink for audio.</dd>
+        <dt>No CAT</dt><dd>Older rigs and most HTs. Use VOX, or a SignaLink, and set frequency by hand.</dd>
+        <dt>Levels</dt><dd>Set transmit audio so ALC stays near zero. Overdriving splatters FT8 across the band.</dd>
+        <dt>RF in USB</dt><dd>Snap-on ferrites on USB and audio cables fix most lockups when transmitting.</dd>
+      </dl>
+    </div>
+  </div>
+</div></section>
+
+<!-- WEBSDR -->
+<section id="websdr"><div class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">Hall 7 · WebSDR</div>
+    <h2>Listen from anywhere</h2>
+    <p class="lede">Receivers around the world that anyone can tune in a browser. Use them to hear your own signal from another continent, check whether a band is open, or listen with no antenna at all. These need internet; they open in a new tab.</p>
+  </div>
+  <div class="links" id="sdrLinks"></div>
+  <div class="sub"><h3>Hear yourself on the air</h3></div>
+  <ol class="steps">
+    <li><span>Open a WebSDR or KiwiSDR 500 to 3,000 miles away. Too close and you're inside the skip zone.</span></li>
+    <li><span>Tune it to a clear frequency in your band and set the right mode (LSB below 10 MHz, USB above).</span></li>
+    <li><span>Turn your local audio down or use headphones so you don't feed back, then call. Expect a one to two second delay.</span></li>
+    <li><span>On FT8 or CW you don't need a listener at all: check PSKReporter or the Reverse Beacon Network to see who decoded you.</span></li>
+  </ol>
+</div></section>
+
+<!-- TOOLKIT -->
+<section id="toolkit"><div class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">Hall 8 · Offline toolkit</div>
+    <h2>Works with no internet</h2>
+    <p class="lede">Everything in this hall runs inside the page. Save a copy to your shack computer or a Pi and it still works when the power and the internet are out.</p>
+  </div>
+
+  <div class="sub"><h3>Calling &amp; emergency frequencies</h3></div>
+  <div class="tablebox"><table>
+    <thead><tr><th>Frequency</th><th>Use</th><th>Mode</th></tr></thead>
+    <tbody id="freqRows"></tbody>
+  </table></div>
+
+  <div class="sub"><h3>Calculators</h3></div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
+    <div class="calc">
+      <h3>SWR</h3>
+      <label for="swr">SWR (x:1)<input id="swr" type="number" step="0.1" value="1.5" min="1"></label>
+      <div class="out" id="swrOut"></div>
+      <p class="note">Under 2:1 loses less than half a dB. The bigger worry with high SWR is feedline loss and stress on solid-state finals.</p>
+    </div>
+    <div class="calc">
+      <h3>Grid square</h3>
+      <div class="row">
+        <label for="lat">Latitude<input id="lat" type="number" step="0.0001" value="42.8092"></label>
+        <label for="lon">Longitude<input id="lon" type="number" step="0.0001" value="-82.7552"></label>
+      </div>
+      <div class="out" id="gridOut"></div>
+      <p class="note">Maidenhead locator for FT8, contests and VHF. Negative longitude is west.</p>
+    </div>
+    <div class="calc">
+      <h3>Coax loss</h3>
+      <div class="row">
+        <label for="cxT">Cable<select id="cxT"></select></label>
+        <label for="cxL">Length (ft)<input id="cxL" type="number" value="75" min="1"></label>
+        <label for="cxF">MHz<input id="cxF" type="number" value="146" min="1"></label>
+      </div>
+      <div class="out" id="cxOut"></div>
+    </div>
+    <div class="calc">
+      <h3>Ohm's law</h3>
+      <div class="row">
+        <label for="ohV">Volts<input id="ohV" type="number" value="13.8"></label>
+        <label for="ohI">Amps<input id="ohI" type="number" value="20"></label>
+      </div>
+      <div class="out" id="ohOut"></div>
+      <p class="note">A 100 W rig draws about 20 to 23 A on transmit at 13.8 V. Size the supply and wire for that.</p>
+    </div>
+  </div>
+
+  <div class="sub"><h3>Morse code</h3><p>Tap a letter to hear it, or type a message.</p></div>
+  <div class="calc" style="margin-bottom:16px">
+    <div class="row">
+      <label for="mText" style="grid-column:1/-1">Message<input id="mText" type="text" value="CQ CQ DE W8MUSEUM K"></label>
+      <label for="mWpm">Speed (WPM)<input id="mWpm" type="number" value="18" min="5" max="40"></label>
+      <label for="mTone">Tone (Hz)<input id="mTone" type="number" value="650" min="300" max="1200"></label>
+    </div>
+    <div class="out"><span>Code</span><b id="mOut" style="overflow-wrap:anywhere"></b></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mPlay">Play</button><button id="mStop" class="ghost">Stop</button></div>
+  </div>
+  <div class="morse" id="morseGrid"></div>
+
+  <div class="sub"><h3>Reference cards</h3></div>
+  <div class="grid">
+    <div class="card"><h3>Phonetic alphabet</h3><div class="tablebox" style="border:0"><table><tbody id="phon"></tbody></table></div></div>
+    <div class="card"><h3>Q-codes</h3><div class="tablebox" style="border:0"><table><tbody id="qcodes"></tbody></table></div></div>
+    <div class="card"><h3>RST signal report</h3><div class="tablebox" style="border:0"><table><tbody id="rst"></tbody></table></div></div>
+    <div class="card"><h3>CW shorthand</h3><div class="tablebox" style="border:0"><table><tbody id="abbr"></tbody></table></div></div>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <p><b>Ham Radio Museum.</b> A single-file reference. Prices are ballpark and move with the market. Band edges follow US Part 97 as of mid-2026.</p>
+  <p>73 and good DX.</p>
+</div></footer>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- clock ---------- */
+function tick(){const d=new Date();const p=n=>String(n).padStart(2,"0");
+$("#utc").textContent=p(d.getUTCHours())+":"+p(d.getUTCMinutes())+":"+p(d.getUTCSeconds());
+$("#loc").textContent=p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());
+$("#utcd").textContent=d.getUTCFullYear()+"-"+p(d.getUTCMonth()+1)+"-"+p(d.getUTCDate());}
+tick();setInterval(tick,1000);
+
+
+/* ---------- best value ---------- */
+const VAL=[
+{t:"under100",tier:"Under $100 · First HT",n:"Baofeng UV-5R (or UV-5RM)",p:"$25–35",pn:"new",w:5,bands:"2 m / 70 cm",modes:"FM",score:8,top:false,why:"Nothing else gets a new Technician talking on local repeaters this cheaply. Program it with CHIRP and it does the job.",catch:"Mediocre receiver near strong signals, spurious emissions on some units, no build quality to speak of.",alt:"Spend $90–110 on a Yaesu FT-65R for better audio and a receiver that holds up near pagers."},
+{t:"under100",tier:"Under $100 · Receive only",n:"RTL-SDR Blog V4 kit",p:"$40–45",pn:"with antennas",w:0,bands:"0.5 MHz–1.7 GHz",modes:"All (RX)",score:10,top:true,why:"The most listening per dollar in the hobby. Hear HF, aircraft, satellites, weather and ADS-B on a Pi or a laptop.",catch:"Receive only, and an 8-bit receiver overloads near broadcast towers.",alt:"For serious HF listening, step up to the Airspy HF+ Discovery ($170–200)."},
+{t:"under300",tier:"Under $200 · HF kit",n:"QRP Labs QMX+",p:"$110–160",pn:"kit",w:5,bands:"160–6 m (QMX+)",modes:"CW, FT8, digital",score:10,top:true,why:"An HF SDR transceiver with built-in FT8 and CW for the price of a nice antenna. You learn the radio by building it.",catch:"Winding toroids takes a careful evening. 5 W means good antennas and patience.",alt:"Want it pre-built and with SSB now? Look at the Xiegu G90 tier."},
+{t:"under300",tier:"Under $250 · Digital HT",n:"AnyTone AT-D878UVII Plus",p:"$190–230",pn:"new",w:5,bands:"2 m / 70 cm",modes:"FM, DMR, APRS",score:8,top:false,why:"One radio covers analog repeaters and the DMR network, with GPS and APRS built in.",catch:"Codeplugs are a project. Download your local club's file instead of building from scratch.",alt:"For D-STAR plus APRS in one, the Kenwood TH-D75 ($650–750) is the premium choice."},
+{t:"mid",tier:"Under $500 · Budget HF",n:"Xiegu G90",p:"$430–480",pn:"new",w:20,bands:"160–10 m",modes:"SSB, CW, AM, digital",score:8,top:false,why:"A complete HF SDR with a waterfall and built-in tuner for under $500. 20 W is four times a QRP rig.",catch:"Unit-to-unit quality varies; buy from a dealer that handles returns. Tuner range is limited.",alt:"Add the DE-19 interface ($40) for FT8."},
+{t:"mid",tier:"Under $700 · 100 W HF",n:"Yaesu FT-891",p:"$600–680",pn:"new",w:100,bands:"160–6 m",modes:"SSB, CW, AM, FM, digital",score:9,top:true,why:"The cheapest new 100 W HF+6 m rig from a major maker. Built like a tank and tiny enough for the car or a POTA bag.",catch:"Small screen, menu-heavy, no tuner, and the USB port carries CAT only (add a DigiRig for digital).",alt:"Budget $160 for an auto tuner and $60 for a DigiRig."},
+{t:"main",tier:"Best overall value · 100 W HF",n:"Yaesu FT-710 AESS",p:"$1,000–1,120",pn:"new",w:100,bands:"160–6 m",modes:"All HF modes",score:10,top:true,why:"Direct-sampling SDR, waterfall, USB audio, HDMI out and a receiver that tests better than the original IC-7300 for less money than the MK2.",catch:"Smaller screen than Icom's, and the menu layout takes a weekend to learn.",alt:"If you need 2 m and 70 cm in the same box, the FT-991A ($1,050–1,250) does all bands at some cost in HF filtering."},
+{t:"main",tier:"Best-supported · 100 W HF",n:"Icom IC-7300MK2",p:"$1,400–1,500",pn:"list $1,499.95",w:100,bands:"160–6 m (+4 m some regions)",modes:"All HF modes",score:8,top:false,why:"The IC-7300 updated with LAN remote, HDMI, USB-C, a receive antenna jack and a better receiver. The best documentation and software support of any rig.",catch:"About $400 more than the FT-710 for similar on-air results.",alt:"Original IC-7300 closeouts or a used one at $750–950 are the bargain version."},
+{t:"main",tier:"Best portable · all bands",n:"Icom IC-705",p:"$1,100–1,300",pn:"new",w:10,bands:"160 m–70 cm",modes:"All modes + D-STAR",score:8,top:false,why:"HF, 6 m, 2 m and 70 cm with a waterfall, GPS, Wi-Fi and Bluetooth in a radio that fits a lunchbox.",catch:"10 W (5 W on its internal battery). Accessories add up quickly.",alt:"For portable HF only, the QMX+ does FT8 and CW for one-tenth the price."},
+{t:"high",tier:"Step up · contest-grade",n:"Yaesu FTDX10",p:"$1,400–1,600",pn:"new",w:100,bands:"160–6 m",modes:"All HF modes",score:8,top:false,why:"Narrow roofing filters plus an SDR scope. Hears weak stations next to big ones better than anything near its price.",catch:"Only worth it if you contest or chase DX in crowded pileups.",alt:"Used Elecraft K3S at $1,800–2,500 is the old-school alternative."},
+{t:"high",tier:"Best value · VHF/UHF all-mode",n:"Icom IC-9700",p:"$1,700–2,000",pn:"new",w:100,bands:"2 m / 70 cm / 23 cm",modes:"All modes + D-STAR",score:8,top:false,why:"The only current SDR base rig for weak-signal VHF, satellites and 23 cm in one box.",catch:"Overkill if you only use FM repeaters.",alt:"FM only? A 50 W mobile like the FTM-300 class with a base supply does it for a quarter of the price."}
+];
+const VT={all:"All budgets",under100:"Under $100",under300:"Under $300",mid:"$300–700",main:"$1,000–1,500",high:"$1,500+"};
+const lowP=p=>+p.replace(/[^0-9–]/g,"").split("–")[0];
+let vT="all";const vf=$("#valFilters");
+vf.innerHTML=Object.entries(VT).map(([k,v],i)=>`<button class="chip" aria-pressed="${i===0}" data-t="${k}">${v}</button>`).join("");
+vf.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;vT=b.dataset.t;vf.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===b));renderVal()});
+function renderVal(){$("#valCards").innerHTML=VAL.filter(v=>vT==="all"||v.t===vT).map(v=>{const lo=lowP(v.p);const pw=v.w?"$"+Math.round(lo/v.w):"RX";
+ return `<article class="vcard${v.top?" top":""}"><div class="vhead"><div><div class="tier">${v.top?"★ ":""}${esc(v.tier)}</div><h3>${esc(v.n)}</h3></div><div class="vprice">${esc(v.p)}<small>${esc(v.pn)}</small></div></div>
+ <div class="vbody"><div class="stats"><div class="stat"><b>${v.w?v.w+" W":"RX"}</b><span>Power</span></div><div class="stat"><b>${pw}</b><span>Per watt</span></div><div class="stat"><b>${esc(v.modes.split(",")[0])}</b><span>Modes</span></div></div>
+ <div class="tags"><span class="tag">${esc(v.bands)}</span><span class="tag">${esc(v.modes)}</span></div>
+ <div class="meter"><span>Value</span><span class="bar"><i style="width:${v.score*10}%"></i></span><b>${v.score}/10</b></div>
+ <p>${esc(v.why)}</p><p class="catch"><b>Catch</b>${esc(v.catch)}</p><p class="alt">${esc(v.alt)}</p></div></article>`}).join("");}
+renderVal();
+const KITS=[
+{n:"Technician starter",items:[["Baofeng UV-5R or FT-65R",30],["Nagoya-style whip",20],["Programming cable (CHIRP)",15],["Window-mount J-pole + 25 ft coax",45]],note:"Local repeaters and simplex. Add a 2 m mobile later."},
+{n:"Budget HF station",items:[["Yaesu FT-891",640],["13.8 V 30 A switching supply",130],["40/20 m fan dipole kit + balun",80],["75 ft RG-8X with connectors",50],["DigiRig Mobile",60]],note:"100 W phone, CW and FT8 on every HF band you can fit a wire for."},
+{n:"Best-value home HF",items:[["Yaesu FT-710 AESS",1060],["13.8 V 30 A switching supply",130],["EFHW 40–10 m antenna",130],["100 ft RG-213 with connectors",95],["Snap-on ferrites (pack)",20]],note:"The sweet spot. One USB cable runs FT8, logging and rig control from a Pi or PC."},
+{n:"Pi digital field kit",items:[["QRP Labs QMX+ (kit)",150],["Raspberry Pi 5 + case + SD",110],["USB GPS for time sync",20],["EFHW 40–10 m QRP antenna",70],["LiFePO4 12 Ah battery",90]],note:"FT8 and JS8 from a park or a blackout, entirely off-grid."}
+];
+$("#kits").innerHTML=KITS.map(k=>{const tot=k.items.reduce((a,b)=>a+b[1],0);return `<div class="card kit"><h3>${esc(k.n)}</h3><div class="tablebox" style="border:0"><table><tbody>${k.items.map(i=>`<tr><td>${esc(i[0])}</td><td class="num">$${i[1].toLocaleString()}</td></tr>`).join("")}</tbody><tfoot><tr><td>Total, about</td><td class="num">$${tot.toLocaleString()}</td></tr></tfoot></table></div><p>${esc(k.note)}</p></div>`}).join("");
+const USED=[["Icom IC-7300 (original)","$750–950","IC-7300MK2","Same SDR experience for about half the price. Lacks LAN and HDMI."],["Kenwood TS-590SG","$800–1,000","FT-710","Excellent CW receiver and USB audio; no waterfall."],["Yaesu FT-991A","$800–1,000","New FT-991A","All bands HF to 70 cm. Holds value well."],["Kenwood TS-440S","$350–550","FT-891","100 W HF for less, if you can do a backup-battery swap."],["Elecraft KX3","$900–1,200","IC-705 (HF use)","Better HF receiver and lower current draw for portable."]];
+$("#usedRows").innerHTML=USED.map(u=>`<tr><td><b>${u[0]}</b></td><td class="num">${u[1]}</td><td>${u[2]}</td><td>${u[3]}</td></tr>`).join("");
+
+/* ---------- bands ---------- */
+const BANDS=[
+{b:"2200 m",lo:0.1357,hi:0.1378,lic:"ge",ch:"Ground wave and night skip, huge antennas",use:"WSPR, slow CW experiments",dx:"night"},
+{b:"630 m",lo:0.472,hi:0.479,lic:"ge",ch:"Night skip, high noise",use:"WSPR, JT9, CW",dx:"night"},
+{b:"160 m",lo:1.8,hi:2.0,lic:"ge",ch:"Night only, noisy, winter DX",use:"CW DX, AM, FT8 1.840",dx:"night"},
+{b:"80 m",lo:3.5,hi:4.0,lic:"ptge",ch:"Night regional, day short-range NVIS",use:"Nets, ragchew, emergency nets",dx:"night"},
+{b:"60 m",lo:5.3305,hi:5.4035,lic:"ge",ch:"Five channels, 100 W ERP, NVIS",use:"Emergency, FT8 5.357",dx:"day night"},
+{b:"40 m",lo:7.0,hi:7.3,lic:"ptge",ch:"Day regional, night worldwide",use:"Workhorse band, POTA, nets",dx:"day night"},
+{b:"30 m",lo:10.1,hi:10.15,lic:"ge",ch:"Day and night, 200 W, no phone",use:"CW and digital only",dx:"day night"},
+{b:"20 m",lo:14.0,hi:14.35,lic:"ge",ch:"Daytime worldwide, the DX band",use:"DX, FT8 14.074, SSTV 14.230",dx:"day"},
+{b:"17 m",lo:18.068,hi:18.168,lic:"ge",ch:"Daytime DX, no contests",use:"Relaxed DX, FT8 18.100",dx:"day"},
+{b:"15 m",lo:21.0,hi:21.45,lic:"ptge",ch:"Daytime DX near solar peak",use:"DX, contests, FT8 21.074",dx:"day"},
+{b:"12 m",lo:24.89,hi:24.99,lic:"ge",ch:"Daytime DX when sunspots are up",use:"DX, no contests",dx:"day"},
+{b:"10 m",lo:28.0,hi:29.7,lic:"tge",ch:"Wide open at solar peak, dead at minimum",use:"Techs on SSB, FM repeaters 29.6",dx:"day"},
+{b:"6 m",lo:50,hi:54,lic:"tge",ch:"The magic band: sporadic-E in summer",use:"FT8 50.313, SSB 50.125",dx:"day"},
+{b:"2 m",lo:144,hi:148,lic:"tge",ch:"Line of sight, repeaters, satellites",use:"FM repeaters, simplex 146.52, APRS 144.39",dx:"local"},
+{b:"1.25 m",lo:222,hi:225,lic:"tge",ch:"Quiet FM band, underused",use:"Repeaters, simplex 223.50",dx:"local"},
+{b:"70 cm",lo:420,hi:450,lic:"tge",ch:"Short antennas, building penetration",use:"Repeaters, DMR, D-STAR, satellites",dx:"local"},
+{b:"33 cm",lo:902,hi:928,lic:"tge",ch:"Shared with ISM devices",use:"Repeaters, data links",dx:"local"},
+{b:"23 cm",lo:1240,hi:1300,lic:"tge",ch:"Microwave starts here",use:"ATV, satellites, D-STAR DD",dx:"local"}
+];
+function licHTML(l){let h='<span class="lic">';
+ if(l.includes("pt"))h+='<i class="p">T·p</i>';else if(l.includes("t"))h+='<i class="t">T</i>';
+ if(l.includes("g"))h+='<i class="g">G</i>'; if(l.includes("e"))h+='<i class="e">E</i>'; return h+'</span>';}
+function fmtLen(ft){if(ft>=1000)return Math.round(ft).toLocaleString()+" ft";const f=Math.floor(ft),i=Math.round((ft-f)*12);return (i===12?(f+1)+"′ 0″":f+"′ "+i+"″");}
+function isOpen(band){const h=new Date().getHours();const day=h>=8&&h<18, night=h>=19||h<6;
+ if(band.dx==="local")return false; if(band.dx.includes("day")&&day)return true; if(band.dx.includes("night")&&night)return true; return false;}
+$("#bandRows").innerHTML=BANDS.map(b=>{const c=(b.lo+b.hi)/2;const open=isOpen(b);
+ return `<tr class="${open?"open":""}"><td><b>${b.b}</b>${open?'<span class="opennow">Open now</span>':""}</td><td class="num">${b.lo<1?b.lo.toFixed(4):b.lo}–${b.hi<1?b.hi.toFixed(4):b.hi}</td><td>${licHTML(b.lic)}</td><td>${esc(b.ch)}</td><td>${esc(b.use)}</td><td class="num">${b.lo<1?"—":fmtLen(468/c)}</td></tr>`}).join("");
+
+/* ---------- dial ---------- */
+const DLO=1.8,DHI=54,DW=1000,PADX=20;
+const fx=f=>PADX+(Math.log(f/DLO)/Math.log(DHI/DLO))*(DW-2*PADX);
+const xf=x=>DLO*Math.pow(DHI/DLO,(x-PADX)/(DW-2*PADX));
+const hfB=BANDS.filter(b=>b.lo>=1.8&&b.hi<=54);
+function drawDial(){let s=`<defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2a10"/><stop offset=".5" stop-color="#1c140a"/><stop offset="1" stop-color="#3a2a10"/></linearGradient></defs>`;
+ s+=`<rect x="0" y="0" width="1000" height="120" rx="6" fill="url(#glass)"/>`;
+ hfB.forEach(b=>{const x1=fx(b.lo),x2=fx(b.hi);s+=`<rect x="${x1}" y="18" width="${Math.max(3,x2-x1)}" height="34" fill="#ffb547" opacity=".28"/><text x="${(x1+x2)/2}" y="14" fill="#ffd18a" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="middle">${b.b.replace(" ","")}</text>`});
+ [2,3,4,5,6,7,8,9,10,12,14,16,18,20,22,25,28,30,35,40,45,50].forEach(f=>{const x=fx(f);const big=[2,3,5,7,10,14,18,21,28,50].includes(f)||f%10===0;
+  s+=`<line x1="${x}" x2="${x}" y1="58" y2="${big?78:70}" stroke="#ffcf87" stroke-width="${big?1.4:.8}" opacity=".8"/>`;
+  if(big)s+=`<text x="${x}" y="94" fill="#ffcf87" font-family="IBM Plex Mono,monospace" font-size="12" text-anchor="middle">${f}</text>`});
+ for(let f=2;f<54;f+=0.5){const x=fx(f);s+=`<line x1="${x}" x2="${x}" y1="58" y2="63" stroke="#ffcf87" stroke-width=".5" opacity=".45"/>`}
+ s+=`<text x="990" y="112" fill="#a38a63" font-family="IBM Plex Mono,monospace" font-size="10" text-anchor="end">MHz</text>`;
+ s+=`<g id="ptr"><line x1="0" x2="0" y1="4" y2="116" stroke="#ff4d2e" stroke-width="2.5"/><circle cx="0" cy="58" r="3" fill="#ff4d2e"/></g>`;
+ $("#dial").innerHTML=s;}
+drawDial();
+const SPOTS=[[1.840,"FT8 on 160 m. Listen after dark."],[3.573,"FT8 on 80 m."],[5.000,"WWV time signal, 5 MHz. Good propagation check at night."],[7.074,"FT8 on 40 m. Busy day and night."],[10.000,"WWV, 10 MHz. If you hear it, the path to Colorado is open."],[10.136,"FT8 on 30 m."],[14.074,"FT8 watering hole. The busiest 3 kHz on the planet."],[14.230,"SSTV calling frequency. Decode pictures with QSSTV or MMSSTV."],[14.300,"Maritime Mobile Service Network. Please keep it clear."],[18.100,"FT8 on 17 m."],[21.074,"FT8 on 15 m."],[24.915,"FT8 on 12 m."],[28.074,"FT8 on 10 m."],[29.600,"10 m FM national simplex."],[50.313,"FT8 on 6 m. Watch it in June for sporadic-E."]];
+let curF=14.074;
+function noteFor(f){const s=SPOTS.find(s=>Math.abs(s[0]-f)<0.004);if(s)return s[1];const b=BANDS.find(b=>f>=b.lo&&f<=b.hi);if(b)return b.ch+". "+b.use+".";
+ if(f>=2.5&&f<=26.1){const sw=[[5.9,6.2],[7.2,7.45],[9.4,9.9],[11.6,12.1],[13.57,13.87],[15.1,15.8],[17.48,17.9],[21.45,21.85],[25.67,26.1]].some(r=>f>=r[0]&&f<=r[1]);if(sw)return "Shortwave broadcast band. Out of the ham bands; listen only.";}
+ if(f>=26.965&&f<=27.405)return "11 m Citizens Band. Not an amateur band.";return "Outside the amateur bands. Receive only.";}
+function setF(f,fromSpot){curF=f;const x=fx(f);$("#ptr").setAttribute("transform",`translate(${x},0)`);
+ const khz=Math.round(f*100000)/100; const mhz=Math.floor(khz/1000), rest=(khz-mhz*1000).toFixed(2).padStart(6,"0");
+ $("#vfdF").textContent=mhz+"."+rest; const b=BANDS.find(b=>f>=b.lo&&f<=b.hi);
+ $("#vfdB").textContent=(b?b.b+" · ":"")+"MHz"; $("#vfdN").textContent=noteFor(f);}
+$("#spots").innerHTML=SPOTS.map(s=>`<button data-f="${s[0]}">${s[0].toFixed(3)}</button>`).join("");
+$("#spots").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setF(+b.dataset.f)});
+const dial=$("#dial");let drag=false;
+function evF(e){const r=dial.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*DW;let f=xf(Math.min(DW-PADX,Math.max(PADX,x)));
+ const near=SPOTS.find(s=>Math.abs(fx(s[0])-x)<5);return near?near[0]:Math.round(f*1000)/1000;}
+dial.addEventListener("pointerdown",e=>{drag=true;dial.setPointerCapture(e.pointerId);setF(evF(e))});
+dial.addEventListener("pointermove",e=>{if(drag)setF(evF(e))});
+dial.addEventListener("pointerup",()=>drag=false);
+// sweep on load
+(function sweep(){const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(reduce){setF(14.074);return;}
+ const t0=performance.now(),D=1600;function st(t){const k=Math.min(1,(t-t0)/D);const e=1-Math.pow(1-k,3);const f=DLO*Math.pow(14.074/DLO,e);setF(k<1?f:14.074);if(k<1)requestAnimationFrame(st);}requestAnimationFrame(st);})();
+
+/* spectrum bar */
+(function(){let s="";hfB.forEach(b=>{const x1=fx(b.lo),x2=fx(b.hi),w=Math.max(4,x2-x1);const col=b.lic.includes("t")&&!b.lic.includes("pt")?"var(--tech)":b.lic.includes("pt")?"var(--signal)":"var(--gen)";
+ s+=`<rect x="${x1}" y="10" width="${w}" height="26" rx="2" fill="${col}" opacity="${isOpen(b)?1:.55}"/><text x="${x1+w/2}" y="52" fill="var(--ink)" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="middle">${b.b.replace(" m","")}</text>`});
+ s+=`<line x1="${PADX}" x2="${DW-PADX}" y1="40" y2="40" stroke="var(--line)"/>`;
+ [2,5,10,20,50].forEach(f=>{s+=`<text x="${fx(f)}" y="66" fill="var(--muted)" font-family="IBM Plex Mono,monospace" font-size="10" text-anchor="middle">${f} MHz</text>`});
+ $("#specbar").innerHTML=s;})();
+
+/* ---------- faceplates ---------- */
+function plate(kind,label){const L=esc(label).slice(0,18);
+ const knob=(x,y,r)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="var(--rig-knob)" stroke="#000"/><circle cx="${x}" cy="${y}" r="${r*.72}" fill="#2a2f31"/><line x1="${x}" y1="${y-r*.7}" x2="${x}" y2="${y-r*.25}" stroke="var(--rig-chrome)" stroke-width="1.5"/>`;
+ const meter=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="#f4e7c4"/><path d="M${x+6} ${y+h-6} Q${x+w/2} ${y+4} ${x+w-6} ${y+h-6}" fill="none" stroke="#3b2a0c" stroke-width="1"/><line x1="${x+w/2}" y1="${y+h-3}" x2="${x+w*.68}" y2="${y+8}" stroke="#c22" stroke-width="1.3"/>`;
+ const lab=(x,y,c)=>`<text x="${x}" y="${y}" font-family="IBM Plex Mono,monospace" font-size="8" fill="${c||'var(--rig-chrome)'}" letter-spacing="1">${L}</text>`;
+ if(kind==="anchor")return `<svg viewBox="0 0 280 120"><rect x="2" y="6" width="276" height="110" rx="5" fill="#4b4f4c"/><rect x="8" y="12" width="264" height="98" rx="3" fill="#5c605c"/><rect x="20" y="22" width="150" height="38" rx="3" fill="#1d1408"/><rect x="22" y="24" width="146" height="34" rx="2" fill="var(--rig-glow)" opacity=".85"/>${[...Array(14)].map((_,i)=>`<line x1="${30+i*10}" x2="${30+i*10}" y1="30" y2="${i%2?38:44}" stroke="#4a2c00"/>`).join("")}<line x1="96" x2="96" y1="24" y2="58" stroke="#a00" stroke-width="2"/>${meter(184,22,76,38)}${knob(40,86,13)}${knob(80,86,9)}${knob(112,86,9)}${knob(146,86,9)}${knob(226,86,15)}${lab(170,106,"#ddd")}</svg>`;
+ if(kind==="classic")return `<svg viewBox="0 0 280 120"><rect x="2" y="10" width="276" height="104" rx="4" fill="var(--rig-body)"/><rect x="8" y="16" width="264" height="92" rx="2" fill="var(--rig-face)"/><rect x="18" y="24" width="120" height="28" rx="2" fill="#071510"/><text x="26" y="46" font-family="IBM Plex Mono,monospace" font-size="19" fill="var(--rig-vfd)">14.195.0</text>${meter(150,24,56,28)}<rect x="214" y="24" width="48" height="28" rx="2" fill="#151a1c"/>${[0,1,2,3].map(i=>`<rect x="${218+(i%2)*22}" y="${28+Math.floor(i/2)*12}" width="18" height="8" fill="#3c4347"/>`).join("")}${knob(36,82,11)}${knob(68,82,8)}${knob(94,82,8)}${knob(196,80,20)}${[0,1,2,3,4].map(i=>`<rect x="${118+i*12}" y="74" width="9" height="14" rx="1" fill="#3c4347"/>`).join("")}${lab(18,104)}</svg>`;
+ if(kind==="modern")return `<svg viewBox="0 0 280 120"><defs><linearGradient id="wf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--rig-wf1)"/><stop offset="1" stop-color="#03091a"/></linearGradient></defs><rect x="2" y="10" width="276" height="104" rx="8" fill="#151819"/><rect x="62" y="20" width="132" height="70" rx="3" fill="url(#wf)"/><polyline points="${[...Array(33)].map((_,i)=>`${64+i*4},${46-[0,2,1,4,2,9,3,1,2,14,3,1,2,1,5,2,1,22,4,2,1,3,1,6,2,1,8,2,1,3,2,1,2][i]}`).join(" ")}" fill="none" stroke="var(--rig-wf2)" stroke-width="1"/>${[...Array(8)].map((_,r)=>[...Array(6)].map((_,c)=>`<rect x="${70+c*22+((r*7)%9)}" y="${52+r*4.5}" width="${3+(r+c)%4}" height="3" fill="${(r+c)%3?'var(--rig-wf2)':'var(--rig-wf3)'}" opacity="${.35+((r*c)%5)/8}"/>`).join("")).join("")}<text x="66" y="30" font-family="IBM Plex Mono,monospace" font-size="9" fill="#fff">14.074.000 USB-D</text>${knob(30,40,8)}${knob(30,70,8)}${[0,1,2].map(i=>`<rect x="${70+i*42}" y="96" width="36" height="9" rx="2" fill="#2e3335"/>`).join("")}<circle cx="232" cy="58" r="30" fill="var(--rig-knob)" stroke="#000"/><circle cx="232" cy="58" r="24" fill="#222628"/><circle cx="244" cy="48" r="4" fill="#0e1011"/>${lab(202,106)}</svg>`;
+ if(kind==="qrp")return `<svg viewBox="0 0 280 120"><rect x="50" y="24" width="180" height="78" rx="6" fill="#2b2f31"/><rect x="58" y="32" width="164" height="62" rx="3" fill="#3a3f42"/><rect x="66" y="40" width="84" height="22" rx="2" fill="#a6c48a"/><text x="70" y="56" font-family="IBM Plex Mono,monospace" font-size="12" fill="#1f2a15">7.030.00</text>${knob(186,52,13)}${knob(76,80,6)}${knob(98,80,6)}${knob(120,80,6)}${knob(142,80,6)}<rect x="230" y="40" width="10" height="10" fill="var(--rig-chrome)"/>${lab(160,90)}</svg>`;
+ if(kind==="ht")return `<svg viewBox="0 0 280 120"><rect x="128" y="2" width="8" height="34" rx="3" fill="#111"/><rect x="112" y="30" width="58" height="88" rx="9" fill="#202426"/><rect x="120" y="40" width="42" height="18" rx="2" fill="#f4a64a"/><text x="123" y="53" font-family="IBM Plex Mono,monospace" font-size="9" fill="#2b1500">146.520</text>${[...Array(12)].map((_,i)=>`<rect x="${121+(i%3)*14}" y="${64+Math.floor(i/3)*12}" width="11" height="9" rx="2" fill="#3a4044"/>`).join("")}<circle cx="156" cy="24" r="6" fill="#111"/><text x="182" y="80" font-family="IBM Plex Mono,monospace" font-size="8" fill="var(--rig-chrome)">${L}</text></svg>`;
+ if(kind==="mobile")return `<svg viewBox="0 0 280 120"><rect x="20" y="34" width="240" height="58" rx="6" fill="#1b1f21"/><rect x="66" y="42" width="128" height="40" rx="3" fill="#0b2f4a"/><text x="74" y="60" font-family="IBM Plex Mono,monospace" font-size="12" fill="#9fe3ff">146.940 −</text><text x="74" y="76" font-family="IBM Plex Mono,monospace" font-size="9" fill="#9fe3ff">446.000  C4FM</text>${knob(42,62,14)}${knob(232,62,14)}${lab(70,104)}</svg>`;
+ if(kind==="sdr")return `<svg viewBox="0 0 280 120"><rect x="60" y="40" width="150" height="44" rx="6" fill="#2a2e30"/><rect x="66" y="46" width="138" height="32" rx="3" fill="#3a3f42"/><rect x="210" y="54" width="22" height="16" fill="var(--rig-chrome)"/><rect x="232" y="58" width="14" height="8" fill="#b5893b"/><rect x="40" y="54" width="20" height="16" rx="2" fill="#111"/><circle cx="190" cy="54" r="3" fill="var(--rig-vfd)"/><text x="74" y="66" font-family="IBM Plex Mono,monospace" font-size="9" fill="var(--rig-chrome)">${L}</text></svg>`;
+ if(kind==="tubeamp")return `<svg viewBox="0 0 280 120"><rect x="10" y="10" width="260" height="104" rx="5" fill="#d9d6cc"/><rect x="16" y="16" width="248" height="92" rx="3" fill="#ece9de"/>${meter(28,24,64,36)}${meter(104,24,64,36)}${knob(48,84,12)}${knob(92,84,12)}${knob(136,84,12)}<rect x="186" y="28" width="66" height="10" rx="2" fill="#7a2020"/><rect x="186" y="44" width="30" height="10" rx="2" fill="#333"/>${knob(232,84,10)}<text x="186" y="104" font-family="IBM Plex Mono,monospace" font-size="8" fill="#444">${L}</text></svg>`;
+ if(kind==="ssamp")return `<svg viewBox="0 0 280 120"><rect x="10" y="20" width="260" height="84" rx="5" fill="var(--rig-body)"/><rect x="16" y="26" width="248" height="72" rx="3" fill="var(--rig-face)"/><rect x="28" y="36" width="120" height="30" rx="2" fill="#081a14"/><rect x="34" y="44" width="80" height="6" fill="var(--rig-vfd)"/><rect x="34" y="54" width="52" height="6" fill="var(--rig-glow)"/>${[0,1,2,3].map(i=>`<circle cx="${170+i*22}" cy="44" r="5" fill="${i===0?'var(--rig-vfd)':'#3c4347'}"/>`).join("")}${[0,1,2,3,4].map(i=>`<rect x="${28+i*26}" y="76" width="20" height="10" rx="2" fill="#3c4347"/>`).join("")}<text x="170" y="86" font-family="IBM Plex Mono,monospace" font-size="8" fill="var(--rig-chrome)">${L}</text></svg>`;
+ return "";}
+
+/* ---------- rigs ---------- */
+const CATS={anchor:"Boatanchor",classic:"Classic solid-state",modern:"Modern HF",qrp:"QRP & portable",vhf:"VHF / UHF",sdr:"SDR receivers"};
+const RIGS=[
+{n:"Collins KWM-2 / 2A",m:"Collins Radio",y:"1959–1979",c:"anchor",bands:"80–10 m",pw:"~100 W out SSB/CW",pr:"$900–2,200",pn:"with 516F-2 supply",note:"The rig of SAC bombers and Air Force One. A mechanical filter and PTO that set the SSB standard.",iss:["PTO drift and end-point error after 60 years","516F-2 power supply capacitors dried out","Worn 6146 finals and 12BY7 driver","Missing crystals for some band positions"],up:["Rebuild the 516F-2 with modern electrolytics","Fresh matched 6146W finals","Full alignment per the Collins manual","Add an external speaker/phone patch (312B-4/5 console)"]},
+{n:"Collins S-Line (75S-3 / 32S-3)",m:"Collins Radio",y:"1961–1979",c:"anchor",bands:"80–10 m + crystal ranges",pw:"~100 W out",pr:"$1,400–3,500",pn:"pair",note:"Separate receiver and transmitter. Many hams' dream station and the benchmark for 1960s SSB.",iss:["75S-3 often missing the CW mechanical filter","PTO calibration and dial-drive slippage","Paper and electrolytic capacitors","Transmitter neutralization drift"],up:["Add a CW filter","Recap the 516F-2","Pair with a 30L-1 amp for the full lineup","Replace dial lamps with warm LEDs"]},
+{n:"Hallicrafters SX-28",m:"Hallicrafters",y:"1940–1946",c:"anchor",bands:"0.55–43 MHz (RX only)",pw:"Receiver",pr:"$350–900",pn:"",note:"Wartime 'Super Skyrider'. Huge, heavy, beautiful dial, used by the military and the FBI listening posts.",iss:["Wax and paper capacitors leak","Dial cord slips or snaps","Dirty band switch contacts","Weak tubes and drifted alignment"],up:["Full recap with film capacitors","Clean and lube the band switch","Restring the dial","Add a fuse to the AC line"]},
+{n:"National HRO",m:"National Co.",y:"1935–1950s",c:"anchor",bands:"Plug-in coils, 50 kHz–30 MHz",pw:"Receiver",pr:"$300–1,200",pn:"depends on coil sets",note:"The 'micrometer dial' receiver. Used at Bletchley Park's intercept stations.",iss:["Missing or mismatched plug-in coil sets","PW dial gear wear","Original capacitors and power supply","Coil-pin contact oxidation"],up:["Hunt down a full coil set (A–J)","Recap the 697 power supply","Clean coil pins","Re-track alignment per coil"]},
+{n:"Hammarlund HQ-180A",m:"Hammarlund",y:"1958–1970s",c:"anchor",bands:"0.54–30 MHz (RX)",pw:"Receiver",pr:"$300–800",pn:"",note:"Triple-conversion general coverage with a real SSB detector. One of the best tube receivers ever sold.",iss:["Wax capacitors","Tube aging (17 tubes)","Mechanical dial backlash","Selectable sideband drifted"],up:["Recap and re-align","Replace audio output tube","Add an external product detector for SSB (optional)"]},
+{n:"Heathkit HW-101",m:"Heath Company",y:"1970–1983",c:"anchor",bands:"80–10 m",pw:"~100 W out",pr:"$200–500",pn:"",note:"The kit transceiver that put thousands of hams on SSB for the price of a used car part.",iss:["Builder quality varies: cold solder joints","LMO (VFO) drift","6146 finals worn","HP-23 supply capacitors"],up:["Reflow the board","Add the optional 400 Hz CW crystal filter","Rebuild or replace the power supply","Solid-state rectifier and fuse"]},
+{n:"Drake TR-4C",m:"R.L. Drake",y:"1969–1978",c:"anchor",bands:"80–10 m",pw:"~300 W PEP in",pr:"$300–700",pn:"",note:"Compact Ohio-built hybrid transceiver. Strong receiver for its day.",iss:["6JB6A finals are scarce and pricey","PTO linearity","Noisy pots and switches","AC-4 supply capacitors"],up:["NOS 6JB6A finals","Recap the AC-4","Clean pots and relays","RV-4C remote VFO for split"]},
+{n:"Drake R-4C / T-4XC",m:"R.L. Drake",y:"1973–1978",c:"anchor",bands:"80–10 m + accessory crystals",pw:"~100 W out",pr:"$600–1,300",pn:"pair",note:"The 'Drake Twins'. With Sherwood mods the R-4C rivalled 1990s receivers.",iss:["Front-end overload stock","Careful alignment needed","Crystal deck missing crystals","Aging filter and bypass capacitors"],up:["Sherwood Engineering filter and mixer mods","Add 500 Hz and 250 Hz CW filters","Solid-state replacements for 6EJ7 tubes","Recap the AC-4"]},
+{n:"Yaesu FT-101E / EE",m:"Yaesu Musen",y:"1970–1979",c:"anchor",bands:"160–10 m",pw:"~100 W out",pr:"$250–600",pn:"",note:"The 'Hybrid Hero'. Tube finals, solid-state everything else. Rugged and everywhere.",iss:["6JS6C finals are scarce","Noisy band and mode switches","Clarifier drift","Power-supply filter capacitors"],up:["Buy a known-good set of finals early","Recap the HV supply","Clean switches","Add a cooling fan service"]},
+{n:"Kenwood TS-520S",m:"Kenwood (Trio)",y:"1976–1979",c:"anchor",bands:"160–10 m",pw:"~100 W out",pr:"$250–500",pn:"",note:"The classic first boatanchor. Easy to fix, parts still around, warm audio.",iss:["6146B finals worn","VFO drift on warm-up","Electrolytic capacitors","Relay contact wear"],up:["YK-88C CW filter","DG-5 digital frequency display","Recap the supply","Fresh 12BY7A driver"]},
+{n:"Kenwood TS-830S",m:"Kenwood",y:"1980–1986",c:"classic",bands:"160–10 m + WARC",pw:"~100 W out",pr:"$350–750",pn:"",note:"The last great hybrid. VBT, IF shift and notch make it a superb CW rig.",iss:["6146B finals","Dial-lamp and display failure","Relay contacts","Capacitor aging"],up:["YK-88C CW filter","VFO-230 external VFO","LED lamp conversion","Recap"]},
+{n:"Kenwood TS-930S",m:"Kenwood",y:"1982–1986",c:"classic",bands:"160–10 m, gen. RX",pw:"100 W out",pr:"$400–800",pn:"",note:"First Kenwood with a built-in auto-tuner and AC supply. Big, quiet, loved.",iss:["Internal power supply board failures","AT-930 tuner motor and cam","Memory backup battery dead","Hot running finals"],up:["PSU rebuild kit","Replace backup battery","Service the tuner gears","Add cooling fan clean"]},
+{n:"Kenwood TS-940S",m:"Kenwood",y:"1985–1990",c:"classic",bands:"160–10 m, gen. RX",pw:"100 W out",pr:"$600–1,100",pn:"",note:"Kenwood's 1980s flagship. Excellent receiver and a famous analog-style feel.",iss:["LCD sub-display fades","PLL unlock from aging parts","Lithium backup battery","Heavy (40 lb), so shipping damage"],up:["Replacement LCD boards","SO-1 TCXO for stability","Recap PLL unit","New backup battery"]},
+{n:"Kenwood TS-440S",m:"Kenwood",y:"1985–1991",c:"classic",bands:"160–10 m, gen. RX",pw:"100 W out",pr:"$350–650",pn:"",note:"Compact 80s workhorse with optional AT-440 tuner. Great first HF rig on a budget.",iss:["Memory backup battery","Aging brown glue can turn conductive","AT-440 tuner relays","Dim display lamps"],up:["Replace backup lithium","Remove degraded glue carefully","LED lamps","Add the YK-88 filters"]},
+{n:"Icom IC-735",m:"Icom",y:"1985–1990",c:"classic",bands:"160–10 m, gen. RX",pw:"100 W out",pr:"$250–450",pn:"",note:"Small, cheap and plentiful. A favorite mobile and field rig.",iss:["CPU backup battery dies: wrong or no display","Dim display lamps","PLL unlock","Fan noise"],up:["Replace backup battery","LED backlight","CW filter","CAT interface via CI-V"]},
+{n:"Icom IC-751A",m:"Icom",y:"1985–1990",c:"classic",bands:"160–10 m, gen. RX",pw:"100 W out",pr:"$450–800",pn:"",note:"Strong receiver and full QSK. The RAM board battery is its weak point.",iss:["RAM board battery dies: radio goes deaf or on wrong frequency","Dim display","Relay wear","Aging electrolytics"],up:["Battery-free RAM board replacement","Recap","Add 500 Hz and 250 Hz filters","LED lamps"]},
+{n:"Yaesu FT-990",m:"Yaesu",y:"1991–1996",c:"classic",bands:"160–10 m, gen. RX",pw:"100 W out",pr:"$500–900",pn:"",note:"FT-1000 performance in a smaller box. Some versions have an internal AC supply.",iss:["Lithium backup battery","Internal PSU capacitors (AC version)","Relays","Early ROM bugs"],up:["ROM update","New backup battery","Recap the AC supply","Collins filters"]},
+{n:"Yaesu FT-1000MP Mark-V",m:"Yaesu",y:"2000–2004",c:"classic",bands:"160–10 m",pw:"200 W (75 W Class A)",pr:"$900–1,600",pn:"",note:"200 W and a Class A mode for very clean SSB. A contest-station classic.",iss:["Encoder wear","LCD backlight dims","Relays","Heavy external PSU"],up:["INRAD roofing filters","Backlight replacement","Encoder service","CAT via FTDI cable"]},
+{n:"Ten-Tec Omni VI+",m:"Ten-Tec",y:"1992–2000s",c:"classic",bands:"160–10 m",pw:"100 W out",pr:"$500–900",pn:"",note:"Tennessee-built with silky PIN-diode QSK. A CW operator's rig.",iss:["Factory support is gone","Front panel switches","Display segments","Ribbon cable connectors"],up:["Inrad filters","Firmware chip upgrade","Clean connectors","Keep a parts radio"]},
+{n:"Icom IC-7300",m:"Icom",y:"2016–present",c:"modern",bands:"160–6 m",pw:"100 W",pr:"$800–1,000",pn:"used; ~$1,100 new",note:"The rig that brought direct-sampling SDR and a live waterfall to the masses. The default first HF rig.",iss:["ADC overload near strong local stations","Fan noise on long digital transmissions","Touchscreen scratches","No IQ output for external SDR apps"],up:["wfview for remote and big-screen waterfall","Screen protector","External speaker","Keep firmware current"]},
+{n:"Icom IC-7300MK2",m:"Icom",y:"2025–present",c:"modern",bands:"160–6 m",pw:"100 W",pr:"$1,400–1,500",pn:"new; list $1,499.95",note:"The IC-7300 refreshed: better receiver dynamic range, LAN remote, HDMI out, USB-C and receive-antenna jacks.",iss:["Too new for a pattern of faults","Costs about $400 more than rivals with similar performance"],up:["External monitor via HDMI","Remote over LAN with RS-BA1 or wfview","Separate receive antenna (Beverage or loop)"]},
+{n:"Icom IC-7610",m:"Icom",y:"2017–present",c:"modern",bands:"160–6 m, dual RX",pw:"100 W",pr:"$2,500–3,300",pn:"",note:"Two independent receivers and a DVI output for a big external screen.",iss:["Mostly cosmetic","Expensive to repair out of warranty","Some find the menus deep"],up:["External monitor via DVI-D","wfview over LAN","RS-BA1 remote","Diversity receive with two antennas"]},
+{n:"Icom IC-705",m:"Icom",y:"2020–present",c:"qrp",bands:"160 m–70 cm",pw:"10 W (5 W battery)",pr:"$1,000–1,350",pn:"",note:"A pocket IC-7300 with VHF/UHF, D-STAR, GPS, Wi-Fi and Bluetooth.",iss:["Only 5 W on its own battery","BP-272 battery is small","Gets warm at 10 W digital","Small screen for fat fingers"],up:["LC-192 backpack","AH-705 auto tuner","wfview over Wi-Fi","Larger third-party batteries"]},
+{n:"Yaesu FT-991A",m:"Yaesu",y:"2016–present",c:"modern",bands:"160 m–70 cm",pw:"100 W HF, 50 W VHF/UHF",pr:"$1,000–1,300",pn:"",note:"Everything in one box: HF, 6 m, 2 m, 70 cm, all modes, C4FM.",iss:["Weaker filtering in crowded contests","Deep menus","Fan noise","Small-ish screen"],up:["External speaker with DSP","RT Systems programming","Better mic","Separate VHF antenna and diplexer"]},
+{n:"Yaesu FT-891",m:"Yaesu",y:"2016–present",c:"modern",bands:"160–6 m",pw:"100 W",pr:"$600–700",pn:"new",note:"Small, tough, 100 W. Popular for mobile and POTA.",iss:["Tiny screen and menu-driven","No internal tuner","USB carries CAT only, not audio","Runs hot"],up:["FC-50 or LDG auto tuner","DigiRig for digital modes","Mobile mount","Remote head extension cable"]},
+{n:"Yaesu FT-710 AESS",m:"Yaesu",y:"2022–present",c:"modern",bands:"160–6 m",pw:"100 W",pr:"$900–1,050",pn:"new",note:"A direct-sampling SDR with a built-in speaker system. Strong IC-7300 rival.",iss:["Smaller display than rivals","Menu layout takes learning","Firmware matured over first year"],up:["External display via HDMI","Firmware updates","SCU-LAN10 remote"]},
+{n:"Yaesu FTDX10",m:"Yaesu",y:"2020–present",c:"modern",bands:"160–6 m",pw:"100 W",pr:"$1,300–1,600",pn:"",note:"Hybrid SDR with narrow roofing filters. Excellent in contest conditions.",iss:["Front panel crowded","Price above IC-7300"],up:["External monitor","SCU-LAN10 remote","Firmware updates"]},
+{n:"Yaesu FTDX101D / MP",m:"Yaesu",y:"2019–present",c:"modern",bands:"160–4 m, dual RX",pw:"100 W / 200 W",pr:"$3,000–4,500",pn:"",note:"Yaesu's flagship with dual receivers and top-tier close-in dynamic range.",iss:["Large and heavy","Expensive repairs"],up:["External monitor","LAN remote","Station automation via CAT"]},
+{n:"Kenwood TS-590SG",m:"Kenwood",y:"2014–present",c:"modern",bands:"160–6 m",pw:"100 W",pr:"$900–1,300",pn:"",note:"A superheterodyne with a down-conversion receiver that shines on CW.",iss:["No built-in waterfall","Small screen by modern standards"],up:["ARCP/ARHP remote software","External panadapter (RX tap)","Firmware updates"]},
+{n:"Kenwood TS-890S",m:"Kenwood",y:"2018–present",c:"modern",bands:"160–4 m",pw:"100 W",pr:"$3,200–4,000",pn:"",note:"Kenwood's flagship with a full-color bandscope and very strong receiver.",iss:["Expensive","Bandscope smaller than competitors"],up:["External monitor","KNS remote","Antenna switching via its 3 HF ports"]},
+{n:"Elecraft K3 / K3S",m:"Elecraft",y:"2008–2022",c:"modern",bands:"160–6 m",pw:"100 W",pr:"$1,800–3,200",pn:"",note:"The modular kit-or-built contest king of its decade. Superseded by the K4.",iss:["Option boards add up","Encoders wear","Older synth boards on early units"],up:["KRX3 sub-receiver","P3 panadapter","KXV3 transverter interface","Synth upgrade (K3 → K3S)"]},
+{n:"Elecraft K4",m:"Elecraft",y:"2021–present",c:"modern",bands:"160–6 m",pw:"100 W",pr:"$4,000–6,000",pn:"",note:"Direct-sampling or hybrid (K4HD) with full remote built in.",iss:["Price","Long build queues at launch"],up:["K4HD superhet module","Second receiver","KPA1500 integration"]},
+{n:"FlexRadio FLEX-6400(M)",m:"FlexRadio",y:"2018–present",c:"modern",bands:"160–6 m",pw:"100 W",pr:"$2,200–3,400",pn:"",note:"A black box SDR you drive from a PC, tablet or Maestro. Remote-first design.",iss:["Needs a computer or the M front panel","Major updates may need a paid software plan","Network setup learning curve"],up:["Maestro control head","SmartSDR for iOS","SmartLink remote"]},
+{n:"Xiegu G90",m:"Xiegu",y:"2019–present",c:"qrp",bands:"160–10 m",pw:"20 W",pr:"$400–480",pn:"new",note:"A 20 W SDR with built-in tuner and a detachable head. Budget POTA favorite.",iss:["Quality control varies unit to unit","Firmware quirks","Built-in tuner has limited range"],up:["Firmware updates","DE-19 data interface","Detached head cable for mobile"]},
+{n:"Xiegu X6100",m:"Xiegu",y:"2022–present",c:"qrp",bands:"160–6 m",pw:"5–10 W",pr:"$480–600",pn:"new",note:"Portable SDR with internal battery, ATU and Wi-Fi. Runs Linux inside.",iss:["Battery reliability reports","QC variance","Stock firmware rough at launch"],up:["Open-source R1CBU firmware","Better battery pack","Run FT8 directly on the radio"]},
+{n:"Yaesu FT-817ND / FT-818ND",m:"Yaesu",y:"2001–2022",c:"qrp",bands:"160 m–70 cm",pw:"5 W (818: 6 W)",pr:"$450–700",pn:"",note:"The original shirt-pocket all-band all-mode QRP rig. Legendary.",iss:["Final transistors blow on high SWR","Weak stock NiMH pack","Dim LCD","No built-in tuner"],up:["YF-122C 500 Hz CW filter","Internal lithium battery mod","External tuner (Z-817)","Bigger external display via CAT apps"]},
+{n:"Elecraft KX3 / KX2",m:"Elecraft",y:"2012 / 2016–present",c:"qrp",bands:"KX3 160–6 m, KX2 80–10 m",pw:"10–15 W",pr:"$900–1,700",pn:"",note:"Superb portable receivers. Add the KXPA100 to make the KX3 a 100 W home rig.",iss:["Finals stressed by high SWR","Protruding knobs on the trail","Options add cost"],up:["KXAT3 / KXAT2 internal tuner","PX3 panadapter","KXPA100 amp","Internal battery packs"]},
+{n:"QRP Labs QMX / QMX+",m:"QRP Labs",y:"2023–present",c:"qrp",bands:"Multi-band HF",pw:"~5 W",pr:"$100–160",pn:"kit",note:"An inexpensive SDR kit with built-in FT8 and CW. SMD parts come pre-installed.",iss:["Winding toroids takes patience","Firmware evolving","Easy to damage with wrong supply voltage"],up:["Current firmware","Case and battery","Check firmware notes for current SSB support"]},
+{n:"(tr)uSDX",m:"Open hardware",y:"2021–present",c:"qrp",bands:"80–10 m (varies)",pw:"~5 W",pr:"$80–160",pn:"",note:"Tiny open-source multi-mode QRP. Many clones on the market.",iss:["Clone build quality varies widely","Some clones have poor harmonic filtering","Small display"],up:["Latest firmware","Add or replace output low-pass filters","Check spectral purity before going on air"]},
+{n:"Baofeng UV-5R",m:"Baofeng",y:"2012–present",c:"vhf",f:"ht",bands:"2 m / 70 cm FM",pw:"4–5 W",pr:"$25–40",pn:"new",note:"The cheapest way onto a repeater. A first radio for many.",iss:["Spurious emissions on some units","Weak front end overloads near pagers","Not legal on FRS/GMRS","Programming on keypad is painful"],up:["Program with CHIRP and a USB cable","Better whip antenna","Larger battery","Use with a 2 m J-pole at home"]},
+{n:"Yaesu FT-60R",m:"Yaesu",y:"2004–2020s",c:"vhf",f:"ht",bands:"2 m / 70 cm FM",pw:"5 W",pr:"$100–170",pn:"",note:"Simple, tough, waterproof-ish. The HT every club recommends.",iss:["Older batteries fade","No USB charging","Single receiver"],up:["CHIRP or RT Systems programming","New FNB-83 battery","Better antenna"]},
+{n:"Kenwood TH-D75",m:"Kenwood",y:"2024–present",c:"vhf",f:"ht",bands:"2 m / 1.25 m / 70 cm",pw:"5 W",pr:"$650–750",pn:"new",note:"APRS and D-STAR with a KISS TNC over Bluetooth and USB-C. An HT that pairs with software.",iss:["Price","Battery life with GPS on"],up:["APRSdroid or Winlink over Bluetooth","Larger battery","Programming software"]},
+{n:"AnyTone AT-D878UV",m:"AnyTone",y:"2018–present",c:"vhf",f:"ht",bands:"2 m / 70 cm",pw:"5 W",pr:"$180–250",pn:"new",note:"The go-to DMR handheld with analog FM too.",iss:["Codeplugs are complex","Firmware/CPS version matching"],up:["Download a club codeplug","Pair with a Pi-Star or WPSD hotspot","Better antenna"]},
+{n:"Yaesu FTM-400XDR / FTM-500",m:"Yaesu",y:"2014–present",c:"vhf",f:"mobile",bands:"2 m / 70 cm",pw:"50 W",pr:"$450–650",pn:"",note:"Touchscreen mobile with C4FM, APRS and GPS.",iss:["Touchscreen visibility in sun","Menu depth"],up:["RT Systems programming","Remote head mount","Mobile antenna on a roof mount"]},
+{n:"Icom IC-9700",m:"Icom",y:"2019–present",c:"vhf",bands:"2 m / 70 cm / 23 cm",pw:"100 / 75 / 10 W",pr:"$1,600–2,000",pn:"",note:"A VHF/UHF SDR with satellite mode. The weak-signal and EME favorite.",iss:["Needs external preamps for EME","Large for a VHF rig"],up:["Mast-mounted preamps","SatPC32 or Gpredict Doppler control","wfview remote"]},
+{n:"RTL-SDR Blog V4",m:"RTL-SDR Blog",y:"2023–present",c:"sdr",bands:"0.5 MHz–1.766 GHz",pw:"Receive only",pr:"$35–45",pn:"new",note:"A USB stick receiver. Turns a Pi into a scanner, ADS-B receiver or HF listening post.",iss:["8-bit ADC overloads easily","Drifts until warm (V4 has TCXO, older ones did not)"],up:["Better antenna","FM broadcast notch filter","Run SDR++, OpenWebRX or dump1090 on a Pi"]},
+{n:"SDRplay RSPdx-R2",m:"SDRplay",y:"2023–present",c:"sdr",bands:"1 kHz–2 GHz",pw:"Receive only",pr:"$230–260",pn:"new",note:"14-bit receiver with three antenna inputs. Good for HF listening.",iss:["Driver tied to vendor API","Linux setup less smooth than Windows"],up:["SDRuno or SDR++","HDR mode for low bands","Loop antenna"]},
+{n:"Airspy HF+ Discovery",m:"Airspy",y:"2019–present",c:"sdr",bands:"0.5 kHz–31 MHz, 60–260 MHz",pw:"Receive only",pr:"$170–200",pn:"new",note:"Small receiver with a very strong front end. Loved by shortwave listeners.",iss:["Narrow 660 kHz bandwidth","Needs good USB power"],up:["SDR# or SDR++","Magnetic loop antenna","Common-mode choke on USB"]},
+{n:"KiwiSDR 2",m:"KiwiSDR",y:"2023–present",c:"sdr",bands:"10 kHz–30 MHz",pw:"Receive only",pr:"$350–420",pn:"new",note:"The receiver behind the public KiwiSDR network. Share your antenna with the world.",iss:["Needs a quiet antenna location","BeagleBone heat"],up:["Join the public map","GPS antenna for TDoA direction finding","Wide-band active antenna"]},
+{n:"HackRF One",m:"Great Scott Gadgets",y:"2014–present",c:"sdr",bands:"1 MHz–6 GHz",pw:"TX up to ~15 mW",pr:"$300–350",pn:"new",note:"Half-duplex SDR that can transmit. A lab tool for microwave experiments.",iss:["8-bit, low dynamic range","Transmitting outside ham bands is illegal","Needs filtering before any amp"],up:["Band-pass filters","PortaPack H4 for standalone use","GNU Radio flowgraphs"]}
+];
+let rigCat="all",rigQ="";
+const rf=$("#rigFilters");
+rf.innerHTML=`<button class="chip" aria-pressed="true" data-c="all">All</button>`+Object.entries(CATS).map(([k,v])=>`<button class="chip" aria-pressed="false" data-c="${k}">${v}</button>`).join("")+`<input class="search" id="rigSearch" type="search" placeholder="Search rigs, issues, mods…" aria-label="Search rigs"><span class="count" id="rigCount"></span>`;
+rf.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;rigCat=b.dataset.c;rf.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===b));renderRigs()});
+$("#rigSearch").addEventListener("input",e=>{rigQ=e.target.value.toLowerCase();renderRigs()});
+function rigCard(r,catLabel){const k=r.f||(r.c==="vhf"?"modern":r.c);
+ return `<article class="rig"><div class="plate">${plate(k,r.n.split(" ").slice(0,2).join(" "))}</div><div class="body">
+ <div class="top"><div><h3>${esc(r.n)}</h3><div class="mk">${esc(r.m)} · ${esc(r.y)}</div></div><div class="price">${esc(r.pr)}${r.pn?`<small>${esc(r.pn)}</small>`:""}</div></div>
+ <div class="tags"><span class="tag cat">${catLabel}</span><span class="tag">${esc(r.bands)}</span><span class="tag">${esc(r.pw)}</span></div>
+ <p class="note">${esc(r.note)}</p>
+ <div><h4 class="iss">Common issues</h4><ul>${r.iss.map(i=>`<li>${esc(i)}</li>`).join("")}</ul></div>
+ <div><h4 class="up">Upgrades &amp; mods</h4><ul>${r.up.map(i=>`<li>${esc(i)}</li>`).join("")}</ul></div></div></article>`;}
+function renderRigs(){const list=RIGS.filter(r=>(rigCat==="all"||r.c===rigCat)&&(!rigQ||JSON.stringify(r).toLowerCase().includes(rigQ)));
+ $("#rigs").innerHTML=list.map(r=>rigCard(r,CATS[r.c])).join("")||`<p class="lede">No rigs match. Try a model number or a word like “battery”.</p>`;
+ $("#rigCount").textContent=list.length+" of "+RIGS.length;}
+renderRigs();
+
+/* ---------- antennas ---------- */
+const ANTS=[
+{n:"Half-wave dipole",s:"yard",bands:"One band (or fan for several)",cost:"$30–80",need:"Two supports, 33 ft span for 20 m, 66 ft for 40 m",gain:"Reference (2.15 dBi)",pro:"Cheap, efficient, no tuner, predictable",con:"Single band, needs height of ¼λ or more for DX",tip:"The best first antenna. Use a 1:1 current balun at the feedpoint."},
+{n:"End-fed half-wave (EFHW)",s:"yard small",bands:"40/20/15/10 m harmonic",cost:"$60–160",need:"One support and the feed at a corner of the yard",gain:"Near dipole",pro:"Feed from one end, multiband without tuner, great for portable",con:"49:1 transformer losses, common-mode RF needs a choke",tip:"Add a choke at the shack end of the coax to keep RF out of your computer."},
+{n:"Off-center-fed dipole (OCF)",s:"yard",bands:"80/40/20/17/12/10 m",cost:"$80–200",need:"~135 ft span for 80 m version",gain:"Near dipole",pro:"Multiband, low SWR on several bands",con:"Feedline radiation, 4:1 balun heats at high power",tip:"Use a quality current balun rated well above your power."},
+{n:"Random wire + 9:1 unun",s:"yard small portable",bands:"All HF with tuner",cost:"$25–80",need:"A wire of a non-resonant length (e.g. 29, 35.5, 41, 58, 71 ft) and a counterpoise",gain:"Varies",pro:"Simple, stealthy, multiband",con:"Needs a tuner, lossy on low bands, RF in the shack",tip:"Run a counterpoise wire and a common-mode choke."},
+{n:"Ground-mounted vertical",s:"yard",bands:"Multiband (trapped) or single-band ¼λ",cost:"$150–500",need:"Small footprint plus radials on the ground",gain:"Low-angle radiation for DX",pro:"Small visual footprint, good DX on low bands",con:"Needs radials (16 or more) to be efficient, hears more local noise",tip:"Radials matter more than the vertical. Even 16 short radials help a lot."},
+{n:"Hex beam",s:"yard big",bands:"20–6 m, 5 or 6 bands",cost:"$600–1,200",need:"Mast 25–40 ft and a rotator",gain:"~4–5 dBd forward",pro:"Light, small turning radius, gain and front-to-back",con:"Needs rotator and mast, wind and ice loading",tip:"The best gain-for-yard antenna for most hams."},
+{n:"Yagi",s:"big",bands:"Single or tri-band",cost:"$500–3,000+",need:"Tower, rotator, room for elements",gain:"5–9 dBd",pro:"Most gain, best rejection off the back",con:"Tower cost and permits",tip:"Height first, elements second. A 3-element at 50 ft beats a 5-element at 30 ft."},
+{n:"Magnetic loop",s:"apartment small portable",bands:"About 2:1 frequency range (e.g. 40–15 m)",cost:"$150–600",need:"A balcony, attic or tabletop",gain:"Below dipole, but quiet",pro:"Tiny, very low receive noise, works indoors",con:"Very narrow bandwidth, retune every few kHz, high voltage on the capacitor",tip:"Keep it away from people while transmitting. The capacitor can reach thousands of volts."},
+{n:"Buddipole / portable vertical",s:"portable apartment",bands:"40–6 m",cost:"$150–450",need:"Tripod or clamp",gain:"Compromise",pro:"Sets up in minutes, great for POTA and balconies",con:"Loading coils lose efficiency on lower bands",tip:"Lay out a couple of tuned counterpoise wires."},
+{n:"G5RV / ZS6BKW",s:"yard",bands:"80–10 m with tuner (ZS6BKW better)",cost:"$50–120",need:"102 ft span (G5RV) or 93 ft (ZS6BKW)",gain:"Near dipole",pro:"Familiar, multiband",con:"Needs a tuner on some bands, ladder line section",tip:"The ZS6BKW variant gives low SWR on more bands without a tuner."},
+{n:"2 m / 70 cm J-pole or Slim Jim",s:"apartment small yard",bands:"2 m (and 70 cm dual)",cost:"$20–60",need:"A window, attic or mast",gain:"About a dipole",pro:"Easy to build from copper pipe or twin lead",con:"Coax routing affects pattern",tip:"Get it high. Height is everything at VHF."},
+{n:"Dual-band collinear vertical",s:"yard small",bands:"2 m / 70 cm",cost:"$80–250",need:"Roof or mast",gain:"3–8 dBi",pro:"Reaches distant repeaters",con:"Wind loading on taller models",tip:"Use LMR-400 or better; loss at 440 MHz adds up fast."},
+{n:"Discone",s:"yard small",bands:"25–1,300 MHz (receive), some TX",cost:"$60–120",need:"Mast",gain:"Unity",pro:"Covers a huge range, ideal for scanners and SDRs",con:"No gain, so-so transmit performance",tip:"A great general receive antenna for an RTL-SDR on a Pi."}
+];
+const SP={apartment:"Apartment / indoor",small:"Small lot",yard:"Average yard",big:"Big property / tower",portable:"Portable / POTA"};
+let antS="all";const af=$("#antFilters");
+af.innerHTML=`<button class="chip" aria-pressed="true" data-s="all">Any space</button>`+Object.entries(SP).map(([k,v])=>`<button class="chip" aria-pressed="false" data-s="${k}">${v}</button>`).join("");
+af.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;antS=b.dataset.s;af.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===b));renderAnts()});
+function renderAnts(){$("#ants").innerHTML=ANTS.filter(a=>antS==="all"||a.s.split(" ").includes(antS)).map(a=>`<div class="card"><h3>${esc(a.n)}</h3>
+ <div class="tags">${a.s.split(" ").map(s=>`<span class="tag">${SP[s].split(" /")[0]}</span>`).join("")}<span class="tag cat">${esc(a.cost)}</span></div>
+ <dl class="kv"><dt>Bands</dt><dd>${esc(a.bands)}</dd><dt>Needs</dt><dd>${esc(a.need)}</dd><dt>Gain</dt><dd>${esc(a.gain)}</dd></dl>
+ <div class="proscons"><div class="pro"><b>Good</b>${esc(a.pro)}</div><div class="con"><b>Watch for</b>${esc(a.con)}</div></div><p>${esc(a.tip)}</p></div>`).join("");}
+renderAnts();
+
+/* length calc */
+$("#lenBand").innerHTML=`<option value="">—</option>`+BANDS.filter(b=>b.lo>=1.8).map(b=>`<option value="${((b.lo+b.hi)/2).toFixed(3)}">${b.b}</option>`).join("");
+$("#lenBand").addEventListener("change",e=>{if(e.target.value){$("#lenF").value=e.target.value;calcLen()}});
+$("#lenF").addEventListener("input",calcLen);
+function ftin(ft){const f=Math.floor(ft),i=Math.round((ft-f)*12*10)/10;return f+"′ "+i+"″";}
+function calcLen(){const f=+$("#lenF").value;if(!(f>0)){$("#lenOut").innerHTML="<span>Enter a frequency</span><b>—</b>";return;}
+ const d=468/f,q=234/f,w=984/f;
+ $("#lenOut").innerHTML=`<span>½λ dipole total</span><b>${ftin(d)} · ${(d*0.3048).toFixed(2)} m</b><span>Each dipole leg</span><b>${ftin(d/2)}</b><span>¼λ vertical / radial</span><b>${ftin(q)}</b><span>EFHW wire</span><b>${ftin(d*1.0)}</b><span>5/8λ vertical</span><b>${ftin(585/f)}</b><span>Free-space λ</span><b>${ftin(w)}</b>`;}
+calcLen();
+
+/* coax */
+const COAX=[["RG-58",[1.4,3.3,6.0,11.0],"Thin and cheap. Short HF jumpers only."],["RG-8X (mini-8)",[1.0,2.5,4.5,8.5],"Fine for HF runs under 100 ft."],["RG-213",[0.6,1.6,2.8,5.2],"Tough, heavy, good HF all-rounder."],["LMR-400",[0.4,0.9,1.5,2.7],"The VHF/UHF standard. Stiff."],["LMR-600",[0.25,0.6,1.0,1.7],"Long VHF/UHF runs."],["450 Ω ladder line",[0.06,0.15,0.3,0.6],"Lowest loss for multiband HF with a tuner. Keep it off metal."]];
+const CF=[10,50,150,450];
+$("#coaxRows").innerHTML=COAX.map(c=>`<tr><td><b>${c[0]}</b></td>${c[1].map(v=>`<td class="num">${v.toFixed(v<1?2:1)}</td>`).join("")}<td>${c[2]}</td></tr>`).join("");
+$("#cxT").innerHTML=COAX.map((c,i)=>`<option value="${i}"${i===3?" selected":""}>${c[0]}</option>`).join("");
+function coaxLoss(i,f){const v=COAX[i][1];const lf=Math.log(f);let k;
+ if(f<=CF[0])return v[0]*Math.sqrt(f/CF[0]);
+ for(k=0;k<CF.length-1;k++)if(f<=CF[k+1])break; if(k>=CF.length-1)k=CF.length-2;
+ const a=Math.log(CF[k]),b=Math.log(CF[k+1]);const t=(lf-a)/(b-a);return Math.exp(Math.log(v[k])+t*(Math.log(v[k+1])-Math.log(v[k])));}
+function calcCx(){const i=+$("#cxT").value,L=+$("#cxL").value,f=+$("#cxF").value;if(!(L>0&&f>0))return;
+ const db=coaxLoss(i,f)*L/100;const pct=(1-Math.pow(10,-db/10))*100;
+ $("#cxOut").innerHTML=`<span>Loss</span><b>${db.toFixed(2)} dB</b><span>100 W in</span><b>${(100*Math.pow(10,-db/10)).toFixed(0)} W out</b><span>Power lost</span><b>${pct.toFixed(0)}%</b>`;}
+["#cxT","#cxL","#cxF"].forEach(s=>$(s).addEventListener("input",calcCx));calcCx();
+
+/* ---------- amps ---------- */
+const AMPS=[
+{n:"Heathkit SB-200",m:"Heath",y:"1964–1975",k:"tubeamp",pw:"~600 W PEP out",dr:"100 W",tubes:"2× 572B",pr:"$350–650",note:"The most popular kit amp ever. Simple, rebuildable, everywhere.",iss:["HV filter capacitors and bleeders","No glitch resistor stock","Relay arcing with modern rigs","Tired 572B tubes"],up:["Harbach soft-key and HV rebuild kits","Add a glitch resistor","Keying interface for solid-state rigs","Fresh 572B tubes"]},
+{n:"Heathkit SB-220",m:"Heath",y:"1969–1983",k:"tubeamp",pw:"~1,000 W out",dr:"100 W",tubes:"2× 3-500Z",pr:"$700–1,200",note:"Legal-limit class from a kit. A step up from the SB-200.",iss:["Parasitic oscillation risk","HV supply capacitors","Bandswitch arcing","3-500Z prices"],up:["Parasitic suppressor mods","Step-start and soft-key","Add 160 m","New HV capacitor board"]},
+{n:"Ameritron AL-811H",m:"Ameritron",y:"1990s–present",k:"tubeamp",pw:"~800 W out",dr:"~70 W",tubes:"4× 811A",pr:"$700–1,000",note:"Entry legal-ish amp with cheap tubes. A gateway to high power.",iss:["811A tubes can arc and fail","Tube matching","Fan noise"],up:["Name-brand 811A tubes","Glitch resistor","Quieter fan"]},
+{n:"Ameritron AL-80B",m:"Ameritron",y:"1990s–present",k:"tubeamp",pw:"~1,000 W out",dr:"85 W",tubes:"1× 3-500ZG",pr:"$1,200–1,700",note:"One-tube 1 kW desktop amp, 120 V or 240 V.",iss:["Tube cost","Tune-up skill needed"],up:["Add a QSK switch (QSK-5)","240 V operation for headroom"]},
+{n:"Drake L-4B",m:"R.L. Drake",y:"1968–1978",k:"tubeamp",pw:"~1,000 W out",dr:"100 W",tubes:"2× 3-500Z",pr:"$700–1,300",note:"Classic partner for the Drake Twins. Separate HV supply.",iss:["HV supply capacitors","Bias circuit","Tube availability"],up:["Recap the supply","Soft-start","Modern metering"]},
+{n:"Hardrock-50",m:"HobbyPCB",y:"2015–present",k:"ssamp",pw:"50 W",dr:"5 W",tubes:"Solid state",pr:"$350–450",note:"Made for QRP rigs like the FT-817, KX2 and IC-705.",iss:["Kit build care","Needs low-SWR antenna or ATU option"],up:["Internal ATU option","Band data from the rig via CAT"]},
+{n:"Xiegu XPA125B",m:"Xiegu",y:"2019–present",k:"ssamp",pw:"100 W",dr:"5–10 W",tubes:"Solid state",pr:"$500–600",note:"Pairs with the G90 or X6100 to make a 100 W station.",iss:["QC variance","Tuner range"],up:["Band control cable from the rig","Good 13.8 V 25 A supply"]},
+{n:"Elecraft KPA500",m:"Elecraft",y:"2011–present",k:"ssamp",pw:"500 W",dr:"~30 W",tubes:"Solid state",pr:"$1,900–2,500",note:"Instant-on, no tune-up. Pair with the KAT500 tuner.",iss:["Fault trips on high SWR","Price per watt"],up:["KAT500 tuner","Band data via CAT"]},
+{n:"Elecraft KPA1500",m:"Elecraft",y:"2018–present",k:"ssamp",pw:"1,500 W",dr:"~50 W",tubes:"Solid state",pr:"$5,500–6,500",note:"Legal-limit with a built-in tuner. Remote-friendly.",iss:["Cost","240 V required"],up:["Remote control utility","Integration with K4"]},
+{n:"SPE Expert 1.3K-FA",m:"SPE",y:"2016–present",k:"ssamp",pw:"1,300 W",dr:"~50 W",tubes:"Solid state",pr:"$3,800–4,500",note:"Compact Italian amp with internal tuner and auto band.",iss:["Fan noise","Service is overseas"],up:["CAT band data","Remote via LAN"]},
+{n:"ACOM 1200S",m:"ACOM",y:"2016–present",k:"ssamp",pw:"1,200 W",dr:"~60 W",tubes:"Solid state",pr:"$3,500–4,000",note:"Bulgarian-built LDMOS amp with a strong reputation for ruggedness.",iss:["External tuner needed for high SWR"],up:["ACOM 04AT tuner","Band data cable"]}
+];
+$("#ampCards").innerHTML=AMPS.map(a=>`<article class="rig"><div class="plate">${plate(a.k,a.n.split(" ").slice(-1)[0])}</div><div class="body">
+ <div class="top"><div><h3>${esc(a.n)}</h3><div class="mk">${esc(a.m)} · ${esc(a.y)}</div></div><div class="price">${esc(a.pr)}</div></div>
+ <div class="tags"><span class="tag cat">${a.k==="tubeamp"?"Tube":"Solid state"}</span><span class="tag">${esc(a.pw)}</span><span class="tag">Drive ${esc(a.dr)}</span>${a.k==="tubeamp"?`<span class="tag">${esc(a.tubes)}</span>`:""}</div>
+ <p class="note">${esc(a.note)}</p>
+ <div><h4 class="iss">Common issues</h4><ul>${a.iss.map(i=>`<li>${esc(i)}</li>`).join("")}</ul></div>
+ <div><h4 class="up">Upgrades</h4><ul>${a.up.map(i=>`<li>${esc(i)}</li>`).join("")}</ul></div></div></article>`).join("");
+function calcP(){const a=+$("#p1").value,b=+$("#p2").value;if(!(a>0&&b>0))return;const db=10*Math.log10(b/a);
+ const v=db>=6?"Noticeable to the other station":db>=3?"Small but real on weak signals":"Hard to notice";
+ $("#pOut").innerHTML=`<span>Gain</span><b>${db.toFixed(1)} dB</b><span>S-units</span><b>${(db/6).toFixed(1)}</b><span>Verdict</span><b>${v}</b>`;}
+["#p1","#p2"].forEach(s=>$(s).addEventListener("input",calcP));calcP();
+
+/* ---------- software ---------- */
+const SW=[
+["WSJT-X","FT8, FT4, WSPR, JT65, MSK144. The weak-signal standard.","digital","Win / Mac / Linux / Pi","Free"],
+["JTDX","FT8 decoder fork tuned for crowded bands and DX.","digital","Win / Linux","Free"],
+["JS8Call","Keyboard messaging over FT8-style signals, store-and-forward.","digital","Win / Mac / Linux / Pi","Free"],
+["fldigi + flrig","PSK31, RTTY, Olivia, MFSK and dozens more, plus rig control.","digital","Win / Mac / Linux / Pi","Free"],
+["VARA HF / FM","Fast modem for Winlink email over radio.","digital","Windows (Wine on Pi)","Free / paid speed key"],
+["Winlink Express / Pat","Email over HF and VHF without internet. Key for emergency comms.","digital","Win (Express), Linux/Pi (Pat)","Free"],
+["Direwolf","Software TNC for APRS and packet radio.","digital","Linux / Pi / Win","Free"],
+["QSSTV / MMSSTV","Send and receive slow-scan TV pictures.","digital","Linux / Pi (QSSTV), Win (MMSSTV)","Free"],
+["GridTracker","Maps every station WSJT-X hears, tracks awards.","logging","Win / Mac / Linux / Pi","Free"],
+["N1MM Logger+","The contest logger.","logging","Windows","Free"],
+["Log4OM","Full-featured general logger with LoTW and QRZ sync.","logging","Windows","Free"],
+["QLog / CQRLog","Native Linux loggers that run well on a Pi.","logging","Linux / Pi","Free"],
+["DXLab Suite","Modular logger, rig control and DX spotting.","logging","Windows","Free"],
+["TQSL (LoTW)","Signs and uploads your log to ARRL Logbook of the World.","logging","Win / Mac / Linux","Free"],
+["Hamlib / rigctld","Shared rig-control library and server.","control","Linux / Pi / Win / Mac","Free"],
+["wfview","Remote control and big-screen waterfall for Icom (and some Kenwood/Yaesu).","control","Win / Mac / Linux / Pi","Free"],
+["CHIRP","Program HTs and mobiles from a computer.","control","Win / Mac / Linux","Free"],
+["Ham Radio Deluxe","Rig control, logging and digital modes in one package.","control","Windows","Paid"],
+["SDR++","Fast, clean SDR receiver app for most dongles.","sdr","Win / Mac / Linux / Pi","Free"],
+["SDR# (SDRSharp)","Popular Windows SDR receiver with plugins.","sdr","Windows","Free"],
+["OpenWebRX+","Turns a Pi and SDR into your own web receiver.","sdr","Linux / Pi","Free"],
+["Gpredict / SatPC32","Satellite tracking with Doppler correction.","sdr","Linux / Win","Free / paid"],
+["Pi-Star / WPSD","DMR, D-STAR and Fusion hotspot software for a Pi Zero or Pi 3.","control","Pi","Free"]
+];
+const SWC={digital:"Digital modes",logging:"Logging",control:"Rig control",sdr:"SDR & satellites"};
+let swC="all";const sf=$("#swFilters");
+sf.innerHTML=`<button class="chip" aria-pressed="true" data-c="all">All</button>`+Object.entries(SWC).map(([k,v])=>`<button class="chip" aria-pressed="false" data-c="${k}">${v}</button>`).join("");
+sf.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;swC=b.dataset.c;sf.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===b));renderSw()});
+function renderSw(){$("#swRows").innerHTML=SW.filter(s=>swC==="all"||s[2]===swC).map(s=>`<tr><td><b>${esc(s[0])}</b><div class="tags" style="margin-top:4px"><span class="tag">${SWC[s[2]]}</span></div></td><td>${esc(s[1])}</td><td>${esc(s[3])}</td><td>${esc(s[4])}</td></tr>`).join("");}
+renderSw();
+const HW=[
+["DigiRig Mobile","~$50–70","Tiny USB sound card plus CAT and PTT in one. The best way to connect a Pi to a radio without its own USB."],
+["SignaLink USB","~$130–150","Sound card with VOX keying and level knobs. Works with any rig with a data or mic jack."],
+["USB GPS dongle","~$15–40","Accurate time for FT8 and grid square in the field. Feed it to chrony on a Pi."],
+["Raspberry Pi 4 / 5","~$55–90","Runs WSJT-X, fldigi, Direwolf, Pat, wfview and GridTracker at a few watts. Ideal for emergency power."],
+["Snap-on ferrite chokes","~$10–20","Mix 31 for HF. Clip on USB, audio and power cables to stop RF lockups."],
+["RF power / SWR meter","~$60–250","Know what you are actually putting into the antenna. A must with amps."],
+["Antenna analyzer (NanoVNA)","~$50–120","Measures SWR and impedance across a band. Makes trimming antennas easy."],
+["LiFePO4 battery","~$100–300","Clean 12.8–13.6 V for field and blackout operation. Pairs with a solar charge controller."]
+];
+$("#hwCards").innerHTML=HW.map(h=>`<div class="card"><div class="top" style="display:flex;justify-content:space-between;gap:10px"><h3>${esc(h[0])}</h3><span class="mono" style="color:var(--accent);font-size:.85rem;white-space:nowrap">${esc(h[1])}</span></div><p>${esc(h[2])}</p></div>`).join("");
+
+/* ---------- websdr ---------- */
+const SDRS=[
+["University of Twente WebSDR","http://websdr.ewi.utwente.nl:8901/","The famous one. Hundreds of listeners at once, 0–29 MHz from the Netherlands."],
+["WebSDR.org directory","http://www.websdr.org/","List of WebSDR stations worldwide, by band and location."],
+["KiwiSDR public list","http://rx.linkfanel.net/","Hundreds of KiwiSDR receivers on a map. Pick one near the station you want to hear."],
+["ReceiverBook","https://www.receiverbook.de/","Directory of OpenWebRX receivers, including VHF and UHF."],
+["PSKReporter","https://pskreporter.info/pskmap.html","Live map of who decoded your FT8, JS8 or PSK signal."],
+["Reverse Beacon Network","https://www.reversebeacon.net/","Automated CW and RTTY skimmers that report where you were heard."],
+["WSPRnet","https://www.wsprnet.org/","Propagation spots from 200 mW beacons worldwide."],
+["NCDXF beacon map","https://www.ncdxf.org/beacon/WebRX.html","Shows which of the 18 international HF beacons are transmitting right now."],
+["DX Summit","https://www.dxsummit.fi/","DX cluster spots: what rare stations are on the air now."],
+["NOAA Space Weather","https://www.swpc.noaa.gov/","Solar flux, K-index and geomagnetic alerts that drive HF propagation."],
+["HamQSL solar data","https://www.hamqsl.com/solar.html","Band-condition widget and solar numbers at a glance."],
+["ARRL band chart","https://www.arrl.org/band-plan","Official US band plan and license privileges."]
+];
+$("#sdrLinks").innerHTML=SDRS.map(s=>`<a class="link" href="${s[1]}" target="_blank" rel="noopener"><b>${esc(s[0])}</b><span class="u">${esc(s[1].replace(/^https?:\/\//,"").replace(/\/$/,""))}</span><p>${esc(s[2])}</p></a>`).join("");
+
+/* ---------- toolkit ---------- */
+const FREQS=[
+["146.520 MHz","2 m national simplex calling","FM"],["446.000 MHz","70 cm national simplex calling","FM"],["223.500 MHz","1.25 m simplex calling","FM"],["52.525 MHz","6 m FM simplex calling","FM"],["29.600 MHz","10 m FM simplex calling","FM"],
+["144.390 MHz","APRS (North America)","AFSK packet"],["145.825 MHz","ISS / ARISS APRS digipeater","AFSK packet"],
+["3.985 / 7.268 MHz","Common regional HF emergency nets (check your section)","LSB"],["14.300 MHz","Maritime Mobile Service Network","USB"],
+["5.330.5–5.403.5 kHz","60 m channels for emergency coordination","USB, 100 W ERP"],
+["2.5 / 5 / 10 / 15 / 20 MHz","WWV time and propagation check (Fort Collins, CO)","AM"],["162.400–162.550 MHz","NOAA Weather Radio (7 channels)","FM, receive only"]
+];
+$("#freqRows").innerHTML=FREQS.map(f=>`<tr><td class="num"><b>${f[0]}</b></td><td>${esc(f[1])}</td><td>${esc(f[2])}</td></tr>`).join("");
+function calcSwr(){const s=+$("#swr").value;if(!(s>=1))return;const g=(s-1)/(s+1);const ref=g*g;const ml=-10*Math.log10(1-ref);const rl=g>0?-20*Math.log10(g):Infinity;
+ $("#swrOut").innerHTML=`<span>Reflection Γ</span><b>${g.toFixed(3)}</b><span>Reflected</span><b>${(ref*100).toFixed(1)}%</b><span>Mismatch loss</span><b>${ml.toFixed(2)} dB</b><span>Return loss</span><b>${isFinite(rl)?rl.toFixed(1)+" dB":"∞"}</b>`;}
+$("#swr").addEventListener("input",calcSwr);calcSwr();
+function grid(lat,lon){lon+=180;lat+=90;const A="ABCDEFGHIJKLMNOPQR",a="abcdefghijklmnopqrstuvwx";
+ const f1=Math.floor(lon/20),f2=Math.floor(lat/10);const s1=Math.floor((lon%20)/2),s2=Math.floor(lat%10);
+ const t1=Math.floor(((lon%2)/2)*24),t2=Math.floor((lat%1)*24);return A[f1]+A[f2]+s1+s2+a[t1]+a[t2];}
+function calcGrid(){const la=+$("#lat").value,lo=+$("#lon").value;if(!(la>=-90&&la<90&&lo>=-180&&lo<180)){$("#gridOut").innerHTML="<span>Grid</span><b>Out of range</b>";return;}
+ const g=grid(la,lo);$("#gridOut").innerHTML=`<span>6-char grid</span><b>${g}</b><span>4-char (FT8)</span><b>${g.slice(0,4)}</b>`;}
+["#lat","#lon"].forEach(s=>$(s).addEventListener("input",calcGrid));calcGrid();
+function calcOhm(){const V=+$("#ohV").value,I=+$("#ohI").value;if(!(V>0&&I>0))return;
+ $("#ohOut").innerHTML=`<span>Power</span><b>${(V*I).toFixed(1)} W</b><span>Resistance</span><b>${(V/I).toFixed(3)} Ω</b><span>12 AWG drop / 10 ft run</span><b>${(I*2*10*0.001588).toFixed(2)} V</b>`;}
+["#ohV","#ohI"].forEach(s=>$(s).addEventListener("input",calcOhm));calcOhm();
+
+/* morse */
+const MC={A:".-",B:"-...",C:"-.-.",D:"-..",E:".",F:"..-.",G:"--.",H:"....",I:"..",J:".---",K:"-.-",L:".-..",M:"--",N:"-.",O:"---",P:".--.",Q:"--.-",R:".-.",S:"...",T:"-",U:"..-",V:"...-",W:".--",X:"-..-",Y:"-.--",Z:"--..",
+"0":"-----","1":".----","2":"..---","3":"...--","4":"....-","5":".....","6":"-....","7":"--...","8":"---..","9":"----.",".":".-.-.-",",":"--..--","?":"..--..","/":"-..-.","=":"-...-"};
+const PH=["Alfa","Bravo","Charlie","Delta","Echo","Foxtrot","Golf","Hotel","India","Juliett","Kilo","Lima","Mike","November","Oscar","Papa","Quebec","Romeo","Sierra","Tango","Uniform","Victor","Whiskey","X-ray","Yankee","Zulu"];
+const show=c=>MC[c].replace(/\./g,"·").replace(/-/g,"–");
+$("#morseGrid").innerHTML=Object.keys(MC).map(k=>`<button data-k="${esc(k)}" aria-label="Play ${esc(k)}"><b>${esc(k)}</b><span>${show(k)}</span>${/[A-Z]/.test(k)?`<small>${PH[k.charCodeAt(0)-65]}</small>`:""}</button>`).join("");
+let ctx=null,stopAt=0,gainNode=null;
+function playMorse(text){try{ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();}catch(e){return;}
+ ctx.resume&&ctx.resume();stopMorse();const wpm=Math.min(40,Math.max(5,+$("#mWpm").value||18));const u=1.2/wpm;const hz=+$("#mTone").value||650;
+ const osc=ctx.createOscillator();const g=ctx.createGain();osc.frequency.value=hz;g.gain.value=0;osc.connect(g).connect(ctx.destination);
+ let t=ctx.currentTime+0.05;const ramp=0.004;
+ for(const ch of text.toUpperCase()){if(ch===" "){t+=u*4;continue;}const c=MC[ch];if(!c)continue;
+  for(const s of c){const d=s==="."?u:u*3;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.35,t+ramp);g.gain.setValueAtTime(.35,t+d-ramp);g.gain.linearRampToValueAtTime(0,t+d);t+=d+u;}t+=u*2;}
+ osc.start();osc.stop(t+0.05);gainNode={osc,g};}
+function stopMorse(){if(gainNode){try{gainNode.osc.stop()}catch(e){}gainNode=null;}}
+function updM(){$("#mOut").textContent=$("#mText").value.toUpperCase().split("").map(c=>c===" "?"/":(MC[c]?show(c):"")).join(" ");}
+$("#mText").addEventListener("input",updM);updM();
+$("#mPlay").addEventListener("click",()=>playMorse($("#mText").value));
+$("#mStop").addEventListener("click",stopMorse);
+$("#morseGrid").addEventListener("click",e=>{const b=e.target.closest("button");if(b)playMorse(b.dataset.k)});
+
+$("#phon").innerHTML=PH.map(p=>`<tr><td class="num"><b>${p[0]}</b></td><td>${p}</td></tr>`).join("");
+const Q=[["QRM","Man-made interference"],["QRN","Static, natural noise"],["QRO","Increase power / high power"],["QRP","Reduce power / low power (5 W or less)"],["QRL","Is this frequency in use?"],["QRS","Send slower"],["QRT","Stop sending, going off the air"],["QRV","I am ready"],["QRX","Stand by"],["QRZ","Who is calling me?"],["QSB","Signal is fading"],["QSL","I confirm / a confirmation card"],["QSO","A contact"],["QSY","Change frequency"],["QTH","Location"]];
+$("#qcodes").innerHTML=Q.map(q=>`<tr><td class="num"><b>${q[0]}</b></td><td>${q[1]}</td></tr>`).join("");
+const R=[["R 1–5","Readability: 1 unreadable, 3 with difficulty, 5 perfect"],["S 1–9","Strength: 1 faint, 5 fair, 9 very strong (S9 ≈ 50 µV at HF)"],["T 1–9","Tone, CW only: 9 is a pure tone"],["59 / 599","Standard phone / CW report (and contest default)"],["S-unit","About 6 dB, a 4× change in power"]];
+$("#rst").innerHTML=R.map(q=>`<tr><td class="num"><b>${q[0]}</b></td><td>${q[1]}</td></tr>`).join("");
+const AB=[["73","Best regards"],["88","Love and kisses"],["CQ","Calling any station"],["DE","From (this is)"],["K","Go ahead"],["KN","Go ahead, named station only"],["SK","End of contact"],["BK","Break / back to you"],["ES","And"],["FB","Fine business (great)"],["GM / GA / GE","Good morning / afternoon / evening"],["OM / YL / XYL","Old man / young lady / wife"],["TU","Thank you"],["UR","Your / you are"],["WX","Weather"],["RIG","Radio"],["ANT","Antenna"],["HR","Here"]];
+$("#abbr").innerHTML=AB.map(q=>`<tr><td class="num"><b>${q[0]}</b></td><td>${q[1]}</td></tr>`).join("");
+})();
+</script>
+
+</body></html>

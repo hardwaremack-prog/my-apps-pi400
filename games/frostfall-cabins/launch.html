@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frostfall Cabins</title>
+<style>
+  :root { --ink:#eef3fb; --dim:#9fb0c8; --edge:rgba(190,215,255,.16); --fire:#ff9a3c; --fire2:#ffd27a; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; color:var(--ink);
+    font:15px/1.45 system-ui, "DejaVu Sans", sans-serif;
+    background: radial-gradient(ellipse at 50% 120%, #3b2a2a 0%, #141a2c 45%, #05070d 100%); }
+  .card { width:min(560px, 92vw); padding:28px; border-radius:12px; background:rgba(10,16,28,.62); border:1px solid var(--edge); }
+  h1 { margin:0; font:600 38px/1.05 Georgia, "DejaVu Serif", serif; }
+  h1 span { color:var(--fire2); }
+  p { color:var(--dim); margin:8px 0 0; }
+  h2 { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); margin:24px 0 8px; font-weight:600; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  button { padding:11px 16px; border:0; border-radius:9px; cursor:pointer; font-weight:700; font-size:15px;
+    background:linear-gradient(180deg,#ffb35c,#e2742a); color:#2a1406; }
+  button.alt { background:rgba(255,255,255,.08); color:var(--ink); border:1px solid var(--edge); font-weight:600; }
+  input { flex:1; min-width:180px; padding:11px 12px; border-radius:8px; border:1px solid var(--edge); background:rgba(255,255,255,.06); color:var(--ink); font-size:15px; }
+  .status { display:inline-flex; align-items:center; gap:7px; font-size:13.5px; color:var(--dim); }
+  .dot { width:10px; height:10px; border-radius:50%; background:#5d6b80; }
+  .dot.on { background:#5cd67a; box-shadow:0 0 8px #5cd67a; }
+  code { background:rgba(255,255,255,.08); padding:1px 6px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Frostfall <span>Cabins</span></h1>
+  <p>LAN multiplayer. Five cabins on one mountain — split up, haul firewood and keep every stove lit through the 2:00 AM icy gale.</p>
+
+  <h2>Host the game on this Pi</h2>
+  <p>Double-click <b>Frostfall Cabins Server</b> on the Desktop (added by Set Up My Apps). A window shows the address everyone else types in.</p>
+  <div class="row" style="margin-top:10px">
+    <button id="play">Play on this Pi</button>
+    <button class="alt" id="recheck">Check again</button>
+    <span class="status"><span class="dot" id="dot"></span><span id="st">Checking…</span></span>
+  </div>
+
+  <h2>Join a game hosted on another computer</h2>
+  <div class="row">
+    <input id="addr" placeholder="Host address, e.g. 192.168.1.42" autocomplete="off">
+    <button id="join">Join</button>
+  </div>
+  <p style="font-size:13px">No icon? In a Terminal: <code>bash ~/Desktop/"My Apps"/games/frostfall-cabins/start-pi.sh</code></p>
+</div>
+<script>
+const PORT = 8765;
+const $ = (id) => document.getElementById(id);
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+async function check() {
+  $('st').textContent = 'Checking…';
+  try {
+    await fetch(`http://localhost:${PORT}/game.js`, { mode: 'no-cors', cache: 'no-store' });
+    $('dot').classList.add('on'); $('st').textContent = 'Server is running on this Pi';
+  } catch (e) {
+    $('dot').classList.remove('on'); $('st').textContent = 'Server not running here yet';
+  }
+}
+$('play').onclick = () => { location.href = `http://localhost:${PORT}/`; };
+$('recheck').onclick = check;
+$('addr').value = store('ffc.host') || '';
+function join() {
+  let a = $('addr').value.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  if (!a) { $('addr').focus(); return; }
+  store('ffc.host', a);
+  if (!/:\d+$/.test(a)) a += ':' + PORT;
+  location.href = `http://${a}/`;
+}
+$('join').onclick = join;
+$('addr').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
+check();
+</script>
+</body>
+</html>

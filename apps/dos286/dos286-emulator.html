@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PC/AT 286 :: Emulated Session</title>
+<style>
+  :root{
+    --amber: #ffb000;
+    --amber-dim: #7a5400;
+    --green: #33ff33;
+    --green-dim: #0d660d;
+    --bg: #0a0a0a;
+    --fg: var(--amber);
+    --fg-dim: var(--amber-dim);
+  }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: #000;
+    overflow:hidden;
+  }
+  #crt{
+    position:relative;
+    width:100%; height:100vh;
+    background: radial-gradient(ellipse at center, #0f0d08 0%, #000 78%);
+    display:flex; align-items:center; justify-content:center;
+    box-sizing:border-box;
+    padding: 2vh 2vw;
+  }
+  #bezel{
+    width:min(980px,96vw);
+    height:min(700px,92vh);
+    background:#161310;
+    border-radius:14px;
+    padding:22px 22px 30px 22px;
+    box-shadow: 0 0 0 2px #000, 0 20px 60px rgba(0,0,0,.8), inset 0 0 30px rgba(0,0,0,.6);
+    display:flex; flex-direction:column;
+    box-sizing:border-box;
+  }
+  #label{
+    font-family: Arial, sans-serif;
+    font-size:10px;
+    letter-spacing:2px;
+    color:#4a433a;
+    text-align:right;
+    margin-bottom:8px;
+  }
+  #screenwrap{
+    flex:1;
+    background:#000;
+    border-radius:6px;
+    position:relative;
+    overflow:hidden;
+    box-shadow: inset 0 0 40px rgba(0,0,0,.9), inset 0 0 4px #000;
+  }
+  #screen{
+    position:absolute; inset:0;
+    padding: 18px 22px;
+    font-family: 'Perfect DOS VGA 437', 'Consolas', 'Courier New', monospace;
+    font-size: 16px;
+    line-height: 1.35;
+    color: var(--fg);
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-shadow: 0 0 3px currentColor, 0 0 8px currentColor;
+    overflow-y:auto;
+  }
+  #screen::-webkit-scrollbar{ width:0; }
+  .scanlines{
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 1px,
+      rgba(0,0,0,.18) 2px,
+      rgba(0,0,0,.18) 3px
+    );
+    pointer-events:none;
+    mix-blend-mode:multiply;
+  }
+  .flicker{
+    position:absolute; inset:0;
+    background: rgba(255,255,255,.015);
+    pointer-events:none;
+    animation: flick 6s infinite;
+  }
+  @keyframes flick{
+    0%,100%{opacity:.4;}
+    50%{opacity:0;}
+  }
+  .vignette{
+    position:absolute; inset:0;
+    box-shadow: inset 0 0 90px 30px rgba(0,0,0,.75);
+    pointer-events:none;
+  }
+  .cursor{
+    display:inline-block;
+    width:9px; height:15px;
+    background:var(--fg);
+    box-shadow:0 0 6px var(--fg);
+    vertical-align:-2px;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+  .menuitem{ cursor:pointer; }
+  .menuitem.selected{ background:var(--fg); color:#000; text-shadow:none; }
+  #hint{
+    font-family: Arial, sans-serif;
+    font-size:11px;
+    color:#4a433a;
+    text-align:center;
+    margin-top:8px;
+  }
+  a.termlink{ color:inherit; text-decoration:underline; }
+</style>
+</head>
+<body>
+<div id="crt">
+  <div id="bezel">
+    <div id="label">MONOCHROME DISPLAY ADAPTER · 286/12MHz</div>
+    <div id="screenwrap">
+      <div id="screen" tabindex="0"></div>
+      <div class="scanlines"></div>
+      <div class="flicker"></div>
+      <div class="vignette"></div>
+    </div>
+    <div id="hint">click the screen to focus · type to interact · this is an original simulation, not real MS-DOS/QuickMenu/SmartDrive software</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const screen = document.getElementById('screen');
+  let buffer = [];       // lines currently on screen
+  let inputEnabled = false;
+  let inputCallback = null;
+  let currentLine = "";
+  let cursorEl = null;
+
+  function render(){
+    screen.textContent = buffer.join("\n");
+    if(inputEnabled){
+      const span = document.createElement('span');
+      span.className = 'cursor';
+      screen.appendChild(document.createTextNode(""));
+      screen.appendChild(span);
+      cursorEl = span;
+    }
+    screen.scrollTop = screen.scrollHeight;
+  }
+
+  function print(text){
+    const lines = String(text).split("\n");
+    if(buffer.length === 0){
+      buffer = lines;
+    } else {
+      buffer[buffer.length-1] += lines[0];
+      for(let i=1;i<lines.length;i++) buffer.push(lines[i]);
+    }
+    render();
+  }
+  function println(text=""){ print(text + "\n"); buffer.push(""); render(); }
+  function clearScreen(){ buffer = ['']; render(); }
+
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+  async function typeOut(text, speed=14){
+    for(const ch of text){
+      print(ch);
+      await sleep(speed);
+    }
+  }
+
+  // ---------- keyboard handling ----------
+  let keyBuffer = [];
+  let waitingResolvers = [];
+
+  screen.addEventListener('keydown', (e)=>{
+    if(!inputEnabled) return;
+    e.preventDefault();
+    keyBuffer.push(e);
+    flushKeys();
+  });
+  screen.addEventListener('click', ()=> screen.focus());
+  screen.tabIndex = 0;
+
+  function flushKeys(){
+    while(keyBuffer.length && waitingResolvers.length){
+      const key = keyBuffer.shift();
+      const resolve = waitingResolvers.shift();
+      resolve(key);
+    }
+  }
+
+  function nextKey(){
+    return new Promise(resolve=>{
+      waitingResolvers.push(resolve);
+      flushKeys();
+    });
+  }
+
+  // Read a full line of text with local echo, returns string on Enter
+  async function readLine(prefix=""){
+    inputEnabled = true;
+    let line = "";
+    print(prefix);
+    render();
+    while(true){
+      const e = await nextKey();
+      if(e.key === 'Enter'){
+        println("");
+        return line;
+      } else if(e.key === 'Backspace'){
+        if(line.length){
+          line = line.slice(0,-1);
+          buffer[buffer.length-1] = buffer[buffer.length-1].slice(0,-1);
+          render();
+        }
+      } else if(e.key.length === 1){
+        line += e.key;
+        print(e.key);
+      }
+    }
+  }
+
+  // Read a single keypress (for menus)
+  async function readKey(){
+    inputEnabled = true;
+    const e = await nextKey();
+    return e.key;
+  }
+
+  screen.focus();
+
+  // ---------- boot sequence ----------
+  async function boot(){
+    clearScreen();
+    println("Phoenix 80286 ROM BIOS PLUS Version 3.10");
+    println("Copyright (C) 1985-1991 Phoenix Technologies Ltd.");
+    println("All Rights Reserved");
+    println("");
+    await sleep(400);
+    print("640K System RAM Passed");
+    await sleep(500);
+    println("");
+    print("1536K Extended RAM Passed");
+    await sleep(500);
+    println("");
+    println("Mouse initialized");
+    await sleep(300);
+    println("");
+    println("Starting MS-DOS...");
+    await sleep(700);
+    println("");
+
+    println("HIMEM is testing extended memory...done.");
+    await sleep(300);
+    println("");
+
+    println("C:\\>ECHO Loading CONFIG.SYS");
+    await sleep(200);
+    println("DEVICE=C:\\DOS\\HIMEM.SYS ......... installed, A20 line enabled");
+    await sleep(250);
+    println("DOS=HIGH ......................... DOS resident in HMA");
+    await sleep(250);
+    println("FILES=30, BUFFERS=20, STACKS=9,256");
+    await sleep(250);
+    println("");
+    await sleep(300);
+
+    println("C:\\>SMARTDRV.EXE");
+    await sleep(350);
+    println("Microsoft SmartDrive Disk Cache version 5.03");
+    println("Cache size: 1024K in Extended Memory");
+    println("");
+    println("  room for = 128 elements");
+    println("        Cache size:  Elements:      Cache size:  Elements:");
+    println("  Disk Cache          Disk Cache");
+    println("  ---- --------       ---- --------");
+    println("  A:    read-only     C:    read-write");
+    println("");
+    await sleep(500);
+
+    println("C:\\>PATH C:\\DOS;C:\\QMENU;C:\\");
+    await sleep(200);
+    println("C:\\>PROMPT $P$G");
+    await sleep(200);
+    println("C:\\>QUICKMENU.EXE");
+    await sleep(600);
+
+    await quickMenu();
+  }
+
+  // ---------- QuickMenu ----------
+  const menuItems = [
+    { label: "MS-DOS BASIC Interpreter", action: runBasic },
+    { label: "File Manager",             action: fakeFileManager },
+    { label: "Command Prompt (DOS Shell)", action: dosShell },
+    { label: "Reboot System",            action: boot },
+  ];
+  let menuSelected = 0;
+
+  function drawMenu(){
+    clearScreen();
+    println("+------------------------------------------------------------+");
+    println("|                      Q U I C K M E N U                     |");
+    println("|                  Main Menu -- 286/AT System                |");
+    println("+------------------------------------------------------------+");
+    println("");
+    menuItems.forEach((item,i)=>{
+      const marker = (i===menuSelected) ? "> " : "  ";
+      println(marker + (i+1) + ". " + item.label);
+    });
+    println("");
+    println("+------------------------------------------------------------+");
+    println("| Arrow keys to move, ENTER to select, ESC has no effect here |");
+    println("+------------------------------------------------------------+");
+    println("");
+    print("Selection: ");
+    render();
+  }
+
+  async function quickMenu(){
+    inputEnabled = true;
+    drawMenu();
+    while(true){
+      const key = await readKey();
+      if(key === 'ArrowDown'){
+        menuSelected = (menuSelected+1) % menuItems.length;
+        drawMenu();
+      } else if(key === 'ArrowUp'){
+        menuSelected = (menuSelected-1+menuItems.length) % menuItems.length;
+        drawMenu();
+      } else if(key === 'Enter'){
+        const chosen = menuItems[menuSelected];
+        await chosen.action();
+        return; // action re-enters menu itself when done
+      } else if(/^[1-9]$/.test(key)){
+        const idx = parseInt(key,10)-1;
+        if(idx < menuItems.length){
+          menuSelected = idx;
+          drawMenu();
+          await sleep(150);
+          const chosen = menuItems[menuSelected];
+          await chosen.action();
+          return;
+        }
+      }
+    }
+  }
+
+  async function fakeFileManager(){
+    clearScreen();
+    println(" Volume in drive C is SYS286");
+    println(" Directory of C:\\");
+    println("");
+    println(" QMENU        <DIR>     08-14-91  9:03a");
+    println(" DOS          <DIR>     08-14-91  9:00a");
+    println(" GAMES        <DIR>     08-14-91  9:10a");
+    println(" AUTOEXEC BAT      312  08-14-91  9:12a");
+    println(" CONFIG   SYS      201  08-14-91  9:11a");
+    println(" GWBASIC  EXE    68432  08-14-91  9:01a");
+    println("        6 file(s)     68 945 bytes");
+    println("                  14 288 896 bytes free");
+    println("");
+    println("Press any key to return to QuickMenu...");
+    await readKey();
+    await quickMenu();
+  }
+
+  async function dosShell(){
+    clearScreen();
+    println("Microsoft(R) MS-DOS(R) Version 6.22");
+    println("(C)Copyright Microsoft Corp 1981-1994.");
+    println("");
+    println("Type EXIT to return to QuickMenu.");
+    println("");
+    while(true){
+      const cmd = (await readLine("C:\\>")).trim();
+      const upper = cmd.toUpperCase();
+      if(upper === "EXIT"){
+        println("");
+        await quickMenu();
+        return;
+      } else if(upper === "DIR"){
+        println(" Volume in drive C is SYS286");
+        println(" Directory of C:\\");
+        println("");
+        println(" QMENU        <DIR>");
+        println(" DOS          <DIR>");
+        println(" GWBASIC  EXE    68432");
+        println("");
+      } else if(upper === "CLS"){
+        clearScreen();
+      } else if(upper === "VER"){
+        println("MS-DOS Version 6.22");
+      } else if(upper.startsWith("BASIC") || upper.startsWith("GWBASIC")){
+        await runBasic();
+        return;
+      } else if(cmd === ""){
+        // just enter
+      } else {
+        println("Bad command or file name");
+      }
+    }
+  }
+
+  // ---------- Mini BASIC interpreter ----------
+  async function runBasic(){
+    clearScreen();
+    println("GW-BASIC 3.23");
+    println("(C) Copyright original Microsoft Corp product simulated for this session");
+    println("");
+    println(String.fromCharCode(11512===0?0:0) + "");
+    buffer.pop(); // remove stray blank artifact line
+    println("Ok");
+    await basicRepl();
+    await quickMenu();
+  }
+
+  async function basicRepl(){
+    const program = {}; // lineNumber -> source text
+    const vars = {};
+
+    function sortedLines(){
+      return Object.keys(program).map(Number).sort((a,b)=>a-b);
+    }
+
+    function tokenizeExpr(str){ return str; }
+
+    function evalExpr(expr, localVars){
+      // Very small expression evaluator: supports + - * / ( ) numbers, strings "...", and variable names
+      expr = expr.trim();
+      // Replace variable references with their values (numbers or quoted strings)
+      // Build a safe-ish evaluator using a limited grammar (no eval of arbitrary JS)
+      let i = 0;
+      function peek(){ return expr[i]; }
+      function isDigit(c){ return c >= '0' && c <= '9'; }
+      function isAlpha(c){ return /[A-Za-z_$]/.test(c); }
+      function skipSpace(){ while(expr[i]===' ') i++; }
+
+      function parsePrimary(){
+        skipSpace();
+        if(peek() === '('){
+          i++;
+          const v = parseExpr();
+          skipSpace();
+          if(peek() === ')') i++;
+          return v;
+        }
+        if(peek() === '"'){
+          i++;
+          let s = "";
+          while(peek() !== '"' && i < expr.length){ s += peek(); i++; }
+          i++; // closing quote
+          return s;
+        }
+        if(isDigit(peek()) || peek() === '.' || (peek()==='-' && isDigit(expr[i+1]))){
+          let start = i;
+          if(peek()==='-') i++;
+          while(isDigit(peek()) || peek()==='.'){ i++; }
+          return parseFloat(expr.slice(start,i));
+        }
+        if(isAlpha(peek())){
+          let start = i;
+          while(isAlpha(peek()) || isDigit(peek())) i++;
+          let name = expr.slice(start,i);
+          if(peek()==='$'){ name += '$'; i++; }
+          const key = name.toUpperCase();
+          if(key in localVars) return localVars[key];
+          if(key in vars) return vars[key];
+          return key.endsWith('$') ? "" : 0;
+        }
+        return 0;
+      }
+
+      function parseUnary(){
+        skipSpace();
+        if(peek()==='-'){ i++; return -parseUnary(); }
+        return parsePrimary();
+      }
+
+      function parseTerm(){
+        let left = parseUnary();
+        skipSpace();
+        while(peek()==='*' || peek()==='/'){
+          const op = peek(); i++;
+          const right = parseUnary();
+          left = (op==='*') ? left*right : left/right;
+          skipSpace();
+        }
+        return left;
+      }
+
+      function parseAdd(){
+        let left = parseTerm();
+        skipSpace();
+        while(peek()==='+' || peek()==='-'){
+          const op = peek(); i++;
+          const right = parseTerm();
+          if(op==='+'){
+            if(typeof left === 'string' || typeof right === 'string'){
+              left = String(left)+String(right);
+            } else {
+              left = left+right;
+            }
+          } else {
+            left = left-right;
+          }
+          skipSpace();
+        }
+        return left;
+      }
+
+      function parseCompare(){
+        let left = parseAdd();
+        skipSpace();
+        const twoChar = expr.slice(i,i+2);
+        if(twoChar === '<=' || twoChar === '>=' || twoChar === '<>'){
+          i+=2;
+          const right = parseAdd();
+          if(twoChar==='<=') return (left<=right)?-1:0;
+          if(twoChar==='>=') return (left>=right)?-1:0;
+          if(twoChar==='<>') return (left!==right)?-1:0;
+        } else if(peek()==='<' || peek()==='>' || peek()==='='){
+          const op = peek(); i++;
+          const right = parseAdd();
+          if(op==='<') return (left<right)?-1:0;
+          if(op==='>') return (left>right)?-1:0;
+          if(op==='=') return (left===right)?-1:0;
+        }
+        return left;
+      }
+
+      function parseExpr(){ return parseCompare(); }
+
+      return parseExpr();
+    }
+
+    async function execLine(src, ctx){
+      src = src.trim();
+      if(src === "") return {next:null};
+      const spaceIdx = src.indexOf(' ');
+      let cmd = (spaceIdx===-1 ? src : src.slice(0,spaceIdx)).toUpperCase();
+      let rest = spaceIdx===-1 ? "" : src.slice(spaceIdx+1);
+
+      if(cmd === "PRINT" || cmd === "?"){
+        const parts = splitTopLevel(rest, ';');
+        let out = "";
+        for(const p of parts){
+          if(p.trim()==="") continue;
+          out += String(evalExpr(p, ctx.localVars));
+        }
+        println(out);
+        return {next:null};
+      }
+      if(cmd === "LET"){
+        const eq = rest.indexOf('=');
+        const name = rest.slice(0,eq).trim().toUpperCase();
+        const val = evalExpr(rest.slice(eq+1), ctx.localVars);
+        vars[name] = val;
+        return {next:null};
+      }
+      // implicit LET: "X = 5"
+      if(/^[A-Za-z][A-Za-z0-9]*\$?\s*=/.test(src)){
+        const eq = src.indexOf('=');
+        const name = src.slice(0,eq).trim().toUpperCase();
+        const val = evalExpr(src.slice(eq+1), ctx.localVars);
+        vars[name] = val;
+        return {next:null};
+      }
+      if(cmd === "INPUT"){
+        let prompt = "? ";
+        let varPart = rest;
+        if(rest.includes(';')){
+          const idx = rest.indexOf(';');
+          prompt = evalExpr(rest.slice(0,idx), ctx.localVars) + "? ";
+          varPart = rest.slice(idx+1);
+        }
+        const name = varPart.trim().toUpperCase();
+        const answer = await readLine(prompt);
+        vars[name] = name.endsWith('$') ? answer : (parseFloat(answer)||0);
+        return {next:null};
+      }
+      if(cmd === "GOTO"){
+        return {next: parseInt(rest.trim(),10)};
+      }
+      if(cmd === "IF"){
+        const thenIdx = rest.toUpperCase().indexOf(' THEN ');
+        const cond = rest.slice(0,thenIdx);
+        const thenPart = rest.slice(thenIdx+6).trim();
+        const val = evalExpr(cond, ctx.localVars);
+        if(val){
+          if(/^\d+$/.test(thenPart)) return {next: parseInt(thenPart,10)};
+          return await execLine(thenPart, ctx);
+        }
+        return {next:null};
+      }
+      if(cmd === "FOR"){
+        const m = rest.match(/^([A-Za-z][A-Za-z0-9]*)\s*=\s*(.+?)\s+TO\s+(.+?)(\s+STEP\s+(.+))?$/i);
+        if(m){
+          const vname = m[1].toUpperCase();
+          const startV = evalExpr(m[2], ctx.localVars);
+          const endV = evalExpr(m[3], ctx.localVars);
+          const stepV = m[5]!==undefined ? evalExpr(m[5], ctx.localVars) : 1;
+          vars[vname] = startV;
+          ctx.forStack = ctx.forStack || [];
+          ctx.forStack.push({vname, endV, stepV, line: ctx.currentLine});
+        }
+        return {next:null};
+      }
+      if(cmd === "NEXT"){
+        if(ctx.forStack && ctx.forStack.length){
+          const top = ctx.forStack[ctx.forStack.length-1];
+          vars[top.vname] += top.stepV;
+          const cont = top.stepV >= 0 ? vars[top.vname] <= top.endV : vars[top.vname] >= top.endV;
+          if(cont){
+            return {next: top.line, isForJump:true};
+          } else {
+            ctx.forStack.pop();
+          }
+        }
+        return {next:null};
+      }
+      if(cmd === "REM" || cmd === "'"){
+        return {next:null};
+      }
+      if(cmd === "CLS"){
+        clearScreen();
+        return {next:null};
+      }
+      if(cmd === "END" || cmd === "STOP"){
+        return {next:-1};
+      }
+      println("Syntax error");
+      return {next:null};
+    }
+
+    function splitTopLevel(str, sep){
+      // splits on sep but respects quoted strings
+      const parts = [];
+      let cur = "";
+      let inQuote = false;
+      for(const ch of str){
+        if(ch === '"') inQuote = !inQuote;
+        if(ch === sep && !inQuote){ parts.push(cur); cur=""; }
+        else cur += ch;
+      }
+      parts.push(cur);
+      return parts;
+    }
+
+    async function runProgram(){
+      const lines = sortedLines();
+      if(lines.length === 0){ println("Ok"); return; }
+      let idx = 0;
+      let ctx = {localVars:{}, forStack:[]};
+      let steps = 0;
+      while(idx < lines.length){
+        steps++;
+        if(steps > 20000){ println("?Too much computation, stopped"); break; }
+        const lineNum = lines[idx];
+        ctx.currentLine = lineNum;
+        const result = await execLine(program[lineNum], ctx);
+        if(result && result.next === -1) break;
+        if(result && result.next !== null && result.next !== undefined){
+          const targetIdx = lines.indexOf(result.next);
+          if(targetIdx === -1){ println("?Undefined line number " + result.next); break; }
+          idx = targetIdx;
+          continue;
+        }
+        idx++;
+      }
+      println("Ok");
+    }
+
+    while(true){
+      const raw = await readLine("");
+      const trimmed = raw.trim();
+      if(trimmed === "") { println("Ok"); continue; }
+
+      const lineMatch = trimmed.match(/^(\d+)\s*(.*)$/);
+      if(lineMatch){
+        const num = parseInt(lineMatch[1],10);
+        const code = lineMatch[2];
+        if(code === ""){
+          delete program[num];
+        } else {
+          program[num] = code;
+        }
+        continue;
+      }
+
+      const upper = trimmed.toUpperCase();
+      if(upper === "RUN"){
+        await runProgram();
+      } else if(upper === "LIST"){
+        for(const n of sortedLines()) println(n + " " + program[n]);
+        println("Ok");
+      } else if(upper === "NEW"){
+        for(const k in program) delete program[k];
+        for(const k in vars) delete vars[k];
+        println("Ok");
+      } else if(upper === "SYSTEM" || upper === "EXIT" || upper === "QUIT"){
+        println("");
+        return;
+      } else {
+        // immediate-mode statement
+        const ctx = {localVars:{}, forStack:[]};
+        const result = await execLine(trimmed, ctx);
+        println("Ok");
+      }
+    }
+  }
+
+  // kick things off
+  boot();
+
+})();
+</script>
+</body>
+</html>

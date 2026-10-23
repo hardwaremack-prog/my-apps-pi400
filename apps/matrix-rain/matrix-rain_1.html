@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Matrix Rain</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+    font-family: 'Courier New', monospace;
+  }
+
+  #matrixCanvas {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+  }
+
+  #panel {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    background: rgba(0, 10, 0, 0.85);
+    border: 1px solid #0f0;
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: #0f0;
+    font-size: 12px;
+    width: 220px;
+    box-shadow: 0 0 20px rgba(0,255,0,0.25);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 10;
+  }
+
+  #panel.hidden {
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+  }
+
+  #panel h1 {
+    font-size: 13px;
+    margin: 0 0 10px 0;
+    letter-spacing: 2px;
+    text-align: center;
+    text-shadow: 0 0 8px #0f0;
+  }
+
+  .row {
+    margin-bottom: 10px;
+  }
+
+  .row label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .row input[type="range"] {
+    width: 100%;
+    accent-color: #0f0;
+  }
+
+  .row select, .row input[type="color"] {
+    width: 100%;
+    background: #001a00;
+    color: #0f0;
+    border: 1px solid #0f0;
+    border-radius: 4px;
+    padding: 3px;
+  }
+
+  .buttons {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    flex: 1;
+    background: #001a00;
+    color: #0f0;
+    border: 1px solid #0f0;
+    border-radius: 4px;
+    padding: 6px 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    transition: background 0.15s;
+  }
+
+  button:hover {
+    background: #0f0;
+    color: #000;
+  }
+
+  #toggleTab {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    background: rgba(0,10,0,0.85);
+    border: 1px solid #0f0;
+    color: #0f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    z-index: 11;
+    display: none;
+  }
+
+  #toggleTab.show {
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="matrixCanvas"></canvas>
+
+<div id="toggleTab">☰ controls</div>
+
+<div id="panel">
+  <h1>◤ MATRIX CONTROL ◢</h1>
+
+  <div class="row">
+    <label><span>Speed</span><span id="speedVal">0.6</span></label>
+    <input type="range" id="speed" min="0.2" max="4" step="0.1" value="0.6">
+  </div>
+
+  <div class="row">
+    <label><span>Density</span><span id="densityVal">1</span></label>
+    <input type="range" id="density" min="0.3" max="2" step="0.1" value="1">
+  </div>
+
+  <div class="row">
+    <label><span>Font Size</span><span id="fontSizeVal">24</span></label>
+    <input type="range" id="fontSize" min="8" max="32" step="1" value="24">
+  </div>
+
+  <div class="row">
+    <label><span>Glow Fade</span><span id="fadeVal">0.05</span></label>
+    <input type="range" id="fade" min="0.01" max="0.3" step="0.01" value="0.05">
+  </div>
+
+  <div class="row">
+    <label>Color</label>
+    <input type="color" id="color" value="#00ff41">
+  </div>
+
+  <div class="row">
+    <label>Character Set</label>
+    <select id="charset">
+      <option value="matrix">Matrix Kana</option>
+      <option value="binary">Binary</option>
+      <option value="latin">Latin + Symbols</option>
+      <option value="numbers">Numbers</option>
+      <option value="mixed">Mixed Chaos</option>
+    </select>
+  </div>
+
+  <div class="buttons">
+    <button id="pauseBtn">⏸ Pause</button>
+    <button id="fullscreenBtn">⛶ Fullscreen</button>
+    <button id="hideBtn">Hide Panel</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('matrixCanvas');
+const ctx = canvas.getContext('2d');
+
+let width, height, columns, drops;
+
+const charsets = {
+  matrix: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789",
+  binary: "01",
+  latin: "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()<>[]{}",
+  numbers: "0123456789",
+  mixed: "アイウエオ01ABCXYZ!@#$%^&*ｱｲｳｴｵｶｷｸｹｺ"
+};
+
+let settings = {
+  speed: 0.6,
+  density: 1,
+  fontSize: 24,
+  fade: 0.05,
+  color: "#00ff41",
+  charset: "matrix",
+  paused: false
+};
+
+function resize() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+  initDrops();
+}
+
+function initDrops() {
+  columns = Math.floor(width / settings.fontSize);
+  drops = [];
+  for (let i = 0; i < columns; i++) {
+    drops[i] = Math.random() * height / settings.fontSize;
+  }
+}
+
+function randomChar() {
+  const set = charsets[settings.charset];
+  return set.charAt(Math.floor(Math.random() * set.length));
+}
+
+function draw() {
+  if (!settings.paused) {
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = `rgba(0, 0, 0, ${settings.fade})`;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = settings.color;
+    ctx.font = settings.fontSize + "px monospace";
+    ctx.shadowColor = settings.color;
+    ctx.shadowBlur = 8;
+
+    for (let i = 0; i < drops.length; i++) {
+      if (Math.random() > settings.density * 0.98) continue;
+
+      const text = randomChar();
+      const x = i * settings.fontSize;
+      const y = drops[i] * settings.fontSize;
+
+      // Brighter leading character
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(text, x, y);
+      ctx.fillStyle = settings.color;
+
+      if (y > height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+      drops[i] += settings.speed;
+    }
+  }
+  requestAnimationFrame(draw);
+}
+
+window.addEventListener('resize', resize);
+resize();
+draw();
+
+// Controls wiring
+const speedEl = document.getElementById('speed');
+const densityEl = document.getElementById('density');
+const fontSizeEl = document.getElementById('fontSize');
+const fadeEl = document.getElementById('fade');
+const colorEl = document.getElementById('color');
+const charsetEl = document.getElementById('charset');
+
+speedEl.addEventListener('input', e => {
+  settings.speed = parseFloat(e.target.value);
+  document.getElementById('speedVal').textContent = settings.speed.toFixed(1);
+});
+
+densityEl.addEventListener('input', e => {
+  settings.density = parseFloat(e.target.value);
+  document.getElementById('densityVal').textContent = settings.density.toFixed(1);
+});
+
+fontSizeEl.addEventListener('input', e => {
+  settings.fontSize = parseInt(e.target.value);
+  document.getElementById('fontSizeVal').textContent = settings.fontSize;
+  initDrops();
+});
+
+fadeEl.addEventListener('input', e => {
+  settings.fade = parseFloat(e.target.value);
+  document.getElementById('fadeVal').textContent = settings.fade.toFixed(2);
+});
+
+colorEl.addEventListener('input', e => {
+  settings.color = e.target.value;
+});
+
+charsetEl.addEventListener('change', e => {
+  settings.charset = e.target.value;
+});
+
+const pauseBtn = document.getElementById('pauseBtn');
+pauseBtn.addEventListener('click', () => {
+  settings.paused = !settings.paused;
+  pauseBtn.textContent = settings.paused ? "▶ Resume" : "⏸ Pause";
+});
+
+const fullscreenBtn = document.getElementById('fullscreenBtn');
+fullscreenBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+const panel = document.getElementById('panel');
+const toggleTab = document.getElementById('toggleTab');
+const hideBtn = document.getElementById('hideBtn');
+
+hideBtn.addEventListener('click', () => {
+  panel.classList.add('hidden');
+  toggleTab.classList.add('show');
+});
+
+toggleTab.addEventListener('click', () => {
+  panel.classList.remove('hidden');
+  toggleTab.classList.remove('show');
+});
+</script>
+
+</body>
+</html>

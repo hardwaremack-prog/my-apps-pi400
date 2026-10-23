@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en"><head><script src="../suite-users.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Polished</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: tailor's workbench. Tabs across the top; resume tab is form left, live paper preview right. */
+:root{
+  --bg:#F2F3F6; --surface:#FFFFFF; --sunk:#E6E9EF; --ink:#1A2030; --muted:#5A6378; --line:#D5DAE3;
+  --navy:#33415C; --navy-soft:#DFE4EE; --on-navy:#FFFFFF; --gold:#C08A2E; --gold-soft:#F6EAD3; --good:#2C8A57; --good-soft:#DDF0E4; --warn:#B87400; --bad:#C2453A;
+  --paper:#FFFFFF; --paper-ink:#1A1A1A;
+  --serif:"Libre Caslon Text",Georgia,"Times New Roman",serif;
+  --f:"Source Sans 3","Segoe UI",system-ui,-apple-system,sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11141B; --surface:#191E28; --sunk:#222835; --ink:#E7EAF1; --muted:#9AA3B6; --line:#2C3342;
+  --navy:#9FB1D6; --navy-soft:#253148; --on-navy:#10151F; --gold:#E2B25C; --gold-soft:#3A2F18; --good:#4CC384; --good-soft:#1C3527; --warn:#F2B13C; --bad:#EE7A6E;
+  --paper:#FDFDFB; --paper-ink:#1A1A1A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11141B; --surface:#191E28; --sunk:#222835; --ink:#E7EAF1; --muted:#9AA3B6; --line:#2C3342;
+  --navy:#9FB1D6; --navy-soft:#253148; --on-navy:#10151F; --gold:#E2B25C; --gold-soft:#3A2F18; --good:#4CC384; --good-soft:#1C3527; --warn:#F2B13C; --bad:#EE7A6E;
+  --paper:#FDFDFB; --paper-ink:#1A1A1A; color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15.5px;line-height:1.5}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:18px 60px;display:flex;flex-direction:column;gap:18px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-family:var(--serif);font-weight:700;font-size:24px;color:var(--navy);display:flex;align-items:center;gap:10px}
+.logo svg{width:26px;height:26px}
+.saved{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:4px 10px;border-radius:99px}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none}
+.save-dot.saving{background:var(--warn);animation:svpulse .9s infinite ease-in-out}
+.save-dot.error{background:var(--bad)} .save-dot.example{background:var(--muted)}
+@keyframes svpulse{50%{transform:scale(1.5)}}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(28px,4.6vw,44px);line-height:1.1;margin:0;text-wrap:balance}
+h1 em{color:var(--navy)}
+.lede{margin:6px 0 0;color:var(--muted);font-size:16.5px;max-width:62ch}
+.banner{background:var(--gold-soft);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-weight:500}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
+.tabs button{background:none;border:0;padding:12px 14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--gold)}
+.tabs .count{font-size:12px;background:var(--sunk);padding:1px 7px;border-radius:99px;margin-left:6px;font-variant-numeric:tabular-nums}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
+h2{font-family:var(--serif);font-weight:400;font-size:24px;margin:0}
+h3{margin:0;font-size:15px;font-weight:700}
+.label{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 13px;border-radius:10px;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--navy)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:var(--on-navy)}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn.danger{color:var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.f input,.f select,.f textarea,textarea.big{border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:8px 10px;min-width:0;width:100%}
+textarea{resize:vertical}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media (max-width:560px){.g2,.g3{grid-template-columns:1fr}}
+.stack{display:flex;flex-direction:column;gap:14px}
+.note{color:var(--muted);font-size:13.5px}
+
+/* resume */
+.rgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:18px;align-items:start}
+@media (max-width:960px){.rgrid{grid-template-columns:1fr}}
+.job{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--bg)}
+.words{display:flex;gap:6px;flex-wrap:wrap}
+.words button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:2px 10px;font-size:13px;cursor:pointer}
+.meter{display:flex;flex-direction:column;gap:6px}
+.meter .track{height:10px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.meter .track i{display:block;height:100%;background:var(--gold);border-radius:99px;transition:width .4s}
+.tips{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.tips li{display:flex;gap:8px}
+.tips li::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;margin-top:.5em;background:var(--muted)}
+.tips li.ok{color:var(--muted)} .tips li.ok::before{background:var(--good)}
+.sticky{position:sticky;top:60px}
+@media (max-width:960px){.sticky{position:static}}
+.paperwrap{overflow-x:auto}
+.paper{background:var(--paper);color:var(--paper-ink);border-radius:4px;box-shadow:0 8px 30px rgba(0,0,0,.12);padding:44px 48px;font-family:var(--serif);font-size:13.5px;line-height:1.5;min-width:0}
+.paper h4{font-size:28px;margin:0;font-weight:700;letter-spacing:-.01em}
+.paper .hl{font-style:italic;color:#444;margin-top:2px}
+.paper .contact{font-family:var(--f);font-size:12.5px;color:#444;margin-top:6px;display:flex;gap:4px 14px;flex-wrap:wrap}
+.paper .sec{margin-top:18px}
+.paper .sec>b{display:block;font-family:var(--f);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7a5a1e;border-bottom:1px solid #d9cdb4;padding-bottom:3px;margin-bottom:8px}
+.paper .j{margin-bottom:10px}
+.paper .jh{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.paper .jh span{font-family:var(--f);font-size:12px;color:#555}
+.paper ul{margin:4px 0 0;padding-left:18px}
+.paper p{margin:0}
+.paper .ph{color:#999}
+@media (max-width:520px){.paper{padding:26px 22px}}
+
+/* practice */
+.qlist{display:flex;flex-direction:column;gap:6px}
+.q{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+.q[aria-current="true"]{border-color:var(--navy);background:var(--navy-soft)}
+.q small{color:var(--good);font-weight:700;white-space:nowrap}
+.pgrid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.3fr);gap:18px;align-items:start}
+@media (max-width:860px){.pgrid{grid-template-columns:1fr}}
+.timer{font-variant-numeric:tabular-nums;font-size:30px;font-weight:700;font-family:var(--f)}
+.tipbox{background:var(--navy-soft);border-radius:10px;padding:12px 14px}
+
+/* apps */
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:grid;min-width:110px}
+.stat b{font-size:24px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+td input,td select{border:1px solid transparent;background:transparent;border-radius:7px;padding:5px 6px;width:100%;min-width:0}
+td input:hover,td select:hover,td input:focus,td select:focus{border-color:var(--line);background:var(--bg)}
+.st{font-weight:700}
+.st-saved{color:var(--muted)} .st-applied{color:var(--navy)} .st-interview{color:var(--gold)} .st-offer{color:var(--good)} .st-no{color:var(--muted);text-decoration:line-through}
+.cheer{font-family:var(--serif);font-style:italic;color:var(--muted);font-size:17px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:30}
+footer{color:var(--muted);font-size:13px;text-align:center}
+@media print{
+  body{background:#fff}
+  .wrap>*{display:none!important}
+  .wrap>#printArea{display:block!important}
+  #printArea .paper{box-shadow:none;padding:0;font-size:11pt}
+  #printArea .letter{font-family:var(--serif);font-size:11.5pt;line-height:1.6;white-space:pre-wrap;color:#000}
+}
+#printArea{display:none}
+@media (prefers-reduced-motion:reduce){.save-dot.saving{animation:none}.meter .track i{transition:none}}
+</style></head><body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18M11 12.5v2h2v-2"/></svg>Polished</div>
+    <span class="saved" title="Your resume and job hunt are saved in this browser"><i class="save-dot" id="saveDot"></i><span id="saveText">Saved</span></span>
+  </div>
+  <div>
+    <h1>Show them what you've got. <em>You've earned this.</em></h1>
+    <p class="lede">Build a resume you're proud of, write cover letters in minutes, practice interview answers out loud, and keep track of every job you go after.</p>
+  </div>
+  <div class="banner" id="exBanner" hidden><span>This is an example resume and job list so you can see how Polished works.</span><button class="btn small" id="clearEx">Clear examples and start mine</button></div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-resume" aria-selected="true" data-tab="resume">Resume</button>
+    <button role="tab" id="tab-letter" aria-selected="false" data-tab="letter">Cover letter</button>
+    <button role="tab" id="tab-practice" aria-selected="false" data-tab="practice">Interview practice<span class="count" id="nPract">0</span></button>
+    <button role="tab" id="tab-apps" aria-selected="false" data-tab="apps">Jobs I'm going for<span class="count" id="nApps">0</span></button>
+  </div>
+
+  <!-- RESUME -->
+  <section id="v-resume" role="tabpanel" aria-labelledby="tab-resume">
+    <div class="rgrid">
+      <div class="stack">
+        <div class="panel stack">
+          <h3>About you</h3>
+          <div class="g2">
+            <div class="f"><label for="r-name">Full name</label><input id="r-name" data-r="name"></div>
+            <div class="f"><label for="r-headline">What you do, in a few words</label><input id="r-headline" data-r="headline" placeholder="Maintenance technician"></div>
+            <div class="f"><label for="r-email">Email</label><input id="r-email" data-r="email" type="email"></div>
+            <div class="f"><label for="r-phone">Phone</label><input id="r-phone" data-r="phone"></div>
+            <div class="f"><label for="r-city">City, state</label><input id="r-city" data-r="city"></div>
+            <div class="f"><label for="r-link">Website or LinkedIn (optional)</label><input id="r-link" data-r="link"></div>
+          </div>
+          <div class="f"><label for="r-summary">A short summary (2 or 3 sentences)</label><textarea id="r-summary" data-r="summary" rows="3" placeholder="What you're good at, how long you've done it, and what you want next."></textarea></div>
+        </div>
+        <div class="panel stack">
+          <div class="row" style="justify-content:space-between"><h3>Work history</h3><button class="btn small" id="addJob">Add a job</button></div>
+          <div id="jobs" class="stack"></div>
+          <div><div class="label" style="margin-bottom:6px">Strong words to start a line with</div>
+          <div class="words" id="words"></div><p class="note" style="margin:6px 0 0">Click a word to add it to the last line you were typing in.</p></div>
+        </div>
+        <div class="panel stack">
+          <h3>Skills, school and licenses</h3>
+          <div class="f"><label for="r-skills">Skills (separate with commas)</label><textarea id="r-skills" data-r="skills" rows="2" placeholder="Small engine repair, customer service, forklift, Excel"></textarea></div>
+          <div class="f"><label for="r-edu">School and training (one per line)</label><textarea id="r-edu" data-r="edu" rows="2" placeholder="High school diploma, Richmond High School, 2009"></textarea></div>
+          <div class="f"><label for="r-certs">Licenses and certificates (one per line)</label><textarea id="r-certs" data-r="certs" rows="2" placeholder="EPA 608 certification"></textarea></div>
+        </div>
+      </div>
+      <div class="stack sticky">
+        <div class="panel meter">
+          <div class="row" style="justify-content:space-between"><h3>How polished is it?</h3><b id="score">0%</b></div>
+          <div class="track"><i id="scoreBar" style="width:0"></i></div>
+          <ul class="tips" id="tips"></ul>
+        </div>
+        <div class="paperwrap"><div class="paper" id="paper"></div></div>
+        <div class="row"><button class="btn primary" id="printResume">Print or save as PDF</button><span class="note">In the print window, pick "Save as PDF" to email it.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LETTER -->
+  <section id="v-letter" role="tabpanel" aria-labelledby="tab-letter" hidden>
+    <div class="rgrid">
+      <div class="panel stack">
+        <h3>Who is it for?</h3>
+        <div class="f"><label for="l-pick">Pick a job from your list</label><select id="l-pick"></select></div>
+        <div class="g2">
+          <div class="f"><label for="l-company">Company</label><input id="l-company"></div>
+          <div class="f"><label for="l-role">Job title</label><input id="l-role"></div>
+          <div class="f"><label for="l-contact">Who to address (optional)</label><input id="l-contact" placeholder="Hiring manager"></div>
+          <div class="f"><label for="l-heard">How you heard about it (optional)</label><input id="l-heard" placeholder="Indeed, a friend, their sign"></div>
+        </div>
+        <div class="f"><label for="l-why">Why this job? One honest sentence.</label><textarea id="l-why" rows="2" placeholder="I like work where I can fix things and see the result the same day."></textarea></div>
+        <div class="f"><label for="l-proud">Something you did that you're proud of</label><textarea id="l-proud" rows="2" placeholder="Cut repair callbacks in half by writing a checklist the whole crew used."></textarea></div>
+        <div class="row"><button class="btn primary" id="makeLetter">Write my letter</button><span class="note">Uses your resume too. You can edit every word after.</span></div>
+      </div>
+      <div class="stack">
+        <textarea class="big" id="letter" rows="22" style="font-family:var(--serif);font-size:15px;line-height:1.6;background:var(--paper);color:var(--paper-ink)" aria-label="Your cover letter"></textarea>
+        <div class="row"><button class="btn primary" id="printLetter">Print or save as PDF</button><button class="btn" id="copyLetter">Copy letter</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRACTICE -->
+  <section id="v-practice" role="tabpanel" aria-labelledby="tab-practice" hidden>
+    <div class="pgrid">
+      <div class="panel stack"><h3>Common questions</h3><div class="qlist" id="qlist"></div></div>
+      <div class="panel stack">
+        <div class="label" id="qNum">Question</div>
+        <h2 id="qText"></h2>
+        <div class="tipbox" id="qTip"></div>
+        <div class="g2" id="starBox">
+          <div class="f"><label for="p-s">The situation</label><textarea id="p-s" rows="2" data-p="s" placeholder="Where were you and what was going on?"></textarea></div>
+          <div class="f"><label for="p-t">What you had to do</label><textarea id="p-t" rows="2" data-p="t"></textarea></div>
+          <div class="f"><label for="p-a">What you did</label><textarea id="p-a" rows="2" data-p="a" placeholder="Say I, not we. This is the important part."></textarea></div>
+          <div class="f"><label for="p-r">How it turned out</label><textarea id="p-r" rows="2" data-p="r" placeholder="Numbers help: time saved, money, happy customers."></textarea></div>
+        </div>
+        <div class="f"><label for="p-ans">My answer</label><textarea id="p-ans" rows="5" data-p="ans" placeholder="Write it how you'd say it out loud."></textarea></div>
+        <div class="row" style="justify-content:space-between">
+          <div class="row"><span class="timer" id="timer">2:00</span><button class="btn" id="timerBtn">Practice out loud</button></div>
+          <span class="note" id="wc"></span>
+        </div>
+        <p class="note" style="margin:0">Aim for about 1 to 2 minutes when you say it. Practicing out loud a few times makes the real thing feel easy.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- APPLICATIONS -->
+  <section id="v-apps" role="tabpanel" aria-labelledby="tab-apps" hidden class="stack">
+    <div class="row" style="justify-content:space-between;align-items:end">
+      <div class="stats" id="stats"></div>
+      <button class="btn primary" id="addApp">Add a job</button>
+    </div>
+    <p class="cheer" id="cheer" style="margin:0"></p>
+    <div class="panel tablewrap">
+      <table><thead><tr><th style="width:18%">Company</th><th style="width:18%">Job</th><th style="width:13%">Where it stands</th><th style="width:12%">Applied</th><th style="width:16%">Next step</th><th style="width:12%">On</th><th></th></tr></thead><tbody id="appRows"></tbody></table>
+    </div>
+    <p class="note" style="margin:0">Next-step dates show up in Ready, so you won't miss a follow-up or interview.</p>
+  </section>
+
+  <footer>Polished is part of the Tidy Suite. Everything stays on this computer.</footer>
+  <div id="printArea"></div>
+</div>
+
+<script>
+function saveLight(s){const d=document.getElementById('saveDot'),t=document.getElementById('saveText');if(!d)return;
+ d.className='save-dot'+(s==='saved'?'':' '+s);t.textContent={saved:'Saved',saving:'Saving…',error:'Not saved. Check browser settings',example:'Example, not saved'}[s];
+ clearTimeout(saveLight.t);if(s==='saving')saveLight.t=setTimeout(()=>{if(d.classList.contains('saving'))saveLight('saved')},4000);}
+function storeOK(k,v){try{localStorage.setItem(k,v);return localStorage.getItem(k)===v}catch(e){return false}}
+
+(function(){
+const KEY='polished.v1';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const now=new Date(); const day=n=>ymd(new Date(now.getFullYear(),now.getMonth(),now.getDate()+n));
+
+function seed(){return {v:1,example:true,
+ resume:{name:'Jordan Example',headline:'Maintenance technician',email:'jordan@example.com',phone:'(555) 010-0199',city:'Richmond, MI',link:'',
+  summary:'Hands-on technician with 8 years keeping equipment, buildings and vehicles running. Known for finding the real problem fast instead of throwing parts at it. Looking for a steady role with a team that values doing it right.',
+  jobs:[{id:uid(),role:'Maintenance technician',place:'Lakeside Apartments',from:'2019',to:'Now',bullets:'Handle 25+ work orders a week across 140 units: HVAC, plumbing, electrical and appliances\nCut repeat repair calls by 40% with a troubleshooting checklist the whole crew now uses\nTrained 3 new techs on furnace and water heater safety'},
+        {id:uid(),role:'Small engine mechanic',place:'Hometown Power Equipment',from:'2016',to:'2019',bullets:'Repaired mowers, snowblowers, generators and outboards for 1,000+ customers\nKept customer wait time under 5 days during peak season'}],
+  skills:'HVAC troubleshooting, Plumbing, Electrical, Small engines, Customer service, Scheduling, Hand and power tools',
+  edu:'High school diploma, Richmond High School\nHVAC certificate, Macomb Community College',certs:'EPA 608 Universal\nValid driver\'s license'},
+ apps:[{id:uid(),ex:true,company:'County Schools',role:'Facilities technician',status:'interview',applied:day(-9),nextWhat:'Interview',next:day(5)},
+       {id:uid(),ex:true,company:'Riverside Hospital',role:'Building engineer',status:'applied',applied:day(-4),nextWhat:'Follow up',next:day(3)},
+       {id:uid(),ex:true,company:'Green Lawn Co.',role:'Equipment mechanic',status:'saved',applied:'',nextWhat:'Apply',next:day(1)}],
+ practice:{},letter:''}}
+function blank(){return {v:1,resume:{name:'',headline:'',email:'',phone:'',city:'',link:'',summary:'',jobs:[{id:uid(),role:'',place:'',from:'',to:'',bullets:''}],skills:'',edu:'',certs:''},apps:[],practice:{},letter:''}}
+let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){} S=S||seed();
+let saveT; function save(){saveLight('saving');clearTimeout(saveT);saveT=setTimeout(()=>saveLight(storeOK(KEY,JSON.stringify(S))?'saved':'error'),300)}
+
+/* ---------- tabs ---------- */
+function showTab(t){document.querySelectorAll('[role=tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  ['resume','letter','practice','apps'].forEach(k=>$('v-'+k).hidden=k!==t);try{localStorage.setItem('polished.tab',t)}catch(e){}
+  if(t==='letter')fillPick(); if(t==='apps')renderApps();}
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
+
+/* ---------- resume ---------- */
+const R=()=>S.resume;
+document.querySelectorAll('[data-r]').forEach(el=>{el.value=R()[el.dataset.r]||'';el.addEventListener('input',()=>{R()[el.dataset.r]=el.value;save();renderPaper()})});
+let lastBullets=null;
+function renderJobs(){
+  $('jobs').innerHTML=R().jobs.map((j,i)=>`<div class="job" data-job="${j.id}">
+    <div class="g2"><div class="f"><label for="jr-${j.id}">Job title</label><input id="jr-${j.id}" data-j="role" value="${esc(j.role)}"></div>
+    <div class="f"><label for="jp-${j.id}">Where</label><input id="jp-${j.id}" data-j="place" value="${esc(j.place)}"></div></div>
+    <div class="g3"><div class="f"><label for="jf-${j.id}">From</label><input id="jf-${j.id}" data-j="from" value="${esc(j.from)}" placeholder="2019"></div>
+    <div class="f"><label for="jt-${j.id}">To</label><input id="jt-${j.id}" data-j="to" value="${esc(j.to)}" placeholder="Now"></div>
+    <div class="f" style="justify-content:end"><button class="btn small danger" data-rmjob="${j.id}" ${R().jobs.length<2?'disabled':''}>Remove job</button></div></div>
+    <div class="f"><label for="jb-${j.id}">What you did (one line each)</label><textarea id="jb-${j.id}" data-j="bullets" rows="5" placeholder="Start with an action word. Add a number if you can.">${esc(j.bullets)}</textarea></div></div>`).join('');
+}
+$('jobs').addEventListener('input',e=>{const box=e.target.closest('[data-job]');const k=e.target.dataset.j;if(!box||!k)return;R().jobs.find(j=>j.id===box.dataset.job)[k]=e.target.value;save();renderPaper()});
+$('jobs').addEventListener('focusin',e=>{if(e.target.dataset.j==='bullets')lastBullets=e.target});
+$('jobs').addEventListener('click',e=>{const b=e.target.closest('[data-rmjob]');if(!b)return;R().jobs=R().jobs.filter(j=>j.id!==b.dataset.rmjob);save();renderJobs();renderPaper()});
+$('addJob').onclick=()=>{R().jobs.unshift({id:uid(),role:'',place:'',from:'',to:'',bullets:''});save();renderJobs();renderPaper();$('jobs').querySelector('input').focus()};
+const WORDS=['Fixed','Built','Led','Trained','Cut','Saved','Improved','Handled','Organized','Solved','Kept','Delivered','Installed','Managed','Served'];
+$('words').innerHTML=WORDS.map(w=>`<button type="button">${w}</button>`).join('');
+$('words').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const ta=lastBullets||$('jobs').querySelector('textarea');if(!ta)return;
+  ta.value=ta.value+(ta.value&&!ta.value.endsWith('\n')?'\n':'')+b.textContent+' ';ta.dispatchEvent(new Event('input',{bubbles:true}));ta.focus()});
+const lines=s=>(s||'').split('\n').map(x=>x.trim()).filter(Boolean);
+function renderPaper(){
+  const r=R(); const ph=(v,t)=>v?esc(v):`<span class="ph">${t}</span>`;
+  const jobs=r.jobs.filter(j=>j.role||j.place||j.bullets);
+  $('paper').innerHTML=`<h4>${ph(r.name,'Your name')}</h4><div class="hl">${ph(r.headline,'What you do')}</div>
+   <div class="contact">${[r.city,r.phone,r.email,r.link].filter(Boolean).map(esc).map(x=>`<span>${x}</span>`).join('')||'<span class="ph">City · phone · email</span>'}</div>
+   ${r.summary?`<div class="sec"><b>Summary</b><p>${esc(r.summary)}</p></div>`:''}
+   ${jobs.length?`<div class="sec"><b>Experience</b>${jobs.map(j=>`<div class="j"><div class="jh"><strong>${esc(j.role)}${j.place?', '+esc(j.place):''}</strong><span>${esc([j.from,j.to].filter(Boolean).join(' – '))}</span></div>${lines(j.bullets).length?`<ul>${lines(j.bullets).map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}</div>`).join('')}</div>`:''}
+   ${r.skills.trim()?`<div class="sec"><b>Skills</b><p>${r.skills.split(',').map(s=>s.trim()).filter(Boolean).map(esc).join(' · ')}</p></div>`:''}
+   ${lines(r.certs).length?`<div class="sec"><b>Licenses &amp; certificates</b>${lines(r.certs).map(l=>`<p>${esc(l)}</p>`).join('')}</div>`:''}
+   ${lines(r.edu).length?`<div class="sec"><b>Education &amp; training</b>${lines(r.edu).map(l=>`<p>${esc(l)}</p>`).join('')}</div>`:''}`;
+  // score
+  const bl=jobs.flatMap(j=>lines(j.bullets));
+  const checks=[
+   [!!(r.name&&(r.email||r.phone)),'Name and a way to reach you'],
+   [!!r.headline,'A few words on what you do'],
+   [r.summary.trim().split(/\s+/).length>=15,'A short summary (2 or 3 sentences)'],
+   [jobs.length>=1&&jobs.every(j=>lines(j.bullets).length>=2),'At least 2 lines for each job'],
+   [bl.some(l=>/\d/.test(l)),'A number somewhere, like "25 work orders a week"'],
+   [bl.length>0&&bl.filter(l=>WORDS.concat(['Ran','Created','Repaired','Kept','Helped','Answered','Opened','Reduced','Grew','Planned']).some(w=>l.startsWith(w))).length>=Math.ceil(bl.length/2),'Most lines start with an action word'],
+   [r.skills.split(',').filter(s=>s.trim()).length>=5,'At least 5 skills'],
+   [lines(r.edu).length+lines(r.certs).length>=1,'School, training or a license']];
+  const pct=Math.round(checks.filter(c=>c[0]).length/checks.length*100);
+  $('score').textContent=pct+'%';$('scoreBar').style.width=pct+'%';
+  $('tips').innerHTML=checks.map(c=>`<li class="${c[0]?'ok':''}">${c[1]}</li>`).join('');
+}
+$('printResume').onclick=()=>{$('printArea').innerHTML=`<div class="paper">${$('paper').innerHTML}</div>`;window.print()};
+
+/* ---------- letter ---------- */
+function fillPick(){$('l-pick').innerHTML='<option value="">Type it in below</option>'+S.apps.map(a=>`<option value="${a.id}">${esc(a.company)}${a.role?' · '+esc(a.role):''}</option>`).join('');$('letter').value=S.letter||''}
+$('l-pick').onchange=()=>{const a=S.apps.find(x=>x.id===$('l-pick').value);if(a){$('l-company').value=a.company;$('l-role').value=a.role}};
+$('makeLetter').onclick=()=>{
+  const r=R(),co=$('l-company').value.trim()||'your company',role=$('l-role').value.trim()||'this position',to=$('l-contact').value.trim()||'Hiring Manager';
+  const heard=$('l-heard').value.trim(),why=$('l-why').value.trim(),proud=$('l-proud').value.trim();
+  const j=r.jobs.find(x=>x.role)||{};const yrs=r.summary.match(/(\d+)\+? years?/);const top=r.skills.split(',').map(s=>s.trim()).filter(Boolean).slice(0,3);
+  const date=now.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+  let t=`${r.name||'Your Name'}\n${[r.city,r.phone,r.email].filter(Boolean).join(' · ')}\n\n${date}\n\nDear ${to},\n\n`;
+  t+=`I'm writing to apply for the ${role} job at ${co}${heard?', which I found through '+heard:''}. `;
+  t+=j.role?`I've worked as a ${j.role.toLowerCase()}${j.place?' at '+j.place:''}${yrs?' and have '+yrs[1]+' years of hands-on experience':''}, and I'd like to bring that to your team.`:`I'd like to bring my experience and work ethic to your team.`;
+  t+='\n\n';
+  if(why)t+=why.replace(/\.?$/,'.')+' ';
+  if(proud)t+=`One thing I'm proud of: ${proud.charAt(0).toLowerCase()+proud.slice(1).replace(/\.?$/,'.')} `;
+  if(top.length)t+=`I'm strong in ${top.length>1?top.slice(0,-1).join(', ').toLowerCase()+' and '+top.at(-1).toLowerCase():top[0].toLowerCase()}, and I show up ready to learn whatever the job needs.`;
+  t+=`\n\nI'd welcome the chance to talk about how I can help ${co}. Thank you for your time. I look forward to hearing from you.\n\nSincerely,\n${r.name||'Your Name'}`;
+  $('letter').value=t;S.letter=t;save();toast('Here\'s your letter. Make it sound like you.');
+};
+$('letter').addEventListener('input',()=>{S.letter=$('letter').value;save()});
+$('printLetter').onclick=()=>{$('printArea').innerHTML=`<div class="letter">${esc($('letter').value)}</div>`;window.print()};
+$('copyLetter').onclick=async()=>{try{await navigator.clipboard.writeText($('letter').value);toast('Copied')}catch(e){$('letter').select();toast('Selected. Press Ctrl+C to copy.')}};
+
+/* ---------- practice ---------- */
+const QS=[
+ ['Tell me about yourself.','Keep it to work: what you do now, one thing you\'re proud of, and why this job is a good next step. About a minute.',false],
+ ['Why do you want to work here?','Mention something real about them (what they do, their reputation, the location) and how it fits what you want.',false],
+ ['What\'s your biggest strength?','Pick one strength, then prove it with a quick story.',true],
+ ['Tell me about a time you solved a hard problem.','Use the four boxes: the situation, what you had to do, what you did, how it turned out.',true],
+ ['Tell me about a time you dealt with an upset customer or coworker.','Show you stayed calm, listened, and fixed it. End with how things went after.',true],
+ ['What\'s a weakness you\'re working on?','Pick a real, small one and say what you\'re doing about it. Don\'t say "I work too hard."',false],
+ ['Tell me about a mistake you made.','Own it quickly, then spend most of the time on what you did to fix it and what you learned.',true],
+ ['Why did you leave your last job?','Stay positive and short. Talk about what you\'re moving toward, not away from.',false],
+ ['Where do you see yourself in a few years?','Show you want to grow here: more skills, more responsibility.',false],
+ ['How do you handle a busy day with too much to do?','Explain how you decide what comes first, with a quick example.',true],
+ ['Why should we hire you?','Tie your two or three best strengths to what this job needs.',false],
+ ['Do you have any questions for us?','Always say yes. Ask what a normal day looks like, or what makes someone great in this role.',false]];
+let qi=0;
+function renderQ(){const P=S.practice;
+  $('qlist').innerHTML=QS.map((q,i)=>`<button class="q" data-q="${i}" aria-current="${i===qi}"><span>${esc(q[0])}</span>${(P[i]&&P[i].ans)?'<small>Practiced</small>':''}</button>`).join('');
+  const q=QS[qi];$('qNum').textContent='Question '+(qi+1)+' of '+QS.length;$('qText').textContent=q[0];$('qTip').textContent=q[1];$('starBox').hidden=!q[2];
+  const a=P[qi]||{};document.querySelectorAll('[data-p]').forEach(el=>el.value=a[el.dataset.p]||'');wc();
+  $('nPract').textContent=Object.values(P).filter(x=>x&&x.ans).length;}
+function wc(){const n=($('p-ans').value.trim().match(/\S+/g)||[]).length;$('wc').textContent=n?n+' words · about '+Math.max(1,Math.round(n/130*60))+' seconds out loud':''}
+$('qlist').addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(b){qi=+b.dataset.q;stopTimer();renderQ()}});
+document.querySelectorAll('[data-p]').forEach(el=>el.addEventListener('input',()=>{S.practice[qi]=S.practice[qi]||{};S.practice[qi][el.dataset.p]=el.value;save();wc();
+  if(el.dataset.p==='ans')$('nPract').textContent=Object.values(S.practice).filter(x=>x&&x.ans).length}));
+let tLeft=120,tInt=null;
+function stopTimer(){clearInterval(tInt);tInt=null;tLeft=120;$('timer').textContent='2:00';$('timerBtn').textContent='Practice out loud'}
+$('timerBtn').onclick=()=>{if(tInt){stopTimer();return}$('timerBtn').textContent='Stop';tInt=setInterval(()=>{tLeft--;$('timer').textContent=Math.floor(Math.max(0,tLeft)/60)+':'+pad(Math.max(0,tLeft)%60);
+  if(tLeft<=0){stopTimer();toast('Time. Nice work. Try it once more and it gets easier.')}},1000)};
+
+/* ---------- applications ---------- */
+const ST={saved:'Want to apply',applied:'Applied',interview:'Interview',offer:'Offer!',no:'Not this time'};
+function renderApps(){
+  $('appRows').innerHTML=S.apps.length?S.apps.map(a=>`<tr data-app="${a.id}">
+   <td><input data-a="company" value="${esc(a.company)}" placeholder="Company" aria-label="Company"></td>
+   <td><input data-a="role" value="${esc(a.role)}" placeholder="Job" aria-label="Job"></td>
+   <td><select data-a="status" class="st st-${a.status}" aria-label="Where it stands">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${a.status===k?'selected':''}>${v}</option>`).join('')}</select></td>
+   <td><input type="date" data-a="applied" value="${a.applied||''}" aria-label="Applied on"></td>
+   <td><input data-a="nextWhat" value="${esc(a.nextWhat||'')}" placeholder="Follow up" aria-label="Next step"></td>
+   <td><input type="date" data-a="next" value="${a.next||''}" aria-label="Next step date"></td>
+   <td><button class="btn small danger" data-rmapp="${a.id}" aria-label="Remove">×</button></td></tr>`).join('')
+   :'<tr><td colspan="7" class="note" style="padding:18px 8px">No jobs yet. Tap <b>Add a job</b> for each one you want to go after.</td></tr>';
+  const c=k=>S.apps.filter(a=>a.status===k).length;
+  $('stats').innerHTML=[['Going for',S.apps.filter(a=>a.status!=='no').length],['Applied',S.apps.filter(a=>a.status!=='saved').length],['Interviews',c('interview')+c('offer')],['Offers',c('offer')]].map(([l,n])=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+  $('nApps').textContent=S.apps.filter(a=>a.status!=='no').length;
+  const ap=S.apps.filter(a=>a.status!=='saved').length;
+  $('cheer').textContent=c('offer')?'You got an offer. All that work paid off.':c('interview')?'You have an interview lined up. Practice a few answers and you\'ll walk in ready.':ap?`${ap} application${ap>1?'s':''} out there working for you. Every one is a real shot.`:'Every job starts with one application. Add the first one.';
+}
+$('appRows').addEventListener('input',e=>{const tr=e.target.closest('[data-app]'),k=e.target.dataset.a;if(!tr||!k)return;const a=S.apps.find(x=>x.id===tr.dataset.app);a[k]=e.target.value;delete a.ex;
+  if(k==='status'){e.target.className='st st-'+a.status;if(a.status==='applied'&&!a.applied){a.applied=ymd(now);renderApps()}if(a.status==='offer')toast('An offer! You did it.')}
+  save();if(k==='status')renderApps()});
+$('appRows').addEventListener('click',e=>{const b=e.target.closest('[data-rmapp]');if(!b)return;S.apps=S.apps.filter(a=>a.id!==b.dataset.rmapp);save();renderApps()});
+$('addApp').onclick=()=>{S.apps.unshift({id:uid(),company:'',role:'',status:'saved',applied:'',nextWhat:'Apply',next:''});save();renderApps();$('appRows').querySelector('input').focus()};
+
+/* ---------- examples ---------- */
+function renderBanner(){$('exBanner').hidden=!S.example}
+$('clearEx').onclick=()=>{const keep=S.apps.filter(a=>!a.ex);const pr=S.practice,lt=S.letter;S=blank();S.apps=keep;S.practice=pr;S.letter=lt;save();
+  document.querySelectorAll('[data-r]').forEach(el=>el.value=R()[el.dataset.r]||'');renderJobs();renderPaper();renderApps();renderBanner();toast('All yours. Start with your name.');$('r-name').focus()};
+// editing the example resume makes it yours
+document.addEventListener('input',e=>{if(S.example&&e.target.closest('#v-resume')){S.example=false;renderBanner()}},true);
+
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+renderJobs();renderPaper();renderQ();renderApps();renderBanner();
+let t0='resume';try{t0=localStorage.getItem('polished.tab')||'resume'}catch(e){} showTab(['resume','letter','practice','apps'].includes(t0)?t0:'resume');
+if(!localStorage.getItem(KEY))storeOK(KEY,JSON.stringify(S));
+})();
+</script>
+</body></html>

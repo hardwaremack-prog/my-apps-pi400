@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PodDeck</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f1418;color:#e6edf2;font:16px/1.5 system-ui,sans-serif;padding:16px;box-sizing:border-box}
+.box{max-width:560px;background:#171e24;border:1px solid #2a353f;border-radius:16px;padding:28px}
+h1{margin:0 0 4px;font-size:24px;display:flex;align-items:center;gap:12px} img{width:48px;height:48px}
+p{color:#8b9aa6} code{background:#0f1418;border:1px solid #2a353f;border-radius:6px;padding:2px 6px;color:#a48bff;font-size:14px}
+ol{padding-left:20px} li{margin:8px 0} #st{color:#f5b84b}
+</style></head><body><div class="box">
+<h1><img src="poddeck-icon.png" alt="">PodDeck</h1>
+<p id="st">Looking for PodDeck...</p>
+<div id="help" hidden>
+<p>PodDeck is the control panel for Podman containers. It's a small program that has to be running first.</p>
+<ol>
+<li>Double-click the <b>PodDeck</b> icon on the Desktop (added by <b>Set Up My Apps.sh</b>), or find it in the Raspberry Pi menu under <b>System Tools</b>.</li>
+<li>The first time, it installs Podman and asks you to pick a password. After that it starts by itself every time the Pi boots.</li>
+</ol>
+<p>No icon? Open a Terminal and type:<br><code>bash ~/Desktop/"My Apps"/apps/poddeck/install.sh</code></p>
+<p>PodDeck is for the Raspberry Pi (64-bit Raspberry Pi OS). It doesn't run on Windows.</p>
+<p>This page keeps checking and jumps to PodDeck as soon as it's running.</p>
+</div></div>
+<script>
+// PodDeck answers /poddeck.js with its port; other programs won't, so we never open the wrong app.
+const PORTS=[8070,8071,8072,8073];
+function probe(){window.__poddeck=[];let left=PORTS.length;
+  PORTS.forEach(p=>{const sc=document.createElement('script');sc.src='http://127.0.0.1:'+p+'/poddeck.js?'+Date.now();
+    sc.onload=sc.onerror=()=>{sc.remove();if(--left===0)done()};document.head.appendChild(sc)})}
+function done(){const p=(window.__poddeck||[])[0];
+  if(p){location.replace('http://127.0.0.1:'+p+'/');return}
+  document.getElementById('st').textContent='PodDeck isn\'t running yet.';document.getElementById('help').hidden=false;setTimeout(probe,2500)}
+probe();
+</script></body></html>

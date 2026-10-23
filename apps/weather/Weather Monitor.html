@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Monitor - Fahrenheit & Log</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .temp-grid { 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .location-card {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .location-card:hover { 
+            transform: translateY(-3px); 
+            background: rgba(255,255,255,0.3);
+        }
+        .temp { font-size: 2em; font-weight: bold; margin: 10px 0; }
+        .condition { color: #ddd; font-style: italic; }
+        
+        /* Log section styling */
+        .log-section { 
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        h2 { margin-top: 0; color: #fff; }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        th, td { 
+            padding: 8px 12px; 
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        th { background: rgba(255,255,255,0.2); position: sticky; top: 0; }
+        
+        .change-up { color: #ff6b6b; font-weight: bold; }
+        .change-down { color: #4ecdc4; font-weight: bold; }
+        .no-change { color: #ffd93d; }
+        
+        .controls { text-align: center; margin-bottom: 20px; }
+        button { 
+            background: rgba(255,255,255,0.2);
+            border: 1px solid white;
+            color: white;
+            padding: 8px 16px;
+            margin: 0 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover { background: rgba(255,255,255,0.3); }
+        
+        .status { 
+            text-align: center; 
+            font-size: 0.9em; 
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌡️ Weather Monitor - Fahrenheit</h1>
+        
+        <div class="controls">
+            <button onclick="refreshData()">↻ Refresh Now</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+            <span id="lastUpdated" style="margin-left: 20px;"></span>
+        </div>
+
+        <h2>Current Temperatures (°F)</h2>
+        <div class="temp-grid" id="tempGrid">
+            <!-- Temp cards will be inserted here -->
+        </div>
+
+        <h2>📊 Temperature Log</h2>
+        <div class="log-section">
+            <table id="logTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Location</th>
+                        <th>T (°F)</th>
+                        <th>Change</th>
+                        <th>Condition</th>
+                    </tr>
+                </thead>
+                <tbody id="logBody">
+                    <!-- Log entries will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="status" id="statusMessage">Loading...</div>
+    </div>
+
+    <script>
+        const locations = {
+            "NYC": "New York, NY",
+            "LA": "Los Angeles, CA",
+            "Chicago": "Chicago, IL",
+            "Houston": "Houston, TX",
+            "Phoenix": "Phoenix, AZ",
+            "Philadelphia": "Philadelphia, PA",
+            "San Antonio": "San Antonio, TX"
+        };
+
+        let temperatureHistory = {}; // Store previous temps for change tracking
+        let logData = []; // Store all log entries
+
+        async function fetchWeather() {
+            const statusEl = document.getElementById('statusMessage');
+            
+            try {
+                statusEl.textContent = 'Fetching weather data...';
+                
+                for (const [key, name] of Object.entries(locations)) {
+                    try {
+                        const url = `https://wttr.in/${encodeURIComponent(name)}?format=%c%t%T%l&lang=en`;
+                        const response = await fetch(url);
+                        
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        
+                        const data = await response.text();
+                        const parts = data.trim().split(/\s+/);
+                        
+                        if (parts.length >= 4) {
+                            const condition = parts[0].replace(/[^\w\s]/g, '');
+                            const tempF = parseInt(parts[1].replace('°', ''));
+                            
+                            // Track temperature changes
+                            let changeHtml = '<span class="no-change">-</span>';
+                            if (temperatureHistory[key]) {
+                                const diff = tempF - temperatureHistory[key];
+                                if (diff > 0) {
+                                    changeHtml = `<span class="change-up">+${diff}°</span>`;
+                                } else if (diff < 0) {
+                                    changeHtml = `<span class="change-down">${diff}°</span>`;
+                                }
+                            }
+                            
+                            temperatureHistory[key] = tempF;
+                            
+                            // Update temp card
+                            updateTempCard(key, tempF, condition);
+                            
+                            // Add to log
+                            addToLog(key, tempF, changeHtml, condition);
+                        }
+                    } catch (err) {
+                        console.error(`Failed to fetch ${name}:`, err);
+                        statusEl.textContent = `⚠️ Error fetching data for some locations`;
+                    }
+                }
+                
+                document.getElementById('lastUpdated').textContent = 
+                    `Last updated: ${new Date().toLocaleTimeString()}`;
+                    
+            } catch (error) {
+                console.error('Fetch error:', error);
+                statusEl.textContent = '❌ Failed to fetch weather data';
+            }
+        }
+
+        function updateTempCard(key, tempF, condition) {
+            const card = document.getElementById(`card-${key}`);
+            
+            if (!card) {
+                // Create new card
+                const grid = document.getElementById('tempGrid');
+                card = document.createElement('div');
+                card.id = `card-${key}`;
+                card.className = 'location-card';
+                
+                const weatherIcon = getWeatherIcon(condition);
+                card.innerHTML = `
+                    <h3>${locations[key].split(',')[0]}</h3>
+                    <div class="temp">${weatherIcon} ${tempF}°F</div>
+                    <div class="condition">${condition}</div>
+                `;
+                
+                grid.appendChild(card);
+            } else {
+                // Update existing card
+                const tempEl = card.querySelector('.temp');
+                const changeIndicator = document.getElementById(`change-${key}`);
+                
+                if (temperatureHistory[key]) {
+                    const diff = tempF - temperatureHistory[key];
+                    
+                    if (!changeIndicator) {
+                        const indicator = document.createElement('div');
+                        indicator.id = `change-${key}`;
+                        card.insertBefore(indicator, tempEl.nextSibling);
+                    }
+                    
+                    const changeEl = document.getElementById(`change-${key}`);
+                    if (diff > 0) {
+                        changeEl.innerHTML = `<span class="change-up">▲ +${diff}°</span>`;
+                    } else if (diff < 0) {
+                        changeEl.innerHTML = `<span class="change-down">▼ ${diff}°</span>`;
+                    } else {
+                        changeEl.innerHTML = '<span class="no-change">─ No Change</span>';
+                    }
+                }
+                
+                tempEl.innerHTML = `${getWeatherIcon(condition)} ${tempF}°F`;
+                card.querySelector('.condition').textContent = condition;
+            }
+        }
+
+        function getWeatherIcon(condition) {
+            const lower = condition.toLowerCase();
+            if (lower.includes('sun') || lower.includes('clear')) return '☀️';
+            if (lower.includes('cloud') || lower.includes('overcast')) return '☁️';
+            if (lower.includes('rain') || lower.includes('drizzle')) return '🌧️';
+            if (lower.includes('snow')) return '❄️';
+            if (lower.includes('thunder')) return '⚡';
+            if (lower.includes('fog') || lower.includes('mist')) return '🌫️';
+            if (lower.includes('wind') || lower.includes('breeze')) return '💨';
+            if (lower.includes('partly cloudy')) return '⛅';
+            return '🌤️'; // Default
+        }
+
+        function addToLog(key, tempF, changeHtml, condition) {
+            const timestamp = new Date().toLocaleTimeString();
+            
+            logData.unshift({ time: timestamp, location: key, temp: tempF, change: changeHtml, condition });
+            
+            // Keep only last 100 entries
+            if (logData.length > 100) {
+                logData.pop();
+            }
+            
+            renderLogTable();
+        }
+
+        function renderLogTable() {
+            const tbody = document.getElementById('logBody');
+            tbody.innerHTML = '';
+            
+            logData.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${entry.time}</td>
+                    <td><strong>${locations[entry.location].split(',')[0]}</strong></td>
+                    <td><strong>${entry.temp}°F</strong></td>
+                    <td>${entry.change}</td>
+                    <td>${entry.condition}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function refreshData() {
+            fetchWeather();
+        }
+
+        function clearLog() {
+            if (confirm('Clear all log entries?')) {
+                logData = [];
+                temperatureHistory = {};
+                document.getElementById('tempGrid').innerHTML = '';
+                renderLogTable();
+                document.getElementById('statusMessage').textContent = 'Log cleared';
+            }
+        }
+
+        // Initial load and auto-refresh every 60 seconds
+        fetchWeather();
+        setInterval(fetchWeather, 60000);
+    </script>
+</body>
+</html>

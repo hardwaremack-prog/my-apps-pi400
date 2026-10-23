@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en"><head><script src="../suite-users.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hearty</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: kitchen-notebook planner — compact header, tabbed workspace, week grid of day cards */
+:root{
+  --bg:#F4F7F1; --surface:#FFFFFF; --sunk:#E9EFE5; --ink:#1E2A21; --muted:#5C6A60; --line:#D6DFD2;
+  --basil:#2E6A3E; --basil-soft:#DCEBDD; --saffron:#E6A033; --saffron-soft:#FBEBCF; --saffron-ink:#7E520F;
+  --tomato:#B8432C; --on-basil:#FFFFFF;
+  --f-display:"Young Serif", Georgia, "Times New Roman", serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num:"DM Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111713; --surface:#19211C; --sunk:#202A23; --ink:#E7EEE5; --muted:#9AA89E; --line:#2D3A31;
+  --basil:#7FC690; --basil-soft:#223A28; --saffron:#F0B456; --saffron-soft:#3A2E17; --saffron-ink:#F3C77A;
+  --tomato:#EE7A62; --on-basil:#0F1A12; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#111713; --surface:#19211C; --sunk:#202A23; --ink:#E7EEE5; --muted:#9AA89E; --line:#2D3A31;
+  --basil:#7FC690; --basil-soft:#223A28; --saffron:#F0B456; --saffron-soft:#3A2E17; --saffron-ink:#F3C77A;
+  --tomato:#EE7A62; --on-basil:#0F1A12; color-scheme:dark }
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1260px;margin:0 auto;padding:20px 16px 60px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--saffron);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+
+/* header */
+.top{display:grid;gap:10px;padding-block:6px 18px}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.logo{font-family:var(--f-display);font-size:22px;color:var(--basil);letter-spacing:.01em}
+.saved{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:4px 10px;border-radius:99px}
+.saved i{width:8px;height:8px;border-radius:50%;background:var(--basil);box-shadow:0 0 0 3px var(--basil-soft);transition:transform .3s}
+.saved.pulse i{transform:scale(1.5)}
+.saved.bad i{background:var(--tomato);box-shadow:none}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(34px,6vw,56px);line-height:1.02;margin:6px 0 0;text-wrap:balance}
+h1 em{font-style:normal;color:var(--basil)}
+.lede{margin:0;max-width:62ch;color:var(--muted);font-size:17px}
+.stats{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:8px}
+.stat{display:grid}
+.stat b{font-family:var(--f-num);font-weight:500;font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.stat.kept b{color:var(--basil)}
+
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
+.tabs button{background:none;border:0;padding:12px 14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--saffron)}
+.tabs .count{font-family:var(--f-num);font-size:12px;background:var(--sunk);padding:1px 7px;border-radius:99px;margin-left:6px}
+
+/* generic */
+.btn{border:1px solid var(--line);background:var(--surface);padding:9px 14px;border-radius:10px;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--basil)}
+.btn.primary{background:var(--basil);color:var(--on-basil);border-color:var(--basil)}
+.btn.small{padding:5px 10px;font-size:13px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.label{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.note{color:var(--muted);font-size:13px}
+.banner{background:var(--saffron-soft);color:var(--saffron-ink);border-radius:10px;padding:10px 14px;font-weight:500;margin-bottom:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+h2{font-family:var(--f-display);font-weight:400;font-size:26px;margin:0 0 4px}
+h3{margin:0}
+
+/* balance */
+.balance{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr) auto;gap:22px;align-items:center;margin-bottom:18px}
+@media (max-width:900px){.balance{grid-template-columns:1fr}}
+.slider-row{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-top:8px}
+.slider-row span:first-child{color:var(--basil)} .slider-row span:last-child{color:var(--saffron-ink)}
+input[type=range]{width:100%;accent-color:var(--basil)}
+.meters{display:grid;gap:8px}
+.meter{display:grid;grid-template-columns:96px minmax(0,1fr) 44px;align-items:center;gap:10px;font-size:13px}
+.bar{height:10px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--basil);transition:width .4s}
+.bar.joy i{background:var(--saffron)}
+.meter .num{text-align:right;font-size:13px}
+.verdict{font-weight:600;font-size:14px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+
+/* week */
+.week{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+@media (min-width:1180px){.week{grid-template-columns:repeat(7,minmax(0,1fr))}}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;gap:8px;align-content:start}
+.day h3{font-family:var(--f-display);font-weight:400;font-size:19px;padding:2px 4px}
+.slot{border-radius:10px;background:var(--sunk);display:grid}
+.slot.done{background:var(--basil-soft)}
+.slotmain,.slot.empty{all:unset;box-sizing:border-box;display:grid;gap:2px;padding:9px 10px;cursor:pointer;border-radius:10px;min-width:0}
+.slot.empty{border:1.5px dashed var(--line);background:none}
+.slot.empty:hover,.slotmain:hover{background:color-mix(in srgb,var(--basil) 8%,transparent)}
+.slotmain:focus-visible,.slot.empty:focus-visible{outline:2px solid var(--saffron)}
+.slabel{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.sname{font-weight:600;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+.smeta{font-family:var(--f-num);font-size:12px;color:var(--muted)}
+.add{color:var(--basil);font-weight:600;font-size:14px}
+.sacts{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:0 8px 8px 10px}
+.sacts button{background:none;border:0;color:var(--basil);font-weight:700;font-size:12.5px;cursor:pointer;padding:2px 0}
+.sacts label{display:flex;gap:5px;align-items:center;font-size:12.5px;color:var(--muted);cursor:pointer}
+.slot.done .sacts label{color:var(--basil);font-weight:700}
+.sacts input{accent-color:var(--basil)}
+.tag{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:6px;background:var(--saffron-soft);color:var(--saffron-ink);justify-self:start}
+
+/* dots */
+.dots{display:inline-flex;gap:3px;vertical-align:middle}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.dots.h i.on{background:var(--basil)} .dots.j i.on{background:var(--saffron)}
+
+/* meals */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 13px;font-weight:600;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:10px;align-content:start}
+.card h3{font-family:var(--f-display);font-weight:400;font-size:20px;line-height:1.2}
+.facts{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}
+.facts b{font-family:var(--f-num);font-weight:500;color:var(--ink)}
+.rate{display:grid;grid-template-columns:auto auto;justify-content:start;gap:4px 10px;font-size:12.5px;color:var(--muted);align-items:center}
+.tip{font-size:13.5px;border-left:3px solid var(--saffron);padding-left:10px;color:var(--ink)}
+details summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--basil)}
+details ul{margin:6px 0 0;padding-left:18px;font-size:13.5px}
+.card .row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* add form */
+.form{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.form .wide{grid-column:1/-1}
+.field{display:grid;gap:4px}
+.field label{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.field input,.field select,.field textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+.field textarea{min-height:90px;resize:vertical}
+
+/* list */
+.listhead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end;margin-bottom:16px}
+@media (max-width:640px){.listhead{grid-template-columns:1fr}}
+.aisle{margin-bottom:18px}
+.aisle h3{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:0 2px 6px;margin-bottom:4px}
+.aisle h3 .num{letter-spacing:0}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 2px;border-bottom:1px dashed var(--line)}
+.chk{display:flex;gap:10px;align-items:center;min-width:0;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--basil);flex:none}
+.iname{font-weight:600;overflow-wrap:anywhere}
+.iqty{font-family:var(--f-num);font-size:12.5px;color:var(--muted);white-space:nowrap}
+.item.got .iname{text-decoration:line-through;color:var(--muted)}
+.item.have{opacity:.55}
+.item.have .iname{text-decoration:line-through}
+.havebtn{background:none;border:1px solid var(--line);border-radius:99px;font-size:12px;font-weight:600;padding:3px 9px;cursor:pointer;color:var(--muted);white-space:nowrap}
+.item.have .havebtn{color:var(--basil);border-color:var(--basil)}
+.price{width:78px;text-align:right;font-family:var(--f-num);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:4px 6px}
+@media (max-width:480px){.item{grid-template-columns:minmax(0,1fr) auto}.havebtn{grid-column:1;justify-self:start;margin-left:28px}.price{grid-row:1;grid-column:2}}
+.empty-state{padding:30px;text-align:center;color:var(--muted);border:1.5px dashed var(--line);border-radius:var(--r)}
+
+/* money */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px;margin-top:10px}
+.big{font-family:var(--f-num);font-size:30px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.1}
+.big.good{color:var(--basil)} .big.warn{color:var(--tomato)}
+.budgetbar{height:16px;border-radius:99px;background:var(--sunk);overflow:hidden;display:flex;margin:12px 0 8px}
+.budgetbar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px}
+.legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;background:var(--c)}
+.lines{display:grid;gap:6px;margin-top:10px;font-size:14px}
+.lines div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);padding-bottom:5px}
+.lines .num{font-size:14px}
+ul.plain{margin:8px 0 0;padding-left:18px;display:grid;gap:5px;font-size:14px}
+
+/* modal */
+.modal{position:fixed;inset:0;background:color-mix(in srgb,#000 45%,transparent);display:flex;align-items:flex-end;justify-content:center;z-index:20;padding:16px}
+@media (min-width:700px){.modal{align-items:center}}
+.sheet{background:var(--surface);border-radius:16px;width:min(640px,100%);max-height:88vh;overflow:auto;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.sheethead{display:flex;justify-content:space-between;gap:10px;align-items:start;margin-bottom:10px}
+.x{background:var(--sunk);border:0;border-radius:99px;width:34px;height:34px;font-size:18px;cursor:pointer;flex:none}
+.pickrow{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;width:100%;padding:11px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+.pickrow:hover,.pickrow:focus-visible{background:var(--sunk);border-color:var(--line)}
+.pickrow .pn{font-weight:600}
+.pickrow .pm{font-size:12.5px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pickrow .pc{font-family:var(--f-num);font-weight:500;align-self:center}
+.pickrow.cur{background:var(--basil-soft)}
+.specials{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.steps{margin:10px 0;padding-left:0;list-style:none;counter-reset:s;display:grid;gap:12px}
+.steps li{counter-increment:s;display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;font-size:17px;line-height:1.45}
+.steps li::before{content:counter(s);font-family:var(--f-display);font-size:20px;width:34px;height:34px;border-radius:50%;background:var(--basil-soft);color:var(--basil);display:grid;place-items:center}
+.pep{background:var(--basil-soft);color:var(--basil);font-weight:600;border-radius:10px;padding:12px 14px;margin-top:10px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:30;font-size:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="logo">Hearty</span>
+      <span class="saved" id="saved" title="Your plan is saved in this browser"><i></i><span id="savedText">Saved</span></span>
+    </div>
+    <h1>You're the chef. <em>You've totally got this.</em></h1>
+    <p class="lede">Pick meals you'll actually look forward to, shop in one trip, and keep the drive-thru money. We're here to help with the planning.</p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="week" id="t-week">This week</button>
+    <button role="tab" data-tab="meals" id="t-meals">Meals</button>
+    <button role="tab" data-tab="list" id="t-list">Shopping list <span class="count num" id="listCount">0</span></button>
+    <button role="tab" data-tab="money" id="t-money">Budget &amp; trips</button>
+  </nav>
+
+  <main>
+    <section id="tab-week" role="tabpanel">
+      <div class="banner" id="exampleNote" hidden>
+        <span>This is an example week to get you started. Tap any meal to swap it, or press Fill my week.</span>
+        <button class="btn small" id="dismissExample">Got it</button>
+      </div>
+      <div class="panel balance">
+        <div>
+          <div class="label">What matters most this week?</div>
+          <input type="range" id="balance" min="0" max="100" step="5" aria-label="Health versus enjoyment">
+          <div class="slider-row"><span>Healthier</span><span>Balanced</span><span>More comfort food</span></div>
+        </div>
+        <div class="meters" id="meters"></div>
+        <div class="actions">
+          <button class="btn primary" id="fill">Fill my week</button>
+          <button class="btn" id="clear">Clear week</button>
+        </div>
+      </div>
+      <div class="week" id="week"></div>
+    </section>
+
+    <section id="tab-meals" role="tabpanel" hidden>
+      <div class="toolbar">
+        <div class="chips" id="mealFilter"></div>
+        <button class="btn" id="showAdd">Add your own meal</button>
+      </div>
+      <div class="panel" id="addPanel" hidden style="margin-bottom:16px">
+        <h2>Add a meal you already make</h2>
+        <p class="note">Your go-to meals count. Add them so they show up in your plan and shopping list.</p>
+        <form id="addForm" class="form">
+          <div class="field wide"><label for="f-name">Meal name</label><input id="f-name" required placeholder="Grandma's chicken and rice"></div>
+          <div class="field"><label for="f-slot">Meal</label><select id="f-slot"><option>Breakfast</option><option>Lunch</option><option selected>Dinner</option></select></div>
+          <div class="field"><label for="f-serves">Serves</label><input id="f-serves" type="number" min="1" value="4"></div>
+          <div class="field"><label for="f-min">Minutes</label><input id="f-min" type="number" min="1" value="30"></div>
+          <div class="field"><label for="f-health">Healthy (1–5)</label><input id="f-health" type="number" min="1" max="5" value="3"></div>
+          <div class="field"><label for="f-joy">Enjoyment (1–5)</label><input id="f-joy" type="number" min="1" max="5" value="4"></div>
+          <div class="field"><label for="f-veg">Veggie servings per plate</label><input id="f-veg" type="number" min="0" max="6" value="1"></div>
+          <div class="field wide"><label for="f-ing">Ingredients — one per line: item, price, aisle</label><textarea id="f-ing" placeholder="Chicken thighs, 6.00, Meat&#10;Rice, 0.80, Pantry&#10;Onion, 0.60, Produce"></textarea></div>
+          <div class="field wide"><label for="f-steps">Steps — one per line (optional)</label><textarea id="f-steps" placeholder="Brown the chicken&#10;Add rice and broth, cover for 20 minutes"></textarea></div>
+          <div class="wide actions"><button class="btn primary" type="submit">Save meal</button><button class="btn" type="button" id="cancelAdd">Cancel</button></div>
+        </form>
+      </div>
+      <div class="grid" id="mealGrid"></div>
+    </section>
+
+    <section id="tab-list" role="tabpanel" hidden>
+      <div class="listhead">
+        <div>
+          <h2>One trip. One list.</h2>
+          <p class="note" style="margin:0">Built from your week and ordered the way most stores are laid out. Mark what you already have at home, and type your store's real price over any estimate.</p>
+        </div>
+        <div class="actions"><button class="btn" id="copyList">Copy list</button><button class="btn" id="resetPrices">Reset prices</button></div>
+      </div>
+      <div id="listBody"></div>
+    </section>
+
+    <section id="tab-money" role="tabpanel" hidden>
+      <div class="cols">
+        <div class="panel">
+          <div class="label">Your household</div>
+          <div class="inputs">
+            <div class="field"><label for="s-people">People eating</label><input id="s-people" type="number" min="1" max="12" data-set="people"></div>
+            <div class="field"><label for="s-budget">Weekly food budget ($)</label><input id="s-budget" type="number" min="0" step="5" data-set="budget"></div>
+            <div class="field"><label for="s-fast">Fast-food meal, per person ($)</label><input id="s-fast" type="number" min="0" step="0.5" data-set="fast"></div>
+          </div>
+          <div id="budgetOut"></div>
+        </div>
+        <div class="panel">
+          <div class="label">Grocery trips &amp; gas</div>
+          <div class="inputs">
+            <div class="field"><label for="s-miles">Miles to store and back</label><input id="s-miles" type="number" min="0" step="0.5" data-set="miles"></div>
+            <div class="field"><label for="s-mpg">Your car's MPG</label><input id="s-mpg" type="number" min="1" data-set="mpg"></div>
+            <div class="field"><label for="s-gas">Gas price ($/gal)</label><input id="s-gas" type="number" min="0" step="0.01" data-set="gas"></div>
+            <div class="field"><label for="s-trips">Planned trips this week</label><input id="s-trips" type="number" min="0" max="14" data-set="trips"></div>
+            <div class="field"><label for="s-habit">Trips you usually make</label><input id="s-habit" type="number" min="0" max="14" data-set="habit"></div>
+          </div>
+          <div id="tripOut"></div>
+        </div>
+        <div class="panel">
+          <div class="label">You vs. the drive-thru</div>
+          <div id="driveOut"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="modal" hidden><div class="sheet" role="dialog" aria-modal="true" id="sheet"></div></div>
+
+<script>
+const KEY='hearty.v1';
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const SLOTS=['Breakfast','Lunch','Dinner'];
+const AISLES=['Produce','Meat','Dairy','Bakery','Frozen','Pantry','Other'];
+const COUNT_UNITS=['','cans','slices','cloves','bag','bunch','stalks','fillets','buns','heads'];
+
+// ingredient: [item, qty, unit, aisle, estimated cost for that qty]
+const MEALS=[
+ {id:'oats',name:'Peanut Butter Banana Oats',slot:'Breakfast',serves:4,min:10,health:4,joy:4,protein:13,veg:1,
+  ing:[['Rolled oats',2,'cups','Pantry',0.90],['Bananas',2,'','Produce',0.55],['Peanut butter',4,'tbsp','Pantry',0.60],['Milk',4,'cups','Dairy',1.10]],
+  steps:['Bring the milk to a gentle simmer in a pot.','Stir in the oats and cook about 5 minutes, stirring now and then.','Slice the bananas and spoon peanut butter on top.'],
+  tip:'Oats are hard to mess up. Too thick? Add a splash of milk.'},
+ {id:'eggtacos',name:'Veggie Egg Breakfast Tacos',slot:'Breakfast',serves:4,min:15,health:4,joy:5,protein:20,veg:1,
+  ing:[['Eggs',8,'','Dairy',2.40],['Tortillas',8,'','Bakery',1.20],['Bell peppers',1,'','Produce',0.90],['Onion',1,'','Produce',0.60],['Shredded cheese',1,'cups','Dairy',1.25],['Salsa',0.5,'cups','Pantry',0.80]],
+  steps:['Dice the pepper and onion and cook them in a pan for 4 minutes.','Whisk the eggs, pour them in, and stir slowly over medium-low heat.','Warm the tortillas, fill with eggs, cheese and salsa.'],
+  tip:'Low heat and slow stirring gives soft eggs. Pull them a little early; they keep cooking.'},
+ {id:'parfait',name:'Yogurt Berry Parfaits',slot:'Breakfast',serves:4,min:5,health:4,joy:4,protein:16,veg:1,
+  ing:[['Greek yogurt',32,'oz','Dairy',4.50],['Frozen berries',2,'cups','Frozen',2.40],['Granola',1,'cups','Pantry',1.30],['Honey',2,'tbsp','Pantry',0.30]],
+  steps:['Thaw the berries overnight in the fridge, or microwave 1 minute.','Layer yogurt, berries and granola in a bowl or jar.','Drizzle with honey.'],
+  tip:'Make four jars Sunday night and breakfast is done until Thursday.'},
+ {id:'bfpotatoes',name:'Sheet-Pan Potatoes & Eggs',slot:'Breakfast',serves:4,min:35,health:3,joy:5,protein:18,veg:1,
+  ing:[['Potatoes',2,'lb','Produce',1.80],['Onion',1,'','Produce',0.60],['Bell peppers',1,'','Produce',0.90],['Eggs',8,'','Dairy',2.40],['Olive oil',2,'tbsp','Pantry',0.30]],
+  steps:['Heat the oven to 425°F. Dice potatoes, onion and pepper, toss with oil and salt.','Roast 25 minutes, flipping once.','Make 8 little wells, crack in the eggs, and bake 6–8 more minutes.'],
+  tip:'A weekend breakfast that beats any drive-thru hash brown.'},
+ {id:'quesadillas',name:'Black Bean Quesadillas',slot:'Lunch',serves:4,min:15,health:3,joy:5,protein:22,veg:1,
+  ing:[['Tortillas',8,'','Bakery',1.20],['Black beans',2,'cans','Pantry',1.80],['Shredded cheese',2,'cups','Dairy',2.50],['Salsa',0.5,'cups','Pantry',0.80],['Frozen corn',1,'cups','Frozen',0.60]],
+  steps:['Drain the beans and mash them lightly with a fork.','Spread beans, corn and cheese on half of each tortilla and fold.','Cook in a dry pan 2–3 minutes per side until golden.'],
+  tip:'This is your 15-minute "I almost hit the drive-thru" meal. Keep these ingredients on hand.'},
+ {id:'wraps',name:'Turkey Hummus Wraps',slot:'Lunch',serves:4,min:10,health:4,joy:4,protein:26,veg:2,
+  ing:[['Tortillas',4,'','Bakery',0.60],['Deli turkey',1,'lb','Meat',6.50],['Hummus',10,'oz','Dairy',3.50],['Spinach',5,'oz','Produce',2.50],['Cucumber',1,'','Produce',0.80]],
+  steps:['Spread hummus across each tortilla.','Layer turkey, spinach and sliced cucumber.','Roll tight and cut in half.'],
+  tip:'Wrap them in foil and they travel well to work.'},
+ {id:'chickpea',name:'Chickpea Salad Sandwiches',slot:'Lunch',serves:4,min:10,health:4,joy:3,protein:15,veg:1,
+  ing:[['Chickpeas',2,'cans','Pantry',1.80],['Mayo',3,'tbsp','Pantry',0.35],['Celery',2,'stalks','Produce',0.50],['Bread',8,'slices','Bakery',1.60],['Lemon',1,'','Produce',0.60]],
+  steps:['Drain the chickpeas and mash with a fork.','Stir in mayo, chopped celery, lemon juice, salt and pepper.','Pile onto bread.'],
+  tip:'Tastes like tuna salad for a fraction of the price.'},
+ {id:'soup',name:'Tomato Soup & Grilled Cheese',slot:'Lunch',serves:4,min:25,health:3,joy:5,protein:20,veg:2,
+  ing:[['Canned tomatoes',2,'cans','Pantry',2.20],['Onion',1,'','Produce',0.60],['Garlic',3,'cloves','Produce',0.30],['Bread',8,'slices','Bakery',1.60],['Sliced cheese',8,'slices','Dairy',2.50],['Butter',3,'tbsp','Dairy',0.45]],
+  steps:['Cook chopped onion and garlic in a little butter for 5 minutes.','Add the tomatoes and a cup of water, simmer 15 minutes, then blend or mash.','Butter the bread, add cheese, and toast in a pan until golden on both sides.'],
+  tip:'Dip the sandwich. That is the whole point.'},
+ {id:'friedrice',name:'Clean-Out-the-Fridge Fried Rice',slot:'Lunch',serves:4,min:20,health:4,joy:5,protein:17,veg:2,
+  ing:[['Rice',2,'cups','Pantry',0.80],['Eggs',4,'','Dairy',1.20],['Frozen peas & carrots',2,'cups','Frozen',1.20],['Soy sauce',3,'tbsp','Pantry',0.30],['Garlic',3,'cloves','Produce',0.30],['Green onions',1,'bunch','Produce',0.90]],
+  steps:['Cook the rice (day-old rice works even better).','Scramble the eggs in a hot pan and set aside.','Fry garlic and veggies 3 minutes, add rice and soy sauce, then the eggs and green onions.'],
+  tip:'Throw in any leftover chicken or veggies. Nothing goes to waste.'},
+ {id:'sheetchicken',name:'Sheet-Pan Chicken & Veggies',slot:'Dinner',serves:4,min:40,health:5,joy:4,protein:38,veg:3,
+  ing:[['Chicken thighs',2,'lb','Meat',6.00],['Potatoes',1.5,'lb','Produce',1.35],['Broccoli',1,'lb','Produce',2.00],['Olive oil',3,'tbsp','Pantry',0.45],['Garlic',4,'cloves','Produce',0.40]],
+  steps:['Heat the oven to 425°F.','Toss chicken, cubed potatoes and garlic with oil, salt and pepper on a sheet pan. Roast 20 minutes.','Add the broccoli and roast 15–20 more minutes, until the chicken reaches 165°F.'],
+  tip:'One pan, one cleanup. Thighs stay juicy even if you leave them in a few extra minutes.'},
+ {id:'chili',name:'One-Pot Chili',slot:'Dinner',serves:6,min:45,health:4,joy:5,protein:32,veg:3,
+  ing:[['Ground beef',1,'lb','Meat',5.50],['Black beans',2,'cans','Pantry',1.80],['Canned tomatoes',2,'cans','Pantry',2.20],['Onion',1,'','Produce',0.60],['Bell peppers',1,'','Produce',0.90],['Chili powder',2,'tbsp','Pantry',0.40]],
+  steps:['Brown the beef with chopped onion and pepper.','Stir in chili powder, then the tomatoes and drained beans.','Simmer 30 minutes, stirring now and then. Taste and add salt.'],
+  tip:'Chili is better the next day. Plan it for lunch leftovers.'},
+ {id:'spaghetti',name:'Spaghetti & Meat Sauce',slot:'Dinner',serves:6,min:30,health:3,joy:5,protein:28,veg:2,
+  ing:[['Spaghetti',1,'lb','Pantry',1.50],['Ground beef',1,'lb','Meat',5.50],['Pasta sauce',24,'oz','Pantry',2.50],['Onion',1,'','Produce',0.60],['Garlic',3,'cloves','Produce',0.30],['Bagged salad',1,'bag','Produce',3.00]],
+  steps:['Boil salted water and cook the spaghetti.','Brown the beef with onion and garlic, then add the sauce and simmer 10 minutes.','Toss with the pasta and serve with salad.'],
+  tip:'Save a cup of pasta water. A splash makes the sauce cling.'},
+ {id:'burgers',name:'Smash Burgers & Oven Fries',slot:'Dinner',serves:4,min:35,health:2,joy:5,protein:34,veg:1,
+  ing:[['Ground beef',1,'lb','Meat',5.50],['Burger buns',4,'buns','Bakery',2.20],['Sliced cheese',4,'slices','Dairy',1.25],['Onion',1,'','Produce',0.60],['Potatoes',1.5,'lb','Produce',1.35],['Olive oil',2,'tbsp','Pantry',0.30]],
+  steps:['Cut potatoes into fries, toss with oil and salt, and bake at 425°F for 30 minutes.','Roll beef into 4 balls, smash flat in a very hot pan, and season.','Flip after 2 minutes, add cheese, and serve on toasted buns.'],
+  tip:'All the drive-thru flavor for a fraction of the price.'},
+ {id:'fajitas',name:'Sheet-Pan Chicken Fajitas',slot:'Dinner',serves:4,min:30,health:4,joy:5,protein:36,veg:3,
+  ing:[['Chicken breast',1.5,'lb','Meat',6.00],['Bell peppers',3,'','Produce',2.70],['Onion',1,'','Produce',0.60],['Tortillas',8,'','Bakery',1.20],['Chili powder',1,'tbsp','Pantry',0.20],['Salsa',0.5,'cups','Pantry',0.80]],
+  steps:['Heat the oven to 425°F. Slice chicken, peppers and onion into strips.','Toss with oil, chili powder and salt, and spread on a sheet pan.','Roast 20–25 minutes and pile into warm tortillas with salsa.'],
+  tip:'Everyone builds their own, so picky eaters are happy too.'},
+ {id:'salmon',name:'Lemon Salmon, Rice & Broccoli',slot:'Dinner',serves:4,min:25,health:5,joy:4,protein:34,veg:2,
+  ing:[['Frozen salmon',4,'fillets','Frozen',10.00],['Rice',1.5,'cups','Pantry',0.60],['Broccoli',1,'lb','Produce',2.00],['Lemon',1,'','Produce',0.60],['Butter',2,'tbsp','Dairy',0.30]],
+  steps:['Start the rice.','Bake the salmon at 400°F for 12–15 minutes with butter, salt and lemon slices.','Steam or roast the broccoli and squeeze lemon over everything.'],
+  tip:'Frozen salmon is often cheaper than fresh and cooks just as well.'},
+ {id:'curry',name:'Coconut Lentil Curry',slot:'Dinner',serves:6,min:35,health:5,joy:4,protein:20,veg:3,
+  ing:[['Dry lentils',1.5,'cups','Pantry',1.40],['Coconut milk',1,'cans','Pantry',1.60],['Canned tomatoes',1,'cans','Pantry',1.10],['Onion',1,'','Produce',0.60],['Garlic',3,'cloves','Produce',0.30],['Curry powder',2,'tbsp','Pantry',0.50],['Rice',1.5,'cups','Pantry',0.60],['Spinach',5,'oz','Produce',2.50]],
+  steps:['Cook chopped onion and garlic 5 minutes, then stir in curry powder.','Add lentils, tomatoes, coconut milk and 3 cups water. Simmer 25 minutes.','Stir in the spinach until it wilts and serve over rice.'],
+  tip:'Feeds six for less than a single combo meal.'},
+ {id:'pizza',name:'Homemade Pizza Night',slot:'Dinner',serves:4,min:30,health:3,joy:5,protein:28,veg:1,
+  ing:[['Pizza dough',1,'lb','Bakery',2.50],['Pasta sauce',8,'oz','Pantry',0.85],['Shredded mozzarella',2,'cups','Dairy',2.80],['Pepperoni',5,'oz','Meat',2.75],['Bell peppers',1,'','Produce',0.90]],
+  steps:['Heat the oven as hot as it goes, around 475°F.','Stretch the dough on an oiled pan, add sauce, cheese and toppings.','Bake 12–15 minutes until the crust is browned.'],
+  tip:'Make it a family activity. Everyone tops their own section.'},
+ {id:'stirfry',name:'Teriyaki Chicken Stir-Fry',slot:'Dinner',serves:4,min:25,health:4,joy:5,protein:34,veg:3,
+  ing:[['Chicken breast',1.5,'lb','Meat',6.00],['Frozen stir-fry veggies',2,'lb','Frozen',3.50],['Rice',1.5,'cups','Pantry',0.60],['Teriyaki sauce',0.5,'cups','Pantry',1.20],['Garlic',2,'cloves','Produce',0.20]],
+  steps:['Start the rice.','Cook bite-size chicken in a hot pan until browned, about 6 minutes.','Add garlic and veggies, cook 5 minutes, then toss with teriyaki sauce.'],
+  tip:'Faster than takeout delivery, and you know what went in it.'}
+];
+
+const PEP=['You read the recipe. That is already half the job.','Every cook burns something sometimes. Keep going.','Taste as you go. You are the boss of the salt.','You just saved money and know exactly what is in your food.','Done is delicious. It does not have to look like a magazine.'];
+
+const DEF={settings:{people:2,budget:120,fast:13,gas:3.29,mpg:24,miles:12,trips:1,habit:3,balance:45},
+  plan:{},cooked:{},have:{},got:{},prices:{},custom:[],tab:'week',example:false};
+const EXAMPLE={'Mon-Breakfast':'oats','Mon-Lunch':'wraps','Mon-Dinner':'sheetchicken','Tue-Breakfast':'parfait','Tue-Lunch':'left','Tue-Dinner':'chili',
+ 'Wed-Breakfast':'oats','Wed-Lunch':'left','Wed-Dinner':'stirfry','Thu-Breakfast':'parfait','Thu-Lunch':'quesadillas','Thu-Dinner':'curry',
+ 'Fri-Breakfast':'oats','Fri-Lunch':'left','Fri-Dinner':'pizza','Sat-Breakfast':'bfpotatoes','Sat-Lunch':'soup','Sat-Dinner':'burgers',
+ 'Sun-Breakfast':'eggtacos','Sun-Lunch':'left','Sun-Dinner':'left'};
+
+let state;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>(n<0?'-':'')+'$'+Math.abs(n).toFixed(2);
+const S=k=>Number(state.settings[k])||0;
+
+function load(){
+  let s=null; try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+  const d=JSON.parse(JSON.stringify(DEF));
+  if(!s){state=d;state.plan={...EXAMPLE};state.example=true}
+  else state={...d,...s,settings:{...d.settings,...(s.settings||{})}};
+}
+let savedTimer;
+function save(){
+  const el=$('#saved');
+  try{localStorage.setItem(KEY,JSON.stringify(state));el.classList.remove('bad');$('#savedText').textContent='Saved';
+    el.classList.add('pulse');clearTimeout(savedTimer);savedTimer=setTimeout(()=>el.classList.remove('pulse'),400)}
+  catch(e){el.classList.add('bad');$('#savedText').textContent='Not saved'}
+}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+
+const LEFT={id:'left',name:'Leftovers',slot:'Any',serves:1,min:5,health:4,joy:4,protein:0,veg:0,ing:[],steps:['Heat it up and enjoy. You already did the work.'],tip:'Leftovers are the cheapest meal of the week.'};
+const TREAT={id:'treat',name:'Planned treat out',slot:'Any',serves:1,min:0,health:2,joy:5,protein:0,veg:0,ing:[],steps:[],tip:'Planned and budgeted is a treat. Unplanned is a habit.'};
+const allMeals=()=>MEALS.concat(state.custom);
+function getMeal(id){if(id==='left')return LEFT;if(id==='treat')return TREAT;return allMeals().find(m=>m.id===id)}
+function rawCost(m){return m.ing.reduce((a,i)=>a+Number(i[4]||0),0)}
+function mealCost(m){if(!m)return 0;if(m.id==='treat')return S('fast')*S('people');return rawCost(m)*S('people')/m.serves}
+function perServing(m){return rawCost(m)/m.serves}
+function planned(){return Object.entries(state.plan).filter(([k,id])=>id&&getMeal(id)).map(([k,id])=>({key:k,m:getMeal(id)}))}
+function dots(n,cls){let h=`<span class="dots ${cls}" aria-label="${n} of 5">`;for(let i=1;i<=5;i++)h+=`<i class="${i<=n?'on':''}"></i>`;return h+'</span>'}
+
+/* ---------- shopping list ---------- */
+function niceQty(q,u){
+  if(COUNT_UNITS.includes(u)){q=Math.ceil(q-0.001);return u?`${q} ${u}`:`${q}`}
+  q=Math.round(q*4)/4;return `${q} ${u}`;
+}
+function computeList(){
+  const agg={};
+  planned().forEach(({m})=>{
+    if(!m.ing.length)return;
+    const f=S('people')/m.serves;
+    m.ing.forEach(([name,qty,unit,aisle,cost])=>{
+      const k=name.toLowerCase().trim();
+      if(!agg[k])agg[k]={k,name,aisle:AISLES.includes(aisle)?aisle:'Other',cost:0,q:{},meals:new Set()};
+      agg[k].cost+=Number(cost||0)*f;
+      agg[k].q[unit]=(agg[k].q[unit]||0)+Number(qty||1)*f;
+      agg[k].meals.add(m.name);
+    });
+  });
+  Object.values(agg).forEach(it=>{
+    if(state.prices[it.k]!=null)it.cost=Number(state.prices[it.k]);
+    it.qty=Object.entries(it.q).map(([u,q])=>niceQty(q,u)).join(' + ');
+  });
+  return Object.values(agg);
+}
+function listTotal(items){return (items||computeList()).filter(i=>!state.have[i.k]).reduce((a,i)=>a+i.cost,0)}
+
+/* ---------- header stats ---------- */
+function numbers(){
+  const items=computeList(), groceries=listTotal(items);
+  const tripGas=S('mpg')?S('miles')/S('mpg')*S('gas'):0;
+  const gas=tripGas*S('trips');
+  const p=planned(), treats=p.filter(x=>x.m.id==='treat').length;
+  const home=p.filter(x=>x.m.id!=='treat').length;
+  const treatCost=treats*S('fast')*S('people');
+  const drive=home*S('fast')*S('people');
+  const kept=drive-(groceries+gas);
+  let keptSoFar=0, cookedN=0;
+  Object.keys(state.cooked).forEach(k=>{if(!state.cooked[k])return;const m=getMeal(state.plan[k]);if(!m||m.id==='treat')return;cookedN++;keptSoFar+=S('fast')*S('people')-mealCost(m)});
+  return {items,groceries,tripGas,gas,treats,treatCost,home,drive,kept,keptSoFar,cookedN,total:groceries+gas+treatCost};
+}
+function renderStats(n){
+  $('#stats').innerHTML=`
+   <div class="stat"><b>${planned().length}/21</b><span>Meals planned</span></div>
+   <div class="stat"><b>${money(n.groceries)}</b><span>Groceries</span></div>
+   <div class="stat"><b>${money(n.total)}</b><span>Week total vs ${money(S('budget'))} budget</span></div>
+   <div class="stat kept"><b>${money(Math.max(0,n.kept))}</b><span>Kept vs. drive-thru</span></div>`;
+  $('#listCount').textContent=n.items.filter(i=>!state.have[i.k]&&!state.got[i.k]).length;
+}
+
+/* ---------- week ---------- */
+function renderMeters(){
+  const p=planned().filter(x=>x.m.id!=='left');
+  const box=$('#meters');
+  if(!p.length){box.innerHTML='<div class="verdict">Add a few meals to see your balance.</div>';return}
+  const h=p.reduce((a,x)=>a+x.m.health,0)/p.length, j=p.reduce((a,x)=>a+x.m.joy,0)/p.length;
+  const veg=p.reduce((a,x)=>a+(x.m.veg||0),0);
+  let v='Solid week. Healthy enough, fun enough.';
+  if(h>=3.9&&j>=4.2)v='Great balance. Good for you and something to look forward to.';
+  else if(h<3.2)v='Heavy on comfort food. Swap one dinner for a sheet-pan meal.';
+  else if(j<3.8)v='Very healthy. Add one fun night so it stays enjoyable.';
+  box.innerHTML=`
+   <div class="meter"><span>Healthy</span><div class="bar"><i style="width:${h/5*100}%"></i></div><span class="num">${h.toFixed(1)}</span></div>
+   <div class="meter"><span>Enjoyment</span><div class="bar joy"><i style="width:${j/5*100}%"></i></div><span class="num">${j.toFixed(1)}</span></div>
+   <div class="meter"><span>Veggies</span><div class="bar"><i style="width:${Math.min(100,veg/35*100)}%"></i></div><span class="num">${veg}</span></div>
+   <div class="verdict">${v}</div>
+   <div class="note">Veggie servings per person this week. A common goal is about 35, five a day. Leftover meals aren't counted.</div>`;
+}
+function slotHTML(d,s){
+  const key=`${d}-${s}`, id=state.plan[key], m=id&&getMeal(id);
+  if(!m)return `<button class="slot empty" data-pick="${key}"><span class="slabel">${s}</span><span class="add">+ Add a meal</span></button>`;
+  const done=!!state.cooked[key];
+  const meta=m.id==='left'?'free':money(mealCost(m))+(m.min?` · ${m.min} min`:'');
+  return `<div class="slot ${done?'done':''}">
+    <button class="slotmain" data-pick="${key}" aria-label="${s}: ${esc(m.name)}. Change meal"><span class="slabel">${s}</span><span class="sname">${esc(m.name)}</span><span class="smeta">${meta}</span>${m.id==='treat'?'<span class="tag">Budgeted</span>':''}</button>
+    <div class="sacts">${m.steps.length&&m.id!=='left'?`<button data-cook="${m.id}">Cook it</button>`:'<span></span>'}
+    ${m.id!=='treat'?`<label><input type="checkbox" data-cooked="${key}" ${done?'checked':''}>${done?'Made it':'Made it?'}</label>`:''}</div></div>`;
+}
+function renderWeek(){
+  $('#exampleNote').hidden=!state.example;
+  $('#balance').value=S('balance');
+  $('#week').innerHTML=DAYS.map(d=>`<div class="day"><h3>${d}</h3>${SLOTS.map(s=>slotHTML(d,s)).join('')}</div>`).join('');
+  renderMeters();
+}
+
+function fillWeek(){
+  const w=S('balance')/100, chosen=new Set(), used=new Set();
+  const score=m=>{
+    let s=(1-w)*m.health+w*m.joy - 0.35*perServing(m) + Math.random()*0.5;
+    let overlap=m.ing.filter(i=>chosen.has(i[0].toLowerCase())).length;
+    return s+Math.min(overlap,3)*0.3;
+  };
+  const take=(slot,n)=>{
+    const out=[];
+    for(let i=0;i<n;i++){
+      const pool=allMeals().filter(m=>m.slot===slot&&!used.has(m.id));
+      if(!pool.length)break;
+      pool.sort((a,b)=>score(b)-score(a));
+      const m=pool[0];used.add(m.id);out.push(m.id);m.ing.forEach(x=>chosen.add(x[0].toLowerCase()));
+    }
+    return out;
+  };
+  const plan={};
+  const dinners=take('Dinner',6);
+  DAYS.forEach((d,i)=>{plan[`${d}-Dinner`]=i<6?(dinners[i]||null):'left'});
+  const lunches=take('Lunch',2), bf=take('Breakfast',2);
+  DAYS.forEach((d,i)=>{
+    plan[`${d}-Lunch`]=(i%2===1)?'left':(lunches[(i/2)%2|0]||lunches[0]||null);
+    plan[`${d}-Breakfast`]=bf.length?bf[i%bf.length]:null;
+  });
+  state.plan=plan;state.cooked={};state.example=false;
+  toast('Your week is planned. Swap anything you like.');
+  commit();
+}
+
+/* ---------- picker ---------- */
+let pickKey=null, pickFilter=null;
+function openPicker(key){
+  pickKey=key; pickFilter=key.split('-')[1]; renderPicker(); openModal();
+}
+function renderPicker(){
+  const [d,s]=pickKey.split('-'); const cur=state.plan[pickKey];
+  const list=allMeals().filter(m=>pickFilter==='All'||m.slot===pickFilter);
+  $('#sheet').innerHTML=`
+   <div class="sheethead"><div><div class="label">${d} · ${s}</div><h2>What sounds good?</h2></div><button class="x" data-close aria-label="Close">×</button></div>
+   <div class="chips">${['Breakfast','Lunch','Dinner','All'].map(f=>`<button class="chip" data-pf="${f}" aria-pressed="${f===pickFilter}">${f}</button>`).join('')}</div>
+   <div class="specials">
+     <button class="btn small" data-choose="left">Leftovers (free)</button>
+     ${s!=='Breakfast'?`<button class="btn small" data-choose="treat">Planned treat out · ${money(S('fast')*S('people'))}</button>`:''}
+     ${cur?'<button class="btn small" data-choose="">Leave empty</button>':''}
+   </div>
+   <div>${list.map(m=>`<button class="pickrow ${cur===m.id?'cur':''}" data-choose="${m.id}">
+      <span class="pn">${esc(m.name)}</span><span class="pc">${money(mealCost(m))}</span>
+      <span class="pm">${m.min} min · Healthy ${dots(m.health,'h')} Enjoy ${dots(m.joy,'j')}</span></button>`).join('')}</div>`;
+}
+
+/* ---------- cook mode ---------- */
+function openCook(id){
+  const m=getMeal(id); if(!m)return;
+  const f=S('people')/m.serves;
+  $('#sheet').innerHTML=`
+   <div class="sheethead"><div><div class="label">Cook mode · ${m.min} min · for ${S('people')}</div><h2>${esc(m.name)}</h2></div><button class="x" data-close aria-label="Close">×</button></div>
+   <details open><summary>What you need</summary><ul>${m.ing.map(i=>`<li>${esc(i[0])} <span class="num note">${esc(niceQty(Number(i[1]||1)*f,i[2]||''))}</span></li>`).join('')||'<li>Nothing listed</li>'}</ul></details>
+   <ol class="steps">${m.steps.map(st=>`<li><span>${esc(st)}</span></li>`).join('')}</ol>
+   ${m.tip?`<div class="tip">${esc(m.tip)}</div>`:''}
+   <div class="pep">${PEP[Math.floor(Math.random()*PEP.length)]}</div>`;
+  openModal();
+}
+function openModal(){$('#modal').hidden=false;setTimeout(()=>$('#sheet').querySelector('button')?.focus(),0)}
+function closeModal(){$('#modal').hidden=true}
+
+/* ---------- meals tab ---------- */
+let mealFilter='All';
+function renderMeals(){
+  $('#mealFilter').innerHTML=['All','Breakfast','Lunch','Dinner','Mine'].map(f=>`<button class="chip" data-mf="${f}" aria-pressed="${f===mealFilter}">${f}</button>`).join('');
+  const list=allMeals().filter(m=>mealFilter==='All'||(mealFilter==='Mine'?m.custom:m.slot===mealFilter));
+  $('#mealGrid').innerHTML=list.length?list.map(m=>`<article class="card">
+    <div class="label">${m.slot}${m.custom?' · yours':''}</div>
+    <h3>${esc(m.name)}</h3>
+    <div class="facts"><span><b>${m.min}</b> min</span><span>serves <b>${m.serves}</b></span><span><b>${money(perServing(m))}</b> a plate</span></div>
+    <div class="rate"><span>Healthy</span>${dots(m.health,'h')}<span>Enjoyment</span>${dots(m.joy,'j')}</div>
+    ${m.tip?`<div class="tip">${esc(m.tip)}</div>`:''}
+    <details><summary>Ingredients (${m.ing.length})</summary><ul>${m.ing.map(i=>`<li>${esc(i[0])}</li>`).join('')}</ul></details>
+    <div class="row">${m.steps.length?`<button class="btn small primary" data-cook="${m.id}">Cook mode</button>`:''}${m.custom?`<button class="btn small" data-del="${m.id}">Delete</button>`:''}</div>
+  </article>`).join(''):'<div class="empty-state">No meals of your own yet. Press Add your own meal to save a family favorite.</div>';
+}
+
+/* ---------- list tab ---------- */
+function renderList(n){
+  const items=n.items;
+  if(!items.length){$('#listBody').innerHTML='<div class="empty-state">Plan a few meals and your shopping list builds itself here.</div>';return}
+  const left=items.filter(i=>!state.have[i.k]&&!state.got[i.k]).length;
+  let h=`<div class="panel" style="margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px 30px">
+    <div class="stat"><b class="num">${money(n.groceries)}</b><span>Estimated total</span></div>
+    <div class="stat"><b class="num">${left}</b><span>Items left to grab</span></div>
+    <div class="stat"><b class="num">${items.filter(i=>state.have[i.k]).length}</b><span>Already at home</span></div></div>`;
+  AISLES.forEach(a=>{
+    const g=items.filter(i=>i.aisle===a).sort((x,y)=>x.name.localeCompare(y.name)); if(!g.length)return;
+    const sub=g.filter(i=>!state.have[i.k]).reduce((s,i)=>s+i.cost,0);
+    h+=`<div class="aisle"><h3><span>${a}</span><span class="num">${money(sub)}</span></h3>${g.map(i=>`
+      <div class="item ${state.got[i.k]?'got':''} ${state.have[i.k]?'have':''}" title="For: ${esc([...i.meals].join(', '))}">
+        <label class="chk"><input type="checkbox" data-got="${esc(i.k)}" ${state.got[i.k]?'checked':''}><span class="iname">${esc(i.name)}</span><span class="iqty">${esc(i.qty)}</span></label>
+        <button class="havebtn" data-have="${esc(i.k)}">${state.have[i.k]?'Have it':'Have it?'}</button>
+        <input class="price" type="number" step="0.01" min="0" data-price="${esc(i.k)}" value="${i.cost.toFixed(2)}" aria-label="Price for ${esc(i.name)}">
+      </div>`).join('')}</div>`;
+  });
+  h+='<p class="note">Prices are typical estimates. Type your store\'s price over any number and Hearty remembers it.</p>';
+  $('#listBody').innerHTML=h;
+}
+
+/* ---------- money tab ---------- */
+function renderMoney(n){
+  document.querySelectorAll('[data-set]').forEach(el=>{if(document.activeElement!==el)el.value=state.settings[el.dataset.set]});
+  const B=S('budget'), over=n.total>B, max=Math.max(B,n.total)||1;
+  $('#budgetOut').innerHTML=`
+    <div style="margin-top:16px" class="label">This week</div>
+    <div class="big ${over?'warn':'good'}">${over?money(n.total-B)+' over':money(B-n.total)+' left'}</div>
+    <div class="budgetbar" role="img" aria-label="Budget used">
+      <i style="width:${n.groceries/max*100}%;background:var(--basil)"></i><i style="width:${n.gas/max*100}%;background:var(--saffron)"></i><i style="width:${n.treatCost/max*100}%;background:var(--tomato)"></i></div>
+    <div class="legend"><span style="--c:var(--basil)">Groceries ${money(n.groceries)}</span><span style="--c:var(--saffron)">Gas ${money(n.gas)}</span><span style="--c:var(--tomato)">Treats ${money(n.treatCost)}</span></div>
+    <p class="note">${over?'Try a leftovers night or a lentil curry to bring it in. You\'re close.':'You\'re on budget. Nice planning, chef.'}</p>`;
+  const diff=(S('habit')-S('trips'))*n.tripGas;
+  $('#tripOut').innerHTML=`
+    <div class="lines">
+      <div><span>Gas per trip</span><span class="num">${money(n.tripGas)}</span></div>
+      <div><span>Planned this week (${S('trips')} trip${S('trips')==1?'':'s'})</span><span class="num">${money(n.gas)}</span></div>
+      <div><span>Your usual (${S('habit')} trips)</span><span class="num">${money(S('habit')*n.tripGas)}</span></div>
+    </div>
+    <div style="margin-top:12px" class="label">Saved on gas each month</div>
+    <div class="big ${diff>0?'good':''}">${money(Math.max(0,diff)*4.33)}</div>
+    <ul class="plain"><li>Go once with the full list and skip the "quick runs".</li><li>Stack the trip with other errands on the same route.</li><li>Fewer trips also means fewer impulse buys at the register.</li></ul>`;
+  $('#driveOut').innerHTML=`
+    <div class="lines">
+      <div><span>${n.home} home meals at the drive-thru</span><span class="num">${money(n.drive)}</span></div>
+      <div><span>Same meals cooked by you, with gas</span><span class="num">${money(n.groceries+n.gas)}</span></div>
+    </div>
+    <div style="margin-top:12px" class="label">You keep this week</div>
+    <div class="big good">${money(Math.max(0,n.kept))}</div>
+    <p class="note">That's about ${money(Math.max(0,n.kept)*52)} a year if you keep it up.</p>
+    <div style="margin-top:12px" class="label">Made so far this week</div>
+    <div class="big">${n.cookedN} <span style="font-size:16px">meal${n.cookedN==1?'':'s'}</span></div>
+    <p class="note">${n.cookedN?`You've already kept ${money(Math.max(0,n.keptSoFar))} by cooking. Proud of you.`:'Tick "Made it?" on a meal when you cook it and watch this grow.'}</p>
+    <div style="margin-top:12px" class="label">Drive-thru dodgers</div>
+    <ul class="plain"><li>Keep a 15-minute backup on hand: quesadillas or egg tacos.</li><li>Eat a snack before you shop or drive home hungry.</li><li>Plan one treat night so skipping the others feels easy.</li></ul>`;
+}
+
+/* ---------- tabs & commit ---------- */
+function setTab(t){
+  state.tab=t;
+  document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  ['week','meals','list','money'].forEach(x=>$('#tab-'+x).hidden=x!==t);
+  try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}
+}
+function render(){const n=numbers();renderStats(n);renderWeek();renderMeals();renderList(n);renderMoney(n)}
+function commit(){save();render()}
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button,[data-close]'); if(!t)return;
+  if(t.dataset.tab)return setTab(t.dataset.tab);
+  if(t.hasAttribute('data-close'))return closeModal();
+  if(t.dataset.pick)return openPicker(t.dataset.pick);
+  if(t.dataset.cook)return openCook(t.dataset.cook);
+  if(t.dataset.pf){pickFilter=t.dataset.pf;return renderPicker()}
+  if(t.dataset.choose!==undefined){
+    const v=t.dataset.choose; if(v)state.plan[pickKey]=v; else delete state.plan[pickKey];
+    delete state.cooked[pickKey]; state.example=false; closeModal(); return commit();
+  }
+  if(t.dataset.mf){mealFilter=t.dataset.mf;return renderMeals()}
+  if(t.dataset.have){const k=t.dataset.have;state.have[k]=!state.have[k];return commit()}
+  if(t.dataset.del){
+    if(t.dataset.armed){state.custom=state.custom.filter(m=>m.id!==t.dataset.del);Object.keys(state.plan).forEach(k=>{if(state.plan[k]===t.dataset.del)delete state.plan[k]});return commit()}
+    t.dataset.armed='1';t.textContent='Tap again to delete';return;
+  }
+});
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden)closeModal()});
+
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.cooked){state.cooked[t.dataset.cooked]=t.checked;if(t.checked)toast(PEP[Math.floor(Math.random()*PEP.length)]);return commit()}
+  if(t.dataset.got){state.got[t.dataset.got]=t.checked;return commit()}
+  if(t.dataset.price){const v=parseFloat(t.value);if(isNaN(v))delete state.prices[t.dataset.price];else state.prices[t.dataset.price]=Math.max(0,v);return commit()}
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.set){if(t.value==='')return;state.settings[t.dataset.set]=Number(t.value);save();const n=numbers();renderStats(n);renderMoney(n);renderList(n);return}
+  if(t.id==='balance'){state.settings.balance=Number(t.value);save()}
+});
+
+$('#fill').addEventListener('click',fillWeek);
+$('#clear').addEventListener('click',e=>{
+  const b=e.currentTarget;
+  if(!b.dataset.armed){b.dataset.armed='1';b.textContent='Tap again to clear';setTimeout(()=>{delete b.dataset.armed;b.textContent='Clear week'},3000);return}
+  delete b.dataset.armed;b.textContent='Clear week';
+  state.plan={};state.cooked={};state.got={};state.example=false;commit();
+});
+$('#dismissExample').addEventListener('click',()=>{state.example=false;commit()});
+$('#showAdd').addEventListener('click',()=>{$('#addPanel').hidden=false;$('#f-name').focus()});
+$('#cancelAdd').addEventListener('click',()=>{$('#addPanel').hidden=true});
+$('#addForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const ing=$('#f-ing').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=l.split(',').map(x=>x.trim());
+    const aisle=AISLES.find(a=>a.toLowerCase()===(p[2]||'').toLowerCase())||'Other';
+    return [p[0],1,'',aisle,parseFloat((p[1]||'').replace('$',''))||0];
+  });
+  const clamp=(v,a,b)=>Math.min(b,Math.max(a,Number(v)||a));
+  state.custom.push({id:'c'+Date.now(),custom:true,name:$('#f-name').value.trim()||'My meal',slot:$('#f-slot').value,
+    serves:clamp($('#f-serves').value,1,20),min:clamp($('#f-min').value,1,600),health:clamp($('#f-health').value,1,5),joy:clamp($('#f-joy').value,1,5),
+    veg:clamp($('#f-veg').value,0,6),protein:0,ing,steps:$('#f-steps').value.split('\n').map(s=>s.trim()).filter(Boolean),tip:''});
+  e.target.reset();$('#addPanel').hidden=true;mealFilter='Mine';toast('Meal saved. Add it to any day in your week.');commit();
+});
+$('#copyList').addEventListener('click',async()=>{
+  const items=computeList().filter(i=>!state.have[i.k]);
+  let txt='Hearty shopping list\n';
+  AISLES.forEach(a=>{const g=items.filter(i=>i.aisle===a);if(!g.length)return;txt+=`\n${a.toUpperCase()}\n`+g.map(i=>`[ ] ${i.name} (${i.qty})`).join('\n')+'\n'});
+  txt+=`\nEstimated total: ${money(listTotal())}`;
+  try{await navigator.clipboard.writeText(txt);toast('List copied. Paste it in a text or notes app.')}
+  catch(err){$('#sheet').innerHTML=`<div class="sheethead"><h2>Copy your list</h2><button class="x" data-close aria-label="Close">×</button></div><textarea id="copyBox" style="width:100%;min-height:300px" readonly>${esc(txt)}</textarea>`;openModal();const b=$('#copyBox');b.focus();b.select()}
+});
+$('#resetPrices').addEventListener('click',()=>{state.prices={};toast('Back to estimated prices.');commit()});
+
+load();
+setTab(location.hash==='#list'?'list':location.hash==='#meals'?'meals':location.hash==='#money'?'money':(state.tab||'week'));
+render();
+try{localStorage.setItem(KEY+'.t','1');localStorage.removeItem(KEY+'.t')}catch(e){$('#saved').classList.add('bad');$('#savedText').textContent='Not saved'}
+</script>
+
+</body></html>

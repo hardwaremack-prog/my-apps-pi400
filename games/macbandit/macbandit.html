@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MacBandit</title>
+<style>
+  :root{
+    --black:#000000;
+    --white:#ffffff;
+    --gray-light:#dcdcdc;
+    --gray-mid:#a0a0a0;
+    --gray-dark:#5a5a5a;
+    --jackpot:#b30000;
+  }
+  * { box-sizing:border-box; -webkit-font-smoothing:none; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:
+      repeating-conic-gradient(var(--gray-mid) 0% 25%, var(--gray-light) 0% 50%) 50% / 4px 4px;
+    display:flex; align-items:center; justify-content:center;
+    font-family: Monaco, "Lucida Console", "Courier New", monospace;
+    color:var(--black);
+    overflow:hidden;
+  }
+  .case{
+    position:relative;
+    padding:22px 18px 40px;
+    border-radius:16px;
+    box-shadow: 6px 8px 0 rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.4);
+    transition:background .2s, border-color .2s;
+  }
+  .case.se30{ background:#ded7bf; border:3px solid #b3ab8e; }
+  .case.iici{ background:#d4d3ca; border:3px solid #a5a396; }
+  .case.lciii{ background:#e2e0d6; border:3px solid #b8b5a6; }
+  .case.quadra{ background:#c2c3bd; border:3px solid #8f9089; }
+
+  .vents{
+    display:flex; gap:3px; justify-content:center;
+    margin-bottom:14px;
+  }
+  .vents span{
+    width:5px; height:5px; border-radius:50%;
+    background:rgba(0,0,0,0.25);
+  }
+
+  .nameplate{
+    margin-top:12px;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    font-size:10px; letter-spacing:.5px; color:#4a4a44;
+  }
+  .badge{
+    width:12px; height:12px; border-radius:2px;
+    background:conic-gradient(#5cb85c,#f0ad4e,#d9534f,#9b59b6,#337ab7,#5cb85c);
+    display:inline-block;
+    box-shadow:0 0 0 1px rgba(0,0,0,0.3);
+  }
+
+  .window{
+    width:440px;
+    background:var(--white);
+    border:2px solid var(--black);
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.55);
+    user-select:none;
+  }
+  .titlebar{
+    height:22px;
+    border-bottom:2px solid var(--black);
+    display:flex; align-items:center;
+    padding:0 4px;
+    background:
+      repeating-linear-gradient(var(--white), var(--white) 2px, var(--black) 2px, var(--black) 3px);
+  }
+  .titlebar .closebox{
+    width:12px;height:12px;border:1.5px solid var(--black);background:var(--white);margin-right:6px;flex:0 0 auto;
+  }
+  .titlebar .label{
+    background:var(--white);
+    padding:0 8px;
+    font-size:12px;
+    font-weight:bold;
+    letter-spacing:1px;
+    margin:0 auto;
+  }
+  .menubar{
+    display:flex;
+    border-bottom:2px solid var(--black);
+    font-size:11px;
+  }
+  .menubar div{
+    padding:3px 10px;
+    border-right:1px solid var(--black);
+    cursor:pointer;
+  }
+  .menubar div:last-child{border-right:none;}
+  .menubar div:hover, .menubar div:active{background:var(--black); color:var(--white);}
+
+  .content{ padding:12px; }
+
+  .statrow{
+    display:flex; justify-content:space-between;
+    font-size:12px;
+    border:1.5px solid var(--black);
+    padding:4px 8px;
+    margin-bottom:8px;
+    background:var(--gray-light);
+  }
+  .statrow span.val{font-weight:bold;}
+
+  .machine{
+    display:flex;
+    gap:10px;
+    align-items:stretch;
+  }
+
+  .reels{
+    flex:1;
+    display:flex;
+    gap:2px;
+    background:var(--black);
+    border:2px solid var(--black);
+    padding:2px;
+  }
+  .reel{
+    width:33.33%;
+    height:130px;
+    overflow:hidden;
+    background:var(--white);
+    position:relative;
+  }
+  .reel .strip{
+    position:absolute;
+    left:0; top:0; width:100%;
+  }
+  .symbol{
+    height:130px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:66px;
+    line-height:1;
+  }
+  .reel::before, .reel::after{
+    content:"";
+    position:absolute; left:0; right:0; height:8px;
+    background:var(--black);
+    z-index:2;
+  }
+  .reel::before{ top:0; }
+  .reel::after{ bottom:0; }
+
+  .lever-wrap{
+    width:44px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    padding-top:4px;
+  }
+  .lever-track{
+    width:8px; height:130px;
+    background:var(--gray-dark);
+    border:1.5px solid var(--black);
+    position:relative;
+  }
+  .lever-knob{
+    width:26px; height:26px;
+    border-radius:50%;
+    background:var(--white);
+    border:2px solid var(--black);
+    position:absolute;
+    left:50%; transform:translateX(-50%);
+    top:0px;
+    cursor:grab;
+    transition:top .18s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:2px 2px 0 rgba(0,0,0,0.4);
+    touch-action:none;
+  }
+  .lever-knob.dragging{ cursor:grabbing; transition:none; }
+
+  .paytable{
+    margin-top:10px;
+    border:1.5px solid var(--black);
+    font-size:10px;
+    padding:5px 8px;
+    background:var(--gray-light);
+  }
+  .paytable div{ display:flex; justify-content:space-between; padding:1px 0; }
+  .paytable .title{ font-weight:bold; text-align:center; border-bottom:1px solid var(--black); margin-bottom:3px; padding-bottom:2px; }
+
+  .betrow{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    margin-top:10px;
+  }
+  .betbtn{
+    width:22px;height:22px;
+    border:1.5px solid var(--black);
+    background:var(--white);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:bold;
+  }
+  .betbtn:active{ background:var(--black); color:var(--white); }
+  .betlabel{ font-size:12px; font-weight:bold; min-width:90px; text-align:center; }
+
+  .loanbox{
+    margin-top:8px;
+    border:1.5px solid var(--black);
+    padding:6px 8px;
+    background:var(--gray-light);
+  }
+  .loanbox .lrow{
+    display:flex; justify-content:space-between;
+    font-size:11px;
+    padding:1px 0;
+  }
+  .loanbox .lbuttons{
+    display:flex; gap:6px; margin-top:6px;
+  }
+  .loanbtn{
+    flex:1;
+    border:1.5px solid var(--black);
+    background:var(--white);
+    font-size:10px;
+    font-weight:bold;
+    padding:4px 2px;
+    text-align:center;
+    cursor:pointer;
+  }
+  .loanbtn:active{ background:var(--black); color:var(--white); }
+  .loanbtn.disabled{ opacity:0.4; cursor:default; }
+  .loanbtn.disabled:active{ background:var(--white); color:var(--black); }
+
+  .message{
+    margin-top:8px;
+    font-size:11px;
+    text-align:center;
+    min-height:14px;
+    font-weight:bold;
+  }
+  .message.jackpot{ color:var(--jackpot); }
+
+  /* Mac-style modal dialog */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.25);
+    display:flex; align-items:center; justify-content:center;
+    z-index:10;
+  }
+  .overlay.hidden{ display:none; }
+  .dialog{
+    width:260px;
+    background:var(--white);
+    border:2px solid var(--black);
+    box-shadow:4px 4px 0 rgba(0,0,0,0.55);
+  }
+  .dialog .dtitle{
+    height:20px;
+    border-bottom:2px solid var(--black);
+    background:repeating-linear-gradient(var(--white), var(--white) 2px, var(--black) 2px, var(--black) 3px);
+    display:flex; align-items:center;
+  }
+  .dialog .dtitle span{ background:var(--white); margin:0 auto; padding:0 6px; font-size:11px; font-weight:bold; }
+  .dialog .dbody{ padding:14px 12px; font-size:12px; text-align:center; }
+  .dialog input{
+    font-family:inherit; font-size:12px;
+    border:1.5px solid var(--black);
+    padding:4px 6px;
+    width:100%;
+    margin-top:8px;
+  }
+  .dialog .dbuttons{
+    display:flex; justify-content:center; gap:10px;
+    padding:0 12px 14px;
+  }
+  .dbtn{
+    border:1.5px solid var(--black);
+    padding:5px 16px;
+    font-size:12px;
+    font-weight:bold;
+    background:var(--white);
+    cursor:pointer;
+  }
+  .dbtn:active{ background:var(--black); color:var(--white); }
+  .dbtn.default{ box-shadow: 0 0 0 2px var(--white), 0 0 0 3.5px var(--black); }
+</style>
+</head>
+<body>
+
+<div class="case se30" id="macCase">
+  <div class="vents">
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+<div class="window">
+  <div class="titlebar">
+    <div class="closebox"></div>
+    <div class="label">MacBandit</div>
+  </div>
+  <div class="menubar">
+    <div id="menuNewGame">Game</div>
+    <div id="menuModel">Model: <span id="modelMenuLabel">SE/30</span></div>
+    <div id="menuSound">Sound: <span id="soundMenuLabel">On</span></div>
+    <div id="menuAbout">About</div>
+  </div>
+  <div class="content">
+    <div class="statrow"><span>Player</span><span class="val" id="playerName">—</span></div>
+    <div class="statrow"><span>Cash</span><span class="val" id="cashVal">$0</span></div>
+
+    <div class="machine">
+      <div class="reels" id="reels">
+        <div class="reel"><div class="strip" id="strip0"></div></div>
+        <div class="reel"><div class="strip" id="strip1"></div></div>
+        <div class="reel"><div class="strip" id="strip2"></div></div>
+      </div>
+      <div class="lever-wrap">
+        <div class="lever-track">
+          <div class="lever-knob" id="lever"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="betrow">
+      <div class="betbtn" id="betDown">▼</div>
+      <div class="betlabel">Bet: $<span id="betVal">5</span></div>
+      <div class="betbtn" id="betUp">▲</div>
+    </div>
+
+    <div class="message" id="message">Pull the handle to play.</div>
+
+    <div class="loanbox">
+      <div class="lrow"><span>Loan balance</span><span id="loanBalVal">$0</span></div>
+      <div class="lrow"><span>Variable rate</span><span id="loanRateVal">—</span></div>
+      <div class="lrow" style="font-size:9px; opacity:.7;"><span>Interest charged every 5 spins</span><span id="spinsToChargeVal">5 to go</span></div>
+      <div class="lbuttons">
+        <div class="loanbtn" id="borrowBtn">Borrow $50</div>
+        <div class="loanbtn" id="repayBtn">Repay $25</div>
+      </div>
+    </div>
+
+    <div class="paytable">
+      <div class="title">PAYOUTS (× bet)</div>
+      <div><span>💎 💎 💎</span><span>50×</span></div>
+      <div><span>🔔 🔔 🔔</span><span>20×</span></div>
+      <div><span>7️⃣ 7️⃣ 7️⃣</span><span>15×</span></div>
+      <div><span>🍋 🍋 🍋</span><span>8×</span></div>
+      <div><span>🍒 🍒 🍒</span><span>5×</span></div>
+      <div><span>any 2 🍒</span><span>2×</span></div>
+    </div>
+  </div>
+</div>
+  <div class="nameplate">
+    <span class="badge"></span>
+    <span id="modelLabel">Macintosh SE/30</span>
+  </div>
+</div>
+
+<div class="overlay" id="nameOverlay">
+  <div class="dialog">
+    <div class="dtitle"><span>New Game</span></div>
+    <div class="dbody">
+      Enter your name:
+      <input id="nameInput" type="text" maxlength="16" value="Player">
+    </div>
+    <div class="dbuttons">
+      <div class="dbtn default" id="nameOk">OK</div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="alertOverlay">
+  <div class="dialog">
+    <div class="dtitle"><span>MacBandit</span></div>
+    <div class="dbody" id="alertText">—</div>
+    <div class="dbuttons">
+      <div class="dbtn default" id="alertOk">OK</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SYMBOLS = ["🍒","🍋","🔔","7️⃣","💎","🍇"];
+const REEL_COPIES = 8; // repeats of the symbol set per strip, for spin illusion
+const SYMBOL_H = 130;
+
+let cash = 100;
+let bet = 5;
+let playerName = "Player";
+let spinning = false;
+
+let loanBalance = 0;
+let loanRate = 0;        // current variable rate, e.g. 0.06 = 6%
+let spinsSinceCharge = 0;
+const CHARGE_EVERY = 5;
+const RATE_MIN = 0.03;   // 3%
+const RATE_MAX = 0.09;   // 9%
+
+function rollRate(){
+  return RATE_MIN + Math.random()*(RATE_MAX-RATE_MIN);
+}
+
+const cashVal = document.getElementById('cashVal');
+const betVal = document.getElementById('betVal');
+const playerNameEl = document.getElementById('playerName');
+const messageEl = document.getElementById('message');
+const lever = document.getElementById('lever');
+const nameOverlay = document.getElementById('nameOverlay');
+const alertOverlay = document.getElementById('alertOverlay');
+const alertText = document.getElementById('alertText');
+const alertOk = document.getElementById('alertOk');
+const loanBalVal = document.getElementById('loanBalVal');
+const loanRateVal = document.getElementById('loanRateVal');
+const spinsToChargeVal = document.getElementById('spinsToChargeVal');
+const borrowBtn = document.getElementById('borrowBtn');
+const repayBtn = document.getElementById('repayBtn');
+
+// ---------------- Audio engine (synthesized, no external files) ----------------
+let soundOn = true;
+let audioCtx = null;
+
+function ensureAudio(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// Schedule a single tone with a short volume envelope so it doesn't click/pop.
+function tone(freq, dur, {type='square', vol=0.16, delay=0, slideTo=null} = {}){
+  if(!soundOn) return;
+  const ctx = ensureAudio();
+  const t0 = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if(slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1,slideTo), t0+dur);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(vol, t0+0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0+dur+0.02);
+}
+
+const sfx = {
+  click(){ tone(700, 0.035, {type:'square', vol:0.10}); },
+  lever(){
+    tone(260, 0.09, {type:'square', vol:0.18});
+    tone(180, 0.10, {type:'square', vol:0.14, delay:0.06});
+  },
+  reelStop(i){
+    tone(150 + i*30, 0.09, {type:'square', vol:0.20});
+  },
+  win(){
+    [523,659,784].forEach((f,i)=>tone(f, 0.14, {type:'square', vol:0.16, delay:i*0.09}));
+  },
+  jackpot(){
+    [523,659,784,1046,784,1046].forEach((f,i)=>tone(f, 0.16, {type:'square', vol:0.18, delay:i*0.1}));
+  },
+  lose(){
+    tone(220, 0.22, {type:'sawtooth', vol:0.12, slideTo:110});
+  },
+  borrow(){
+    tone(880, 0.07, {type:'square', vol:0.15});
+    tone(1180, 0.09, {type:'square', vol:0.15, delay:0.08});
+  },
+  repay(){
+    tone(440, 0.1, {type:'square', vol:0.14});
+  },
+  interest(){
+    tone(880, 0.12, {type:'square', vol:0.16});
+    tone(659, 0.18, {type:'square', vol:0.16, delay:0.14});
+  },
+  newGame(){
+    [523,784,1046].forEach((f,i)=>tone(f, 0.12, {type:'square', vol:0.15, delay:i*0.08}));
+  },
+};
+
+document.getElementById('menuSound').onclick = ()=>{
+  soundOn = !soundOn;
+  document.getElementById('soundMenuLabel').textContent = soundOn ? 'On' : 'Off';
+  if(soundOn){ ensureAudio(); sfx.click(); }
+};
+// ---------------------------------------------------------------------------
+
+function buildStrip(el){
+  el.innerHTML = "";
+  let seq = [];
+  for(let i=0;i<REEL_COPIES;i++) seq = seq.concat(SYMBOLS);
+  seq.forEach(s=>{
+    const d = document.createElement('div');
+    d.className = 'symbol';
+    d.textContent = s;
+    el.appendChild(d);
+  });
+  el.style.top = '0px';
+}
+[0,1,2].forEach(i=>buildStrip(document.getElementById('strip'+i)));
+
+function updateStats(){
+  cashVal.textContent = '$'+cash;
+  betVal.textContent = bet;
+  playerNameEl.textContent = playerName;
+  loanBalVal.textContent = '$'+Math.round(loanBalance);
+  loanRateVal.textContent = loanBalance>0 ? (loanRate*100).toFixed(1)+'%' : '—';
+  spinsToChargeVal.textContent = loanBalance>0 ? (CHARGE_EVERY - spinsSinceCharge)+' to go' : '—';
+  repayBtn.classList.toggle('disabled', loanBalance<=0 || cash<=0);
+}
+
+borrowBtn.onclick = ()=>{
+  if(spinning) return;
+  sfx.borrow();
+  cash += 50;
+  if(loanBalance <= 0){
+    loanRate = rollRate();
+    spinsSinceCharge = 0;
+  }
+  loanBalance += 50;
+  updateStats();
+  messageEl.className = 'message';
+  messageEl.textContent = `Borrowed $50 at ${(loanRate*100).toFixed(1)}% variable interest.`;
+};
+
+repayBtn.onclick = ()=>{
+  if(spinning || loanBalance<=0 || cash<=0) return;
+  sfx.repay();
+  const payment = Math.min(25, cash, loanBalance);
+  cash -= payment;
+  loanBalance -= payment;
+  if(loanBalance <= 0){
+    loanBalance = 0;
+    loanRate = 0;
+    spinsSinceCharge = 0;
+  }
+  updateStats();
+  messageEl.className = 'message';
+  messageEl.textContent = `Repaid $${payment} toward your loan.`;
+};
+
+function showAlert(text, cb){
+  alertText.textContent = text;
+  alertOverlay.classList.remove('hidden');
+  alertOk.onclick = ()=>{ alertOverlay.classList.add('hidden'); if(cb) cb(); };
+}
+
+document.getElementById('betDown').onclick = ()=>{
+  if(spinning) return;
+  sfx.click();
+  bet = Math.max(1, bet-1);
+  updateStats();
+};
+document.getElementById('betUp').onclick = ()=>{
+  if(spinning) return;
+  sfx.click();
+  bet = Math.min(25, bet+1);
+  updateStats();
+};
+
+document.getElementById('menuNewGame').onclick = ()=>{
+  if(spinning) return;
+  sfx.click();
+  nameOverlay.classList.remove('hidden');
+};
+document.getElementById('menuAbout').onclick = ()=>{
+  if(spinning) return;
+  sfx.click();
+  showAlert("MacBandit (2026 remake)\nA tribute to Dan Jacoby's\n1989 Mac OS classic.");
+};
+
+const MODELS = [
+  {id:'se30',   name:'Macintosh SE/30',      menu:'SE/30'},
+  {id:'iici',   name:'Macintosh IIci',       menu:'IIci'},
+  {id:'lciii',  name:'Macintosh LC III',     menu:'LC III'},
+  {id:'quadra', name:'Macintosh Quadra 700', menu:'Quadra 700'},
+];
+let modelIdx = 0;
+const macCase = document.getElementById('macCase');
+const modelLabel = document.getElementById('modelLabel');
+const modelMenuLabel = document.getElementById('modelMenuLabel');
+
+document.getElementById('menuModel').onclick = ()=>{
+  if(spinning) return;
+  sfx.click();
+  modelIdx = (modelIdx+1) % MODELS.length;
+  const m = MODELS[modelIdx];
+  macCase.className = 'case ' + m.id;
+  modelLabel.textContent = m.name;
+  modelMenuLabel.textContent = m.menu;
+};
+
+document.getElementById('nameOk').onclick = ()=>{
+  const v = document.getElementById('nameInput').value.trim();
+  sfx.newGame();
+  playerName = v || "Player";
+  cash = 100;
+  bet = 5;
+  loanBalance = 0;
+  loanRate = 0;
+  spinsSinceCharge = 0;
+  updateStats();
+  messageEl.className = 'message';
+  messageEl.textContent = "Pull the handle to play.";
+  nameOverlay.classList.add('hidden');
+};
+
+function randSymbolIndex(){ return Math.floor(Math.random()*SYMBOLS.length); }
+
+function spinReel(el, finalIndex, duration, delay, reelIndex){
+  return new Promise(resolve=>{
+    setTimeout(()=>{
+      const totalSymbols = SYMBOLS.length * REEL_COPIES;
+      // land on a copy near the end so it always scrolls downward-looking distance
+      const targetCopy = REEL_COPIES - 2;
+      const targetRow = targetCopy*SYMBOLS.length + finalIndex;
+      const targetY = -(targetRow * SYMBOL_H);
+      el.style.transition = `top ${duration}ms cubic-bezier(.12,.85,.15,1)`;
+      el.style.top = targetY+'px';
+      setTimeout(()=>{
+        // snap back to an equivalent early position so strip never runs out
+        el.style.transition = 'none';
+        el.style.top = -(finalIndex*SYMBOL_H)+'px';
+        sfx.reelStop(reelIndex);
+        resolve();
+      }, duration+30);
+    }, delay);
+  });
+}
+
+function evaluate(res){
+  const [a,b,c] = res;
+  if(a===b && b===c){
+    const sym = SYMBOLS[a];
+    const table = {"💎":50, "🔔":20, "7️⃣":15, "🍋":8, "🍒":5, "🍇":10};
+    return {mult: table[sym] || 5, kind:'triple', sym};
+  }
+  const cherries = res.filter(x=>SYMBOLS[x]==="🍒").length;
+  if(cherries===2) return {mult:2, kind:'cherry2'};
+  return {mult:0, kind:'none'};
+}
+
+async function pull(){
+  if(spinning) return;
+  if(cash < bet){
+    showAlert("Not enough cash to bet.\nStart a New Game from the\nGame menu.");
+    return;
+  }
+  spinning = true;
+  sfx.lever();
+  cash -= bet;
+  updateStats();
+  messageEl.textContent = "Spinning…";
+  messageEl.className = 'message';
+
+  lever.classList.add('pulled');
+  setTimeout(()=>lever.classList.remove('pulled'), 220);
+
+  const results = [randSymbolIndex(), randSymbolIndex(), randSymbolIndex()];
+  const strips = [document.getElementById('strip0'), document.getElementById('strip1'), document.getElementById('strip2')];
+
+  await Promise.all([
+    spinReel(strips[0], results[0], 700, 0, 0),
+    spinReel(strips[1], results[1], 950, 120, 1),
+    spinReel(strips[2], results[2], 1200, 240, 2),
+  ]);
+
+  const outcome = evaluate(results);
+  if(outcome.mult > 0){
+    const winnings = outcome.mult * bet;
+    cash += winnings;
+    updateStats();
+    if(outcome.kind==='triple' && (outcome.sym==="💎" || outcome.sym==="🔔")){
+      sfx.jackpot();
+      messageEl.className = 'message jackpot';
+      messageEl.textContent = `JACKPOT! ${outcome.sym}${outcome.sym}${outcome.sym} — you win $${winnings}!`;
+    } else {
+      sfx.win();
+      messageEl.className = 'message';
+      messageEl.textContent = `You win $${winnings}!`;
+    }
+  } else {
+    sfx.lose();
+    messageEl.className = 'message';
+    messageEl.textContent = "No match. Try again.";
+  }
+
+  let interestNotice = null;
+  if(loanBalance > 0){
+    spinsSinceCharge++;
+    if(spinsSinceCharge >= CHARGE_EVERY){
+      loanRate = rollRate(); // rate floats each charge period
+      const interest = Math.max(1, Math.round(loanBalance * loanRate));
+      loanBalance += interest;
+      spinsSinceCharge = 0;
+      interestNotice = `Loan interest charged: $${interest} at ${(loanRate*100).toFixed(1)}% (variable). New balance: $${Math.round(loanBalance)}.`;
+    }
+  }
+  updateStats();
+
+  if(interestNotice){
+    setTimeout(()=>{ sfx.interest(); showAlert(interestNotice); }, 300);
+  }
+
+  if(cash <= 0){
+    setTimeout(()=>{
+      showAlert("You're out of cash!\nSelect Game ▸ New Game\nto play again.");
+    }, interestNotice ? 600 : 300);
+  }
+
+  spinning = false;
+}
+
+// --- Drag-to-pull lever ---
+const LEVER_MAX = 88;     // px, matches the track's travel distance
+const TRIGGER_AT = 66;    // px of downward drag needed to trigger a spin
+let dragStartY = 0;
+let dragging = false;
+let leverTriggered = false;
+
+function setLeverPos(px){
+  lever.style.top = Math.max(0, Math.min(LEVER_MAX, px)) + 'px';
+}
+
+lever.addEventListener('pointerdown', (e)=>{
+  if(spinning) return;
+  dragging = true;
+  leverTriggered = false;
+  dragStartY = e.clientY;
+  lever.classList.add('dragging');
+  lever.setPointerCapture(e.pointerId);
+});
+
+lever.addEventListener('pointermove', (e)=>{
+  if(!dragging) return;
+  const delta = e.clientY - dragStartY;
+  setLeverPos(delta);
+  if(delta >= TRIGGER_AT && !leverTriggered){
+    leverTriggered = true;
+  }
+});
+
+function releaseLever(){
+  if(!dragging) return;
+  dragging = false;
+  lever.classList.remove('dragging');
+  setLeverPos(LEVER_MAX);
+  setTimeout(()=>{ setLeverPos(0); }, 90);
+  if(leverTriggered){
+    suppressClick = true;
+    pull();
+  }
+}
+
+let suppressClick = false;
+lever.addEventListener('pointerup', releaseLever);
+lever.addEventListener('pointercancel', releaseLever);
+
+// simple click/tap fallback for accessibility (no drag distance needed)
+lever.addEventListener('click', ()=>{
+  if(suppressClick){ suppressClick = false; return; }
+  if(spinning || dragging) return;
+  setLeverPos(LEVER_MAX);
+  setTimeout(()=>setLeverPos(0), 150);
+  pull();
+});
+
+updateStats();
+</script>
+</body>
+</html>
