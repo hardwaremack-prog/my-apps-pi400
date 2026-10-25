@@ -50,6 +50,10 @@ KNOWN = [
          note="Controls many PON Lab Pis."),
     dict(id="rpi400perf", name="RPi400 Performance", title=r"rpi400 performance", ports=[8420],
          launch="rpi400-performance", note="Make the Pi run as fast as it can."),
+    dict(id="taskmgr", name="Task Manager web page", title=r"task manager", ports=[8090, 8091], launch="rpi400-taskmgr",
+         note="RPi400 Task Manager for phones and PCs."),
+    dict(id="pip", name="Pip", title=r"\bpip\b", ports=[8765], launch="pip-voice",
+         note="Offline voice chat."),
     dict(id="rdp", name="Remote Desktop", kind="tcp", ports=[3389], note="xrdp: connect from Windows Remote Desktop."),
     dict(id="samba", name="File sharing", kind="tcp", ports=[445], note="Samba: this Pi's shared folders."),
 ]

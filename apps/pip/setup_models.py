@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""
+One-time download of everything the app needs to run offline.
+Run by the installer. Safe to run again: it skips what's already there.
+
+  python setup_models.py            # download all
+  python setup_models.py --check    # just report what's present
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+import urllib.request
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from appconfig import load_config  # noqa: E402
+CONFIG = load_config(HERE)   # includes the Pi 4 profile on small Pis
+VOICES_DIR = HERE / "models" / "voices"
+WHISPER_DIR = HERE / "models" / "whisper"
+
+VOICE_URL = ("https://huggingface.co/rhasspy/piper-voices/resolve/main/"
+             "{fam}/{code}/{name}/{q}/{code}-{name}-{q}{ext}?download=true")
+
+GREEN, RED, DIM, END = ("\033[32m", "\033[31m", "\033[2m", "\033[0m") if sys.stdout.isatty() else ("",) * 4
+if os.name == "nt":
+    os.system("")  # enable colors in Windows console
+
+
+def say(msg, color=""):
+    print(f"{color}{msg}{END}", flush=True)
+
+
+def download(url, dest: Path):
+    """Download with a visible progress bar. Uses curl when present: it shows progress,
+    retries, and falls back from a stalled IPv6 connection to IPv4 by itself."""
+    tmp = dest.with_suffix(dest.suffix + ".part")
+    tmp.unlink(missing_ok=True)
+    curl = shutil.which("curl")
+    if curl:
+        for extra in ([], ["-4"]):   # second try forces IPv4 if the first one stalled
+            r = subprocess.run([curl, "-fL", "--retry", "3", "--retry-delay", "2",
+                                "--connect-timeout", "20", "--speed-limit", "1024", "--speed-time", "45",
+                                "--progress-bar", *extra, "-o", str(tmp), url])
+            if r.returncode == 0 and tmp.exists() and tmp.stat().st_size > 0:
+                tmp.replace(dest)
+                return
+            say("    (retrying" + (" over IPv4" if not extra else "") + ")", DIM)
+        raise RuntimeError("download failed - check the internet connection and run setup again")
+    print("    connecting ...", end="", flush=True)
+    with urllib.request.urlopen(url, timeout=30) as r, open(tmp, "wb") as f:
+        total = int(r.headers.get("Content-Length") or 0)
+        got = 0
+        last = 0
+        while True:
+            chunk = r.read(1 << 16)
+            if not chunk:
+                break
+            f.write(chunk)
+            got += len(chunk)
+            if time.time() - last > 0.5:
+                last = time.time()
+                print(f"\r    {got / 1e6:6.1f}" + (f" / {total / 1e6:.1f}" if total else "") + " MB   ", end="", flush=True)
+    print(f"\r    {got / 1e6:6.1f} MB done      ")
+    tmp.replace(dest)
+
+
+def get_voices(check=False):
+    VOICES_DIR.mkdir(parents=True, exist_ok=True)
+    ok = 0
+    for v in CONFIG.get("voices_to_install", []):
+        onnx = VOICES_DIR / f"{v}.onnx"
+        js = VOICES_DIR / f"{v}.onnx.json"
+        if onnx.exists() and js.exists():
+            say(f"  ✓ voice {v}", GREEN)
+            ok += 1
+            continue
+        if check:
+            say(f"  ✗ voice {v} missing", RED)
+            continue
+        code, name, q = v.split("-", 2)
+        fam = code.split("_")[0]
+        try:
+            say(f"  ↓ voice {v}")
+            download(VOICE_URL.format(fam=fam, code=code, name=name, q=q, ext=".onnx.json"), js)
+            download(VOICE_URL.format(fam=fam, code=code, name=name, q=q, ext=".onnx"), onnx)
+            say(f"  ✓ voice {v}", GREEN)
+            ok += 1
+        except Exception as e:  # noqa
+            say(f"  ✗ voice {v}: {e}", RED)
+    return ok > 0
+
+
+def get_whisper(check=False):
+    name = CONFIG["whisper_model"]
+    dest = WHISPER_DIR / name
+    if (dest / "model.bin").exists():
+        say(f"  ✓ speech recognizer {name}", GREEN)
+        return True
+    if check:
+        say(f"  ✗ speech recognizer {name} missing", RED)
+        return False
+    say(f"  ↓ speech recognizer {name}")
+    dest.mkdir(parents=True, exist_ok=True)
+    # Same files faster-whisper would fetch, but with a progress bar and retries
+    base = f"https://huggingface.co/Systran/faster-whisper-{name}/resolve/main/"
+    try:
+        for f in ("config.json", "tokenizer.json", "vocabulary.txt", "model.bin"):
+            if not (dest / f).exists():
+                say(f"    {f}", DIM)
+                download(base + f + "?download=true", dest / f)
+        say(f"  ✓ speech recognizer {name}", GREEN)
+        return True
+    except Exception as e:  # noqa
+        say(f"    (trying another way: {e})", DIM)
+    try:
+        os.environ.pop("HF_HUB_OFFLINE", None)
+        from faster_whisper.utils import download_model
+        download_model(name, output_dir=str(dest))
+        say(f"  ✓ speech recognizer {name}", GREEN)
+        return True
+    except Exception as e:  # noqa
+        say(f"  ✗ speech recognizer {name}: {e}", RED)
+        return False
+
+
+def ollama_models():
+    try:
+        with urllib.request.urlopen(CONFIG["ollama_url"].rstrip("/") + "/api/tags", timeout=4) as r:
+            return [m["name"] for m in json.loads(r.read())["models"]]
+    except Exception:
+        return None
+
+
+def get_llms(check=False):
+    if CONFIG.get("llm_backend") == "openai":
+        say("  • using an OpenAI-style server (LM Studio etc.) — load a model there yourself.", DIM)
+        return True
+    have = ollama_models()
+    if have is None:
+        exe = shutil.which("ollama")
+        if exe and not check:
+            say("  … starting Ollama")
+            subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            for _ in range(20):
+                time.sleep(1)
+                have = ollama_models()
+                if have is not None:
+                    break
+    if have is None:
+        say("  ✗ Ollama isn't running or isn't installed. Get it from https://ollama.com then run setup again.", RED)
+        return False
+    all_ok = True
+    for m in CONFIG.get("models_to_install", [CONFIG["model"]]):
+        tag = m if ":" in m else m + ":latest"
+        if tag in have or m in have:
+            say(f"  ✓ model {m}", GREEN)
+            continue
+        if check:
+            say(f"  ✗ model {m} missing", RED)
+            all_ok = False
+            continue
+        say(f"  ↓ model {m} (big download, please wait)")
+        r = subprocess.run([shutil.which("ollama") or "ollama", "pull", m])
+        if r.returncode == 0:
+            say(f"  ✓ model {m}", GREEN)
+        else:
+            say(f"  ✗ model {m} failed to download", RED)
+            all_ok = False
+    return all_ok
+
+
+def main():
+    check = "--check" in sys.argv
+    say(f"\n{CONFIG['app_name']} — {'checking' if check else 'getting'} offline parts\n")
+    if CONFIG.get("edition"):
+        say(f"Using the {CONFIG['edition']} setup (smaller, quicker parts for this board).\n", DIM)
+    say("Voices (Piper):")
+    v = get_voices(check)
+    say("\nEars (Whisper):")
+    w = get_whisper(check)
+    say("\nBrain (local AI model):")
+    b = get_llms(check)
+    print()
+    if v and w and b:
+        say(f"All set. {CONFIG['app_name']} can now run with no internet.", GREEN)
+        return 0
+    say("Some parts are missing (see above). You can run this again any time.", RED)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

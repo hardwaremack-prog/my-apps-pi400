@@ -98,6 +98,27 @@ RPI400 PERFORMANCE (make the Pi run as fast as it can)
   computer, open config.txt and delete the lines between
   "# >>> RPi400 Performance" and "# <<<".
 
+RPI400 TASK MANAGER (Windows-style Task Manager)
+  Gauges for CPU, clock speed, temperature, memory and storage,
+  every running program with End task (Del) and Force kill, network
+  lights, Bluetooth rescue, a travel hotspot (RPI400-OPEN, password
+  fifty-seven57) with a QR code to join, Tailscale, a web page for
+  phones, an offline AI chat and one "Update everything" button.
+  Set Up My Apps.sh asks before installing it, because it changes the
+  whole Pi: it turns on VNC, makes the Pi boot to the desktop, and
+  sets up the hotspot (it only starts when there's no network).
+  Open it with Ctrl+Shift+Esc, its tile, or the menu under System Tools.
+  Full guide: apps/task-manager/User Manual.pdf
+
+PIP (offline voice assistant)
+  Talk through your headset; Pip listens, thinks and answers out loud,
+  all on the Pi with no internet. Set Up My Apps.sh copies it to the
+  Pip folder in your home folder and offers the one-time setup
+  (1.5 to 3.5 GB download, 10 to 20 minutes, 64-bit Raspberry Pi OS).
+  Then use the Pip icon on the Desktop or the Pip tile.
+  On the Pi 400 it picks the slim, quicker setup by itself.
+  Update it with the Update Pip icon or the gear menu inside Pip.
+
 PIDIRSTAT (disk space viewer)
   Shows what's filling up the SD card: biggest folders, file types and
   a colored block map like WinDirStat. It's a small Python program, so

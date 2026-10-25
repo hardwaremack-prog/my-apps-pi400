@@ -1,0 +1,14 @@
+[Unit]
+Description=RPi400 Task Manager web page (for phones and PCs on the same network)
+After=network.target
+
+[Service]
+User=@USER@
+Environment=RZ_PORT=8090
+Environment=RZ_LOG_DIR=@DESKTOP@
+ExecStart=/usr/bin/python3 /opt/rpi400-taskmgr/rpi400_web.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

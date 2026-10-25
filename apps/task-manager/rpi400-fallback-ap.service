@@ -1,0 +1,13 @@
+[Unit]
+Description=RPi400 fallback Wi-Fi hotspot (RPI400-OPEN) when there's no network at boot
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/rpi400-fallback-ap
+RemainAfterExit=yes
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target

@@ -549,18 +549,61 @@ let ws, myId = null, world = null, S = null, nightSeconds = 720, localM = 0;
 const me = { x: 0, y: 0, z: 30, vx: 0, vz: 0, vy: 0, yaw: 0, pitch: 0, onGround: true };
 let joined = false;
 
-function connect(name, color) {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws`);
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'join', name, color }));
-  ws.onerror = () => { $('joinErr').textContent = "Can't reach the server. Is server.py running on that computer?"; $('go').disabled = false; };
-  ws.onclose = () => { if (joined) toast('Lost connection to the server. Refresh to rejoin.', 60000); };
-  ws.onmessage = (ev) => {
-    const m = JSON.parse(ev.data);
-    if (m.t === 'welcome') onWelcome(m);
-    else if (m.t === 'state') onState(m);
-    else if (m.t === 'chat') addChat(m.from, m.color, m.text);
-  };
+// Where the game server might be. Normally it serves this page itself, but when the
+// page is opened from somewhere else (The Shelf, My Apps, a file) we look for it on
+// the usual ports - first on the computer the page came from, then on this computer.
+const GAME_PORT = 8790;
+function serverCandidates() {
+  const out = [], add = (h) => { if (h && !out.includes(h)) out.push(h); };
+  const typed = ($('srvIn') && $('srvIn').value.trim()) || '';
+  if (typed) {
+    const h = typed.replace(/^\w+:\/\//, '').replace(/\/.*$/, '');
+    add(/:\d+$/.test(h) ? h : `${h}:${GAME_PORT}`);
+    if (!/:\d+$/.test(h)) for (let p = GAME_PORT + 1; p < GAME_PORT + 6; p++) add(`${h}:${p}`);
+  }
+  if (location.protocol.startsWith('http')) add(location.host);
+  const hosts = [];
+  if (location.hostname) hosts.push(location.hostname);
+  hosts.push('localhost');
+  for (const h of hosts) for (let p = GAME_PORT; p < GAME_PORT + 6; p++) add(`${h}:${p}`);
+  return out;
+}
+function tryServer(host, name, color) {
+  return new Promise((resolve) => {
+    let done = false, sock;
+    const finish = (ok) => { if (done) return; done = true; clearTimeout(t); if (!ok) { try { sock.close(); } catch (e) {} } resolve(ok ? sock : null); };
+    const t = setTimeout(() => finish(false), 2500);
+    try { sock = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${host}/ws`); } catch (e) { finish(false); return; }
+    sock.onopen = () => sock.send(JSON.stringify({ t: 'join', name, color }));
+    sock.onerror = () => finish(false);
+    sock.onclose = () => finish(false);
+    sock.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { finish(false); return; }
+      if (m.t === 'welcome') { sock._welcome = m; finish(true); } else finish(false);
+    };
+  });
+}
+async function connect(name, color) {
+  $('joinErr').textContent = 'Looking for the game server…';
+  for (const host of serverCandidates()) {
+    const sock = await tryServer(host, name, color);
+    if (!sock) continue;
+    ws = sock;
+    store('ffc.server', host);
+    ws.onclose = () => { if (joined) toast('Lost connection to the server. Refresh to rejoin.', 60000); };
+    ws.onerror = null;
+    ws.onmessage = (ev) => {
+      const m = JSON.parse(ev.data);
+      if (m.t === 'state') onState(m);
+      else if (m.t === 'chat') addChat(m.from, m.color, m.text);
+    };
+    $('joinErr').textContent = '';
+    onWelcome(sock._welcome);
+    return;
+  }
+  $('srvRow').classList.remove('hidden');
+  $('joinErr').innerHTML = `Couldn't find a game server. Start <b>Frostfall Cabins Server</b> (start-windows.bat or start-pi.sh) and keep its window open. If it's on another computer, type the address from its window above, e.g. <b>10.0.0.80:${GAME_PORT}</b>.`;
+  $('go').disabled = false;
 }
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 
@@ -989,6 +1032,8 @@ const paintQ = () => document.querySelectorAll('#quality button').forEach((b) =>
 document.querySelectorAll('#quality button').forEach((b) => b.addEventListener('click', () => { quality = b.dataset.q; paintQ(); }));
 paintQ();
 $('nameIn').value = qs.get('name') || store('ffc.name') || '';
+$('srvIn').value = qs.get('server') || store('ffc.server') || '';
+$('srvIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
 function join() {
   const name = $('nameIn').value.trim() || 'Hiker';
   store('ffc.name', name); store('ffc.color', pickedColor); store('ffc.quality', quality);

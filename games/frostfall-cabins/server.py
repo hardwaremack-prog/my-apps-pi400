@@ -4,11 +4,11 @@ Frostfall Cabins - LAN multiplayer server
 -----------------------------------------
 Zero dependencies: just Python 3.8+ (already on every Raspberry Pi).
 
-    python3 server.py                 # default 12-minute night, port 8765
+    python3 server.py                 # default 12-minute night, port 8790
     python3 server.py --minutes 20    # longer night
     python3 server.py --port 9000
 
-Everyone on the same Wi-Fi opens  http://<this-computer's-IP>:8765  in a browser.
+Everyone on the same Wi-Fi opens  http://<this-computer's-IP>:8790  in a browser.
 """
 import argparse
 import asyncio
@@ -579,23 +579,52 @@ def lan_ips():
     return sorted(ip for ip in ips if not ip.startswith("127.")) or ["127.0.0.1"]
 
 
+def is_frostfall(port):
+    """True if the program already on this port is a Frostfall Cabins server."""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=1.5) as s:
+            s.sendall(b"GET /index.html HTTP/1.0\r\nHost: localhost\r\n\r\n")
+            data = b""
+            while len(data) < 65536:
+                chunk = s.recv(8192)
+                if not chunk:
+                    break
+                data += chunk
+        return b"Frostfall <span>Cabins</span>" in data
+    except OSError:
+        return False
+
+
 async def main():
     global GAME
     ap = argparse.ArgumentParser(description="Frostfall Cabins LAN server")
-    ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--port", type=int, default=8790)
     ap.add_argument("--minutes", type=float, default=12, help="real minutes per night (default 12)")
     args = ap.parse_args()
     GAME = Game(max(2.0, args.minutes) * 60)
-    try:
-        server = await asyncio.start_server(handle, "0.0.0.0", args.port)
-    except OSError:
-        print("\n  Port %d is busy - is Frostfall Cabins already running?" % args.port)
-        print("  Close the other one, or start with:  python3 server.py --port 8766\n")
+    server, port = None, args.port
+    for port in range(args.port, args.port + 20):
+        try:
+            server = await asyncio.start_server(handle, "0.0.0.0", port)
+            break
+        except OSError:
+            if is_frostfall(port):
+                # a Frostfall Cabins server is already up - just point people at it
+                print("\n  ❄  Frostfall Cabins is ALREADY running on this computer.\n")
+                for ip in lan_ips():
+                    print("     Join on your network:  http://%s:%d" % (ip, port))
+                print("     On this machine:       http://localhost:%d" % port)
+                print("\n  (Close its other window first if you want to restart it.)\n")
+                return
+            print("  Port %d is used by another program - trying %d..." % (port, port + 1))
+    if server is None:
+        print("\n  Couldn't find a free port between %d and %d." % (args.port, args.port + 19))
+        print("  Try:  python3 server.py --port 9100\n")
         return
     print("\n  ❄  FROSTFALL CABINS server is running\n")
     for ip in lan_ips():
-        print("     Join on your network:  http://%s:%d" % (ip, args.port))
-    print("     On this machine:       http://localhost:%d" % args.port)
+        print("     Join on your network:  http://%s:%d" % (ip, port))
+    print("     On this machine:       http://localhost:%d" % port)
     print("\n  Night length: %.0f min.  Press Ctrl+C to stop.\n" % (GAME.night_seconds / 60))
     asyncio.create_task(game_loop())
     async with server:

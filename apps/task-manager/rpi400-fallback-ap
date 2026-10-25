@@ -1,0 +1,18 @@
+#!/bin/bash
+# Runs once at boot. If the Pi hasn't joined any network (Wi-Fi or Ethernet)
+# within WAIT seconds, it starts the RPI400-OPEN hotspot at 192.168.1.250
+# so you can always reach it (VNC on port 5900, The Shelf, etc).
+WAIT="${RPI400_AP_WAIT:-60}"
+
+/usr/local/bin/rpi400-helper ap-ensure >/dev/null 2>&1
+
+for ((i = 0; i < WAIT; i += 5)); do
+    if nmcli -t -f TYPE,STATE dev 2>/dev/null | grep -Eq '^(ethernet|wifi):connected$'; then
+        echo "Network is connected — hotspot not needed."
+        exit 0
+    fi
+    sleep 5
+done
+
+echo "No network after ${WAIT}s — starting the RPI400-OPEN hotspot."
+exec /usr/local/bin/rpi400-helper ap-up

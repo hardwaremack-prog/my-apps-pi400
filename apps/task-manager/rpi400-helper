@@ -1,0 +1,753 @@
+#!/bin/bash
+# rpi400-helper — the only part of RPi400 Task Manager that runs as root.
+# It accepts a short, fixed list of actions (see "usage" at the bottom).
+set -u
+
+AP_CON="RPI400-OPEN"              # NetworkManager's name for the profile (never changes)
+AP_SSID_DEFAULT="RPI400-OPEN"     # Wi-Fi name and password, unless changed in the app
+AP_PASS_DEFAULT="fifty-seven57"
+AP_ADDR="192.168.1.250/24"
+AP_DEV="wlan0"
+OC_BEGIN="# >>> rpi400-taskmgr overclock >>>"
+OC_END="# <<< rpi400-taskmgr overclock <<<"
+GPU_BEGIN="# >>> rpi400-taskmgr graphics boost >>>"
+GPU_END="# <<< rpi400-taskmgr graphics boost <<<"
+CFG=/boot/firmware/config.txt
+[ -f "$CFG" ] || CFG=/boot/config.txt
+
+if [ "$(id -u)" -ne 0 ]; then echo "rpi400-helper must run as root"; exit 1; fi
+
+DT="${RPI400_DT:-/proc/device-tree}"   # board info (override is for testing only)
+dt_read() { [ -r "$DT/$1" ] && tr -d '\0' < "$DT/$1"; }
+is_pi5() { dt_read compatible 2>/dev/null | grep -q bcm2712; }   # Pi 5 / 500 / 500+
+
+mem_avail_mb() { awk '/^MemAvailable:/{print int($2/1024)}' /proc/meminfo; }
+
+# ---- power-light flashing while the hotspot is on
+CONF=/etc/rpi400-taskmgr.conf
+LEDS_DIR="${RPI400_LEDS_DIR:-/sys/class/leds}"   # override is for testing only
+LED_STATE="${RPI400_LED_STATE:-/run/rpi400-taskmgr-led}"
+LED_ON_MS=600
+LED_OFF_MS=600
+
+led_enabled() { ! grep -qs '^LED_BLINK=0' "$CONF"; }   # on unless turned off
+
+conf_get() { [ -r "$CONF" ] && sed -n "s/^$1=//p" "$CONF" | tail -1; }   # read only; never sourced
+AP_SSID="$(conf_get AP_SSID)"; [ -n "$AP_SSID" ] || AP_SSID="$AP_SSID_DEFAULT"
+AP_PASS="$(conf_get AP_PASS)"; [ -n "$AP_PASS" ] || AP_PASS="$AP_PASS_DEFAULT"
+
+# Phones on the hotspot keep their mobile data: the hotspot hands out an address but no
+# router and no DNS server, so a phone uses Wi-Fi only for the Pi itself (The Shelf, this app)
+# and its mobile data for everything else. AP_SHARE=1 turns that off (share the Pi's own internet).
+DATA_CONF="${RPI400_DNSMASQ_DIR:-/etc/NetworkManager/dnsmasq-shared.d}/rpi400-taskmgr.conf"
+ap_share() { grep -qs '^AP_SHARE=1' "$CONF"; }
+ap_data_apply() {
+    if ap_share; then
+        rm -f "$DATA_CONF"
+    else
+        install -d "$(dirname "$DATA_CONF")"
+        printf '%s\n' "# RPi400 Task Manager: phones on the hotspot keep using their own mobile data." \
+            "# No router and no DNS server are handed out, only an address for reaching the Pi." \
+            "dhcp-option=3" "dhcp-option=6" > "$DATA_CONF"
+    fi
+}
+
+valid_text() {   # valid_text STRING MIN MAX — plain printable characters only
+    local v="$1"
+    [ "${#v}" -ge "$2" ] && [ "${#v}" -le "$3" ] && LC_ALL=C grep -qx '[ -~]*' <<<"$v"
+}
+
+set_conf() {   # set_conf KEY VALUE  (in /etc/rpi400-taskmgr.conf)
+    touch "$CONF"; chmod 644 "$CONF"
+    sed -i "/^$1=/d" "$CONF"; echo "$1=$2" >> "$CONF"
+}
+
+# Hotspot band: 2.4 GHz (bg, channel 6) reaches farther and works with every device;
+# 5 GHz (a, channel 36) is faster but shorter range, and some older devices can't see it.
+ap_band() { grep -qs '^AP_BAND=a' "$CONF" && echo a || echo bg; }
+ap_channel() { [ "$1" = a ] && echo 36 || echo 6; }
+band_name() { [ "$1" = a ] && echo "5 GHz" || echo "2.4 GHz"; }
+
+led_list() {
+    # Pi 4/400: PWR (power) + ACT. Pi 5/500: one two-colour light, PWR = red, ACT = green.
+    # Flashing both makes the light blink on every model, whichever one is visible.
+    local n
+    for n in PWR ACT led1 led0; do
+        [ -e "$LEDS_DIR/$n/trigger" ] && echo "$n"
+    done | awk '!seen[$0]++'
+}
+
+# Pi 500+: make the backlit keyboard glow too, and put the owner's lighting back afterwards.
+KB_STATE="${LED_STATE}.keyboard"
+kb_ok() { command -v rpi-keyboard-config >/dev/null && dt_read model 2>/dev/null | grep -q 500; }
+kb_glow_start() {
+    kb_ok || return 0
+    [ -f "$KB_STATE" ] || { timeout 5 rpi-keyboard-config preset index 2>/dev/null | grep -o '[0-9]\+' | head -1 > "$KB_STATE"; }
+    local id
+    # list-effects prints lines like "  ID  6: Breathing"; use the plain Breathing effect (not Hue Breathing)
+    id=$(timeout 5 rpi-keyboard-config list-effects 2>/dev/null |
+         sed -n 's/^[[:space:]]*ID[[:space:]]*\([0-9]\+\):[[:space:]]*Breathing[[:space:]]*$/\1/p' | head -1)
+    # hue 170 = blue on the keyboard's 0-255 colour wheel
+    { [ -n "$id" ] && timeout 5 rpi-keyboard-config effect "$id" --hue 170 --sat 255 --speed 180; } ||
+    timeout 5 rpi-keyboard-config effect "Solid Color" --hue 170 --sat 255
+} >/dev/null 2>&1
+kb_glow_stop() {
+    kb_ok || return 0
+    [ -f "$KB_STATE" ] || return 0
+    local idx; idx=$(cat "$KB_STATE"); [ -n "$idx" ] || idx=0
+    timeout 5 rpi-keyboard-config preset index "$idx" >/dev/null 2>&1
+    rm -f "$KB_STATE"
+}
+
+led_current_trigger() { sed -n 's/.*\[\([^]]*\)\].*/\1/p' "$LEDS_DIR/$1/trigger"; }
+
+led_start() {
+    local n trig list
+    kb_glow_start
+    list=$(led_list)
+    [ -n "$list" ] || { echo "No controllable lights found on this board"; return 1; }
+    if [ ! -f "$LED_STATE" ]; then   # remember how each light was set, once
+        for n in $list; do
+            echo "$n $(led_current_trigger "$n") $(cat "$LEDS_DIR/$n/brightness")"
+        done > "$LED_STATE"
+    fi
+    for n in $list; do
+        if grep -qw timer "$LEDS_DIR/$n/trigger"; then
+            echo timer > "$LEDS_DIR/$n/trigger"
+            echo "$LED_ON_MS" > "$LEDS_DIR/$n/delay_on"
+            echo "$LED_OFF_MS" > "$LEDS_DIR/$n/delay_off"
+        else
+            echo heartbeat > "$LEDS_DIR/$n/trigger" 2>/dev/null
+        fi
+    done
+    echo "Power light flashing ($(echo $list | tr ' ' ','))"
+}
+
+led_stop() {
+    local n trig bright
+    kb_glow_stop
+    [ -f "$LED_STATE" ] || { echo "Power light already normal"; return 0; }
+    while read -r n trig bright; do
+        [ -e "$LEDS_DIR/$n/trigger" ] || continue
+        echo "${trig:-none}" > "$LEDS_DIR/$n/trigger" 2>/dev/null
+        [ "${trig:-none}" = none ] && echo "${bright:-1}" > "$LEDS_DIR/$n/brightness"
+    done < "$LED_STATE"
+    rm -f "$LED_STATE"
+    echo "Power light back to normal"
+}
+
+ap_is_up() { nmcli -t -f NAME con show --active 2>/dev/null | grep -qxF "$AP_CON"; }
+
+ap_ensure() {   # ap_ensure [band]  — create/refresh the hotspot profile
+    command -v nmcli >/dev/null || { echo "NetworkManager (nmcli) isn't installed — hotspot needs it."; return 1; }
+    ap_data_apply
+    local band="${1:-$(ap_band)}"
+    local props=(
+        802-11-wireless.ssid "$AP_SSID"
+        802-11-wireless.mode ap
+        802-11-wireless.band "$band"
+        802-11-wireless.channel "$(ap_channel "$band")"
+        ipv4.method shared
+        ipv4.addresses "$AP_ADDR"
+        ipv6.method disabled
+        wifi-sec.key-mgmt wpa-psk
+        wifi-sec.psk "$AP_PASS"
+        wifi-sec.proto rsn
+        wifi-sec.pairwise ccmp
+        wifi-sec.group ccmp
+        wifi-sec.pmf disable
+        connection.autoconnect no
+    )
+    if nmcli -t -f NAME con show | grep -qxF "$AP_CON"; then
+        nmcli con modify "$AP_CON" "${props[@]}"
+    else
+        nmcli con add type wifi ifname "$AP_DEV" con-name "$AP_CON" ssid "$AP_SSID" "${props[@]}" >/dev/null
+    fi
+}
+
+case "${1:-}" in
+dropcaches)
+    before=$(mem_avail_mb)
+    sync
+    echo 3 > /proc/sys/vm/drop_caches
+    [ -w /proc/sys/vm/compact_memory ] && echo 1 > /proc/sys/vm/compact_memory
+    # Pull swapped-out pages back into RAM, one swap device at a time, if there's room.
+    while read -r dev _type size used prio; do
+        [ "$dev" = "Filename" ] && continue
+        used_mb=$((used / 1024))
+        [ "$used_mb" -eq 0 ] && continue
+        if [ "$(mem_avail_mb)" -gt $((used_mb + 250)) ]; then
+            if swapoff "$dev"; then
+                if [ "$prio" -ge 0 ] 2>/dev/null; then swapon -p "$prio" "$dev"; else swapon "$dev"; fi
+                echo "Moved ${used_mb} MB back from swap ($dev) into RAM"
+            fi
+        else
+            echo "Left ${used_mb} MB in swap ($dev) — not enough free RAM to pull it back"
+        fi
+    done < /proc/swaps
+    after=$(mem_avail_mb)
+    echo "Available RAM: ${before} MB → ${after} MB"
+    ;;
+
+bt-on)
+    rfkill unblock bluetooth 2>/dev/null
+    systemctl start bluetooth 2>/dev/null
+    for _ in 1 2 3 4 5; do bluetoothctl show 2>/dev/null | grep -q "Controller" && break; sleep 1; done
+    bluetoothctl power on >/dev/null 2>&1
+    bluetoothctl pairable on >/dev/null 2>&1
+    bluetoothctl show 2>/dev/null | grep -q "Powered: yes" && echo "Bluetooth is on" || { echo "Bluetooth didn't turn on"; exit 1; }
+    ;;
+
+bt-rescue)
+    rfkill unblock bluetooth 2>/dev/null
+    systemctl restart hciuart 2>/dev/null   # Pi 400/4 on-board Bluetooth runs over UART
+    systemctl restart bluetooth
+    sleep 3
+    bluetoothctl power on >/dev/null 2>&1 && echo "Bluetooth adapter is on"
+    macs=$(bluetoothctl devices Paired 2>/dev/null | awk '/^Device/{print $2}')
+    [ -z "$macs" ] && macs=$(bluetoothctl paired-devices 2>/dev/null | awk '/^Device/{print $2}')
+    if [ -z "$macs" ]; then
+        echo "No paired devices yet — use 'Scan & pair a new device'."
+        exit 0
+    fi
+    for mac in $macs; do
+        name=$(bluetoothctl info "$mac" 2>/dev/null | awk -F': ' '/Name:/{print $2; exit}')
+        bluetoothctl trust "$mac" >/dev/null 2>&1
+        if timeout 12 bluetoothctl connect "$mac" 2>&1 | grep -q "Connection successful"; then
+            echo "Connected: ${name:-$mac}"
+        else
+            echo "Not reachable: ${name:-$mac} (is it switched on? press a key/click to wake it)"
+        fi
+    done
+    ;;
+
+ap-ensure)
+    ap_ensure && echo "Hotspot profile $AP_CON is ready"
+    ;;
+
+ap-up)
+    ap_ensure || exit 1
+    rfkill unblock wifi 2>/dev/null
+    nmcli radio wifi on
+    band=$(ap_band)
+    if nmcli con up "$AP_CON" >/dev/null 2>&1; then
+        echo "Hotspot $AP_SSID is up on $(band_name "$band") at ${AP_ADDR%/*} (password: $AP_PASS)"
+        led_enabled && led_start >/dev/null
+    elif [ "$band" = a ] && ap_ensure bg && nmcli con up "$AP_CON" >/dev/null 2>&1; then
+        # 5 GHz wouldn't start here (country rules or the chip said no) — never leave the Pi unreachable
+        echo "5 GHz wouldn't start here, so the hotspot is running on 2.4 GHz instead."
+        echo "Hotspot $AP_SSID is up on 2.4 GHz at ${AP_ADDR%/*} (password: $AP_PASS)"
+        led_enabled && led_start >/dev/null
+    else
+        echo "Couldn't start the hotspot. Check the Wi-Fi country is set: sudo raspi-config → Localisation → WLAN Country"
+        exit 1
+    fi
+    ;;
+
+ap-set)   # ap-set NAME PASSWORD   (or: ap-set --default)
+    if [ "${2:-}" = --default ]; then
+        new_ssid="$AP_SSID_DEFAULT"; new_pass="$AP_PASS_DEFAULT"
+    else
+        new_ssid="${2:-}"; new_pass="${3:-}"
+    fi
+    if ! valid_text "$new_ssid" 1 32 || [ "$new_ssid" != "$(echo "$new_ssid" | sed 's/^ *//; s/ *$//')" ]; then
+        echo "The network name must be 1 to 32 letters, numbers or symbols, with no spaces at the start or end."; exit 2
+    fi
+    if ! valid_text "$new_pass" 8 63; then
+        echo "The password must be 8 to 63 letters, numbers or symbols."; exit 2
+    fi
+    set_conf AP_SSID "$new_ssid"; set_conf AP_PASS "$new_pass"
+    AP_SSID="$new_ssid"; AP_PASS="$new_pass"
+    ap_ensure || exit 1
+    echo "Hotspot is now called $AP_SSID, password: $AP_PASS"
+    if ap_is_up; then
+        if nmcli con up "$AP_CON" >/dev/null 2>&1; then
+            echo "The hotspot restarted with the new name. Devices need to join it again with the new password."
+        else
+            echo "The hotspot didn't restart. Start it again from the app."
+        fi
+    fi
+    ;;
+
+ap-data)   # ap-data keep | share | status
+    case "${2:-status}" in
+        keep)  set_conf AP_SHARE 0 ;;
+        share) set_conf AP_SHARE 1 ;;
+        status) if ap_share; then echo share; else echo keep; fi; exit 0 ;;
+        *) echo "usage: rpi400-helper ap-data keep|share|status"; exit 2 ;;
+    esac
+    ap_ensure || exit 1
+    if ap_share; then
+        echo "Devices on the hotspot now use the Pi's own internet connection (if it has one)."
+    else
+        echo "Phones on the hotspot now keep using their own mobile data for the internet."
+    fi
+    if ap_is_up; then
+        nmcli con up "$AP_CON" >/dev/null 2>&1 \
+            && echo "The hotspot restarted to apply it. Devices rejoin by themselves in a few seconds." \
+            || echo "The hotspot didn't restart. Start it again from the app."
+    fi
+    ;;
+
+web)   # web on | off | status  — the Task Manager as a web page for phones and PCs on the same network
+    unit=rpi400-web.service
+    [ -f "/etc/systemd/system/$unit" ] || { echo "The web page isn't installed yet. Run:  sudo bash install.sh"; exit 1; }
+    case "${2:-status}" in
+        on)
+            systemctl enable "$unit" >/dev/null 2>&1
+            systemctl restart "$unit" || { echo "The web page didn't start. See: journalctl -u $unit"; exit 1; }
+            port=$(sed -n 's/^Environment=RZ_PORT=//p' "/etc/systemd/system/$unit" | head -1)
+            ips=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.' | head -3 | sed "s#.*#http://&:${port:-8090}#" | tr '\n' ' ' | sed 's/ *$//; s/ / or /g')
+            echo "Web page is on. Open ${ips:-the Pi on port ${port:-8090}} on any phone or PC on the same network."
+            ;;
+        off)
+            systemctl disable --now "$unit" >/dev/null 2>&1
+            echo "Web page is off."
+            ;;
+        status) systemctl is-enabled "$unit" 2>/dev/null || true ;;
+        *) echo "usage: rpi400-helper web on|off|status"; exit 2 ;;
+    esac
+    ;;
+
+ap-band)
+    case "${2:-}" in
+        2.4|bg) new=bg ;;
+        5|a)    new=a ;;
+        *) echo "Currently $(band_name "$(ap_band)"). usage: rpi400-helper ap-band 2.4|5"; exit 2 ;;
+    esac
+    set_conf AP_BAND "$new"
+    ap_ensure "$new" || exit 1
+    echo "Hotspot band set to $(band_name "$new") (channel $(ap_channel "$new"))"
+    if nmcli -t -f NAME con show --active 2>/dev/null | grep -qxF "$AP_CON"; then
+        echo "Restarting the hotspot on the new band…"
+        exec "$0" ap-up
+    fi
+    ;;
+
+ap-down)
+    # Stop the hotspot and hand Wi-Fi back to your saved networks.
+    # (Never use "nmcli device connect" here: it treats the hotspot as a network to join
+    #  and switches it straight back on.)
+    for _ in 1 2 3; do
+        ap_is_up || break
+        nmcli con down "$AP_CON" >/dev/null 2>&1
+        sleep 1
+    done
+    led_stop >/dev/null
+    if ap_is_up; then
+        echo "Couldn't stop the hotspot. Try again, or reboot."
+        exit 1
+    fi
+    echo "Hotspot stopped"
+    nmcli dev set "$AP_DEV" autoconnect yes >/dev/null 2>&1
+    nmcli dev wifi rescan >/dev/null 2>&1
+    wifi_joined() {   # prints the Wi-Fi network wlan0 is on (never the hotspot)
+        nmcli -t -f DEVICE,STATE,CONNECTION dev 2>/dev/null |
+            awk -F: -v d="$AP_DEV" -v ap="$AP_CON" '$1==d && $2=="connected" && $3!=ap {print $3; exit}'
+    }
+    # Give NetworkManager a few seconds to rejoin a saved network by itself
+    for _ in 1 2 3 4 5 6 7 8; do
+        j=$(wifi_joined); [ -n "$j" ] && { echo "Reconnected Wi-Fi: $j"; exit 0; }
+        sleep 1
+    done
+    # Otherwise try each saved Wi-Fi network that's in range right now
+    in_range=$(nmcli -t -f SSID dev wifi list ifname "$AP_DEV" 2>/dev/null | sort -u)
+    while IFS=: read -r name type; do
+        [ "$type" = 802-11-wireless ] && [ "$name" != "$AP_CON" ] || continue
+        [ "$(nmcli -g 802-11-wireless.mode con show "$name" 2>/dev/null)" = ap ] && continue
+        ssid=$(nmcli -g 802-11-wireless.ssid con show "$name" 2>/dev/null)
+        grep -qxF "$ssid" <<<"$in_range" || continue
+        if timeout 30 nmcli con up "$name" ifname "$AP_DEV" >/dev/null 2>&1; then
+            echo "Reconnected Wi-Fi: $name"; exit 0
+        fi
+    done < <(nmcli -t -f NAME,TYPE con show 2>/dev/null)
+    ap_is_up && { nmcli con down "$AP_CON" >/dev/null 2>&1; }   # belt and braces
+    echo "No saved Wi-Fi network in range right now. Wi-Fi is idle and will join one when it's back in range."
+    ;;
+
+oc)
+    prof="${2:-}"
+    if is_pi5; then
+        case "$prof" in stock|2600|2800|3000) ;; *) echo "On this Pi the profile must be stock, 2600, 2800 or 3000"; exit 2 ;; esac
+    else
+        case "$prof" in stock|2000|2147) ;; *) echo "On this Pi the profile must be stock, 2000 or 2147"; exit 2 ;; esac
+    fi
+    cp "$CFG" "$CFG.taskmgr-backup"
+    sed -i "/^${OC_BEGIN}\$/,/^${OC_END}\$/d" "$CFG"
+    # Clear overclocks made any other way too, so Stock really is stock and a preset is exactly that preset:
+    # the rpi400-overclock-gui tool's block, and arm_freq/over_voltage/... lines set by hand or by raspi-config.
+    # (Graphics boost lives in its own block and is left alone. Name split so build scripts don't rename it.)
+    other_b="# --- BEGIN rpi4""00-overclock-gui managed block ---"; other_e="# --- END rpi4""00-overclock-gui managed block ---"
+    if grep -qxF "$other_b" "$CFG"; then
+        sed -i "/^${other_b}\$/,/^${other_e}\$/d" "$CFG"
+        echo "Removed the overclock set by the rpi4""00-overclock-gui tool."
+    fi
+    n_off=$(awk -v gb="$GPU_BEGIN" -v ge="$GPU_END" '$0==gb{g=1} $0==ge{g=0}
+        !g && /^[ \t]*(arm_freq|arm_freq_min|over_voltage|over_voltage_delta|over_voltage_min|gpu_freq|core_freq|force_turbo)[ \t]*=/{n++} END{print n+0}' "$CFG")
+    if [ "$n_off" -gt 0 ]; then
+        awk -v gb="$GPU_BEGIN" -v ge="$GPU_END" '$0==gb{g=1} $0==ge{g=0}
+            !g && /^[ \t]*(arm_freq|arm_freq_min|over_voltage|over_voltage_delta|over_voltage_min|gpu_freq|core_freq|force_turbo)[ \t]*=/{print "#" $0; next} {print}' \
+            "$CFG.taskmgr-backup" | sed "/^${OC_BEGIN}\$/,/^${OC_END}\$/d; /^${other_b}\$/,/^${other_e}\$/d" > "$CFG.tmp" && cat "$CFG.tmp" > "$CFG" && rm -f "$CFG.tmp"
+        echo "Turned off $n_off other overclock line(s) in config.txt (kept, with # in front)."
+    fi
+    case "$prof" in
+        2000) printf '%s\n[all]\narm_freq=2000\nover_voltage=6\n%s\n' "$OC_BEGIN" "$OC_END" >> "$CFG" ;;
+        2147) printf '%s\n[all]\narm_freq=2147\nover_voltage=8\ngpu_freq=750\n%s\n' "$OC_BEGIN" "$OC_END" >> "$CFG" ;;
+        2600) printf '%s\n[all]\narm_freq=2600\nover_voltage_delta=20000\n%s\n' "$OC_BEGIN" "$OC_END" >> "$CFG" ;;
+        2800) printf '%s\n[all]\narm_freq=2800\nover_voltage_delta=50000\n%s\n' "$OC_BEGIN" "$OC_END" >> "$CFG" ;;
+        3000) printf '%s\n[all]\narm_freq=3000\nover_voltage_delta=60000\n%s\n' "$OC_BEGIN" "$OC_END" >> "$CFG" ;;
+    esac
+    echo "Saved to $CFG (backup: $CFG.taskmgr-backup). Reboot to apply."
+    ;;
+
+gpu-boost)
+    # Pi 5-class boards: graphics chip 910 -> 1000 MHz. Kept in its own block, independent of the CPU speed.
+    case "${2:-}" in on|off) ;; *) echo "usage: rpi400-helper gpu-boost on|off"; exit 2 ;; esac
+    is_pi5 || { echo "Graphics boost is only offered on Pi 5-class boards"; exit 1; }
+    cp "$CFG" "$CFG.taskmgr-backup"
+    sed -i "/^${GPU_BEGIN}\$/,/^${GPU_END}\$/d" "$CFG"
+    if [ "$2" = on ]; then
+        printf '%s\n[all]\ngpu_freq=1000\n%s\n' "$GPU_BEGIN" "$GPU_END" >> "$CFG"
+        echo "Graphics boost on (1000 MHz). Reboot to apply."
+    else
+        echo "Graphics boost off (normal 910 MHz). Reboot to apply."
+    fi
+    ;;
+
+gov)
+    g="${2:-}"
+    case "$g" in powersave|ondemand|performance) ;; *) echo "mode must be powersave, ondemand or performance"; exit 2 ;; esac
+    avail=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors 2>/dev/null)
+    if [ "$g" = ondemand ] && ! grep -qw ondemand <<<"$avail"; then g=schedutil; fi
+    grep -qw "$g" <<<"$avail" || { echo "This kernel doesn't offer '$g' (has: $avail)"; exit 1; }
+    for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo "$g" > "$f"; done
+    echo "CPU mode set to $g (resets to normal after a reboot)"
+    ;;
+
+kill)
+    pid="${2:-}"; sig="${3:-TERM}"
+    [[ "$pid" =~ ^[0-9]+$ ]] && [ "$pid" -gt 1 ] || { echo "bad PID"; exit 2; }
+    case "$sig" in TERM|KILL) ;; *) echo "bad signal"; exit 2 ;; esac
+    kill "-$sig" "$pid" && echo "Sent $sig to PID $pid"
+    ;;
+
+led)
+    case "${2:-}" in
+        on)     # turn the feature on (and flash now if the hotspot is already up)
+            set_conf LED_BLINK 1
+            echo "Power light will flash while the hotspot is on"
+            ap_is_up && led_start ;;
+        off)
+            set_conf LED_BLINK 0
+            led_stop; echo "Power light won't flash for the hotspot" ;;
+        start)  led_enabled && led_start ;;     # called when the hotspot comes up
+        stop)   led_stop ;;                     # called when the hotspot goes down
+        test)
+            led_start || exit 1
+            sleep "${3:-6}"
+            ap_is_up && led_enabled && { echo "Hotspot is on, so it keeps flashing"; exit 0; }
+            led_stop ;;
+        status) led_enabled && echo on || echo off ;;
+        *) echo "usage: rpi400-helper led on|off|start|stop|test|status"; exit 2 ;;
+    esac
+    ;;
+
+ai)
+    case "${2:-}" in
+        on)
+            command -v ollama >/dev/null || { echo "The AI engine isn't installed yet."; exit 1; }
+            systemctl enable --now ollama >/dev/null 2>&1 || { echo "Couldn't start the AI engine"; exit 1; }
+            echo "AI is on. It runs only on this Pi (127.0.0.1:11434) and needs no internet." ;;
+        off)
+            systemctl disable --now ollama >/dev/null 2>&1
+            echo "AI is off. Its memory and CPU are free again." ;;
+        install)
+            [ "$(dpkg --print-architecture 2>/dev/null)" = arm64 ] || \
+                { echo "The AI needs the 64-bit Raspberry Pi OS (this system is $(dpkg --print-architecture 2>/dev/null))."; exit 1; }
+            command -v curl >/dev/null || apt-get install -y curl >/dev/null
+            if ! command -v ollama >/dev/null; then
+                echo "Downloading the AI engine (Ollama)…"
+                curl -fsSL https://ollama.com/install.sh | sh >/tmp/rpi400-ollama-install.log 2>&1 \
+                    || { echo "Download failed. Is the Pi online? Details: /tmp/rpi400-ollama-install.log"; exit 1; }
+            fi
+            systemctl enable --now ollama >/dev/null 2>&1
+            echo "AI engine installed and running. Pick a model in the AI tab and press Download." ;;
+        status) systemctl is-active ollama 2>/dev/null || true ;;
+        *) echo "usage: rpi400-helper ai on|off|install|status"; exit 2 ;;
+    esac
+    ;;
+
+vpn)
+    # Tailscale: reach this Pi from anywhere (your own private network, no router setup).
+    ts_state() {   # prints "<BackendState> <AuthURL>"
+        tailscale status --json 2>/dev/null | python3 -c 'import json,sys
+d = json.load(sys.stdin); print(d.get("BackendState", ""), d.get("AuthURL", ""))' 2>/dev/null
+    }
+    ts_up() {   # ts_up [extra flags...]  — prints "LOGIN <url>" as soon as a sign-in is needed
+        local log=/tmp/rpi400-tailscale-up.log pid st url i
+        tailscale up --reset --accept-dns=false "$@" >"$log" 2>&1 &
+        pid=$!
+        for i in $(seq 1 60); do
+            sleep 0.5
+            read -r st url <<<"$(ts_state)"
+            [ -n "$url" ] || url=$(grep -o 'https://login\.tailscale\.com/[^[:space:]]*' "$log" | head -1)
+            if [ "$st" = Running ]; then
+                echo "Tailscale is on. This Pi is $(tailscale ip -4 2>/dev/null | head -1) on your Tailscale network."
+                return 0
+            fi
+            if [ -n "$url" ]; then echo "LOGIN $url"; return 0; fi   # 'tailscale up' keeps waiting in the background
+            kill -0 "$pid" 2>/dev/null || break
+        done
+        if wait "$pid" 2>/dev/null && [ "$(ts_state | cut -d' ' -f1)" = Running ]; then
+            echo "Tailscale is on. This Pi is $(tailscale ip -4 2>/dev/null | head -1) on your Tailscale network."
+            return 0
+        fi
+        tail -3 "$log"
+        return 1
+    }
+    case "${2:-}" in
+        install)
+            if ! command -v tailscale >/dev/null; then
+                command -v curl >/dev/null || apt-get install -y curl >/dev/null
+                echo "Downloading Tailscale…"
+                curl -fsSL https://tailscale.com/install.sh | sh >/tmp/rpi400-tailscale-install.log 2>&1 \
+                    || { echo "Download failed. Is the Pi online? Details: /tmp/rpi400-tailscale-install.log"; exit 1; }
+            fi
+            systemctl enable --now tailscaled >/dev/null 2>&1
+            echo "Tailscale is installed." ;;
+        up)
+            command -v tailscale >/dev/null || { echo "Tailscale isn't installed yet."; exit 1; }
+            systemctl enable --now tailscaled >/dev/null 2>&1
+            ts_up ;;
+        key)
+            k="${3:-}"
+            [[ "$k" =~ ^tskey-[A-Za-z0-9_-]+$ ]] || { echo "That doesn't look like a Tailscale auth key (they start with tskey-)."; exit 2; }
+            command -v tailscale >/dev/null || { echo "Tailscale isn't installed yet."; exit 1; }
+            systemctl enable --now tailscaled >/dev/null 2>&1
+            ts_up --authkey="$k" ;;
+        down)
+            command -v tailscale >/dev/null || { echo "Tailscale isn't installed."; exit 0; }
+            tailscale down && echo "Tailscale is off. You stay signed in, so turning it back on is instant." ;;
+        logout)
+            command -v tailscale >/dev/null || { echo "Tailscale isn't installed."; exit 0; }
+            tailscale logout && echo "Signed out of Tailscale. Turning it on again will ask you to sign in." ;;
+        *) echo "usage: rpi400-helper vpn install|up|key tskey-...|down|logout"; exit 2 ;;
+    esac
+    ;;
+
+kick)
+    mac="${2:-}"
+    [[ "$mac" =~ ^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$ ]] || { echo "bad MAC address"; exit 2; }
+    iw dev "$AP_DEV" station del "$mac" && echo "Disconnected $mac"
+    ;;
+
+vnc-enable)
+    if command -v raspi-config >/dev/null; then
+        raspi-config nonint do_vnc 0 && echo "VNC is on (port 5900). Sign in with your Pi username and password."
+    else
+        echo "raspi-config not found"; exit 1
+    fi
+    ;;
+
+update)   # update start | run USER | status — update everything on the Pi
+    UPD_LOG="${RPI400_UPDATE_LOG:-/var/log/rpi400-update.log}"      # readable by the app, so it can show progress
+    UPD_STATE="${RPI400_UPDATE_STATE:-/run/rpi400-update.state}"    # running|done|failed  start-time  end-time  reboot(0/1)
+    EDITION=rpi400
+    TM_REPO="${RPI400_TM_REPO:-https://github.com/hardwaremack-prog/rpi-task-manager/archive/HEAD.tar.gz}"
+    SHELF_REPO="${RPI400_SHELF_REPO:-https://github.com/hardwaremack-prog/the-shelf/archive/HEAD.tar.gz}"
+    upd_running() { read -r st _ 2>/dev/null < "$UPD_STATE" && [ "$st" = running ] && pgrep -f "rpi400-helper update run" >/dev/null; }
+    case "${2:-status}" in
+    start)
+        if upd_running; then echo "An update is already running."; exit 0; fi
+        who="${SUDO_USER:-$(getent passwd 1000 | cut -d: -f1)}"
+        echo "running $(date +%s) 0 0" > "$UPD_STATE"; chmod 644 "$UPD_STATE"
+        : > "$UPD_LOG"; chmod 644 "$UPD_LOG"
+        # Runs apart from the app, so closing the app (or the web page restarting) can't interrupt it
+        if command -v systemd-run >/dev/null && [ -d /run/systemd/system ]; then
+            systemctl reset-failed rpi400-update.service >/dev/null 2>&1
+            if ! systemd-run --unit=rpi400-update --collect --quiet "$0" update run "$who" >/dev/null 2>&1; then
+                setsid nohup "$0" update run "$who" >/dev/null 2>&1 < /dev/null &
+            fi
+        else
+            setsid nohup "$0" update run "$who" >/dev/null 2>&1 < /dev/null &
+        fi
+        echo "Update started. It can take 5 to 30 minutes. Keep the Pi powered on."
+        ;;
+    run)
+        exec >>"$UPD_LOG" 2>&1
+        who="${3:-$(getent passwd 1000 | cut -d: -f1)}"
+        home="$(getent passwd "$who" | cut -d: -f6)"
+        start=$(read -r _ t _ 2>/dev/null < "$UPD_STATE"; echo "${t:-$(date +%s)}")
+        tmp=$(mktemp -d /tmp/rpi400-update.XXXXXX)
+        trap 'rm -rf "$tmp"' EXIT
+        finish() {   # finish done|failed message
+            local reboot=0
+            if [ -f /var/run/reboot-required ] || [ -f "$tmp/reboot" ] \
+               || grep -qE "^(Unpacking|Setting up) (linux-image|raspi-firmware|raspberrypi-kernel|raspberrypi-bootloader|rpi-eeprom)" "$UPD_LOG" \
+               || grep -q "EEPROM updates pending" "$UPD_LOG"; then
+                reboot=1
+            fi
+            echo; echo "== $2"
+            [ "$reboot" = 1 ] && echo "== Restart the Pi to finish (new system software, firmware or Task Manager was installed)."
+            echo "$1 $start $(date +%s) $reboot" > "$UPD_STATE"
+            exit 0
+        }
+        fetch() {   # fetch URL DIR — download a GitHub project and unpack it into DIR
+            mkdir -p "$2" && curl -fsSL --retry 2 --max-time 300 "$1" | tar -xz -C "$2" --strip-components=1
+        }
+        echo "== Update started $(date '+%A %B %d, %Y at %I:%M %p') for user $who"
+        if ! timeout 15 getent hosts deb.debian.org archive.raspberrypi.com github.com >/dev/null 2>&1; then
+            finish failed "No internet, so nothing was updated. Connect the Pi to a network with internet (not its own hotspot) and try again."
+        fi
+        export DEBIAN_FRONTEND=noninteractive
+        APT=(apt-get -y -o DPkg::Lock::Timeout=600 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
+
+        echo; echo "== 1/6 Checking for new system software"
+        "${APT[@]}" update || finish failed "Couldn't check for updates (see the messages above)."
+        echo; echo "== 2/6 Installing system updates"
+        n=$(apt-get -s full-upgrade 2>/dev/null | grep -c '^Inst ')
+        echo "$n package(s) to update"
+        "${APT[@]}" full-upgrade || finish failed "Some updates didn't install. Try again; if it keeps failing, run: sudo apt full-upgrade"
+        echo; echo "== 3/6 Removing old versions and leftovers"
+        "${APT[@]}" autoremove --purge
+        apt-get clean
+        echo; echo "== 4/6 Firmware"
+        if command -v rpi-eeprom-update >/dev/null; then
+            rpi-eeprom-update -a 2>&1 | sed 's/^/   /'
+        else
+            echo "   This Pi keeps its firmware on the SD card, which step 2 already updated."
+        fi
+
+        echo; echo "== 5/6 Your apps"
+        if command -v ollama >/dev/null; then
+            echo "-- Local AI engine (Ollama)"
+            if curl -fsSL https://ollama.com/install.sh | sh >"$tmp/ollama.log" 2>&1; then
+                echo "   Up to date: $(ollama --version 2>/dev/null | tail -1)"
+            else
+                echo "   ! Couldn't update it this time (details: $(tail -1 "$tmp/ollama.log"))"
+            fi
+        fi
+        command -v tailscale >/dev/null && echo "-- Tailscale: updated with the system software in step 2"
+        # The Shelf: find where it's installed, update its program files, keep your files (shared/, data/)
+        shelf_dirs=()
+        for d in "$(sed -n 's/^Path=//p' "$home/.config/autostart/theshelf.desktop" 2>/dev/null)" \
+                 $(for p in $(pgrep -f "server.js"); do readlink "/proc/$p/cwd"; done 2>/dev/null) \
+                 "$home/.local/share/TheShelf" "$home/the-shelf" "$home/Documents/the-shelf" "$home/TheShelf"; do
+            [ -n "$d" ] && [ -f "$d/server.js" ] && grep -qs '"name": *"the-shelf"' "$d/package.json" || continue
+            d="$(readlink -f "$d")"
+            [[ " ${shelf_dirs[*]} " == *" $d "* ]] || shelf_dirs+=("$d")
+        done
+        if [ ${#shelf_dirs[@]} -eq 0 ]; then
+            echo "-- The Shelf: not installed on this Pi, nothing to update"
+        else
+            shelf="${shelf_dirs[0]}"
+            echo "-- The Shelf ($shelf)"
+            if fetch "$SHELF_REPO" "$tmp/shelf"; then
+                if diff -rq -x shared -x data -x node_modules -x installer -x .git "$tmp/shelf" "$shelf" 2>/dev/null | grep -q "^Files .* differ\|^Only in $tmp/shelf"; then
+                    deps_changed=0
+                    cmp -s "$tmp/shelf/package.json" "$shelf/package.json" && cmp -s "$tmp/shelf/package-lock.json" "$shelf/package-lock.json" || deps_changed=1
+                    owner="$(stat -c %U "$shelf")"
+                    ( cd "$tmp/shelf" && tar -cf - --exclude=./shared --exclude=./data --exclude=./node_modules --exclude=./installer . ) \
+                        | sudo -u "$owner" tar -xf - -C "$shelf"
+                    if [ "$deps_changed" = 1 ] || [ ! -d "$shelf/node_modules" ]; then
+                        echo "   Installing its libraries…"
+                        sudo -u "$owner" -H bash -c "cd '$shelf' && npm install --omit=dev --no-audit --no-fund" 2>&1 | tail -2 | sed 's/^/   /'
+                    fi
+                    echo "   Updated to the newest version. Your pictures, music, notes and other files were kept."
+                    # restart it so the new version is the one answering
+                    unit=$(grep -ls "$shelf" /etc/systemd/system/*.service 2>/dev/null | head -1)
+                    if [ -n "$unit" ]; then
+                        systemctl restart "$(basename "$unit")" && echo "   Restarted."
+                    else
+                        pids=$(for p in $(pgrep -f "server.js"); do [ "$(readlink "/proc/$p/cwd")" = "$shelf" ] && echo "$p"; done)
+                        if [ -n "$pids" ]; then
+                            kill $pids 2>/dev/null; sleep 2
+                            sudo -u "$owner" -H bash -c "cd '$shelf' && setsid nohup node server.js >/dev/null 2>&1 < /dev/null &"
+                            echo "   Restarted."
+                        fi
+                    fi
+                else
+                    echo "   Already the newest version."
+                fi
+            else
+                echo "   ! Couldn't download the newest version this time."
+            fi
+            for other in "${shelf_dirs[@]:1}"; do
+                echo "   Note: there's another, older copy of The Shelf in $other. It wasn't changed or deleted, because it may hold your own files. Once you've copied anything you want from its shared and data folders, you can delete that folder."
+            done
+        fi
+
+        echo; echo "== 6/6 RPi Task Manager"
+        # one Pi, one edition: remove any other edition so there's no confusion
+        # (names split in two so the build scripts that rename this file leave the list alone)
+        for ed in "rpi4""00" "rpi5""00" "rpize""ro"; do
+            [ "$ed" = "$EDITION" ] && continue
+            [ -d "/opt/$ed-taskmgr" ] || [ -x "/usr/local/bin/$ed-helper" ] || continue
+            echo "-- Removing the older $ed edition of the Task Manager"
+            systemctl disable --now "$ed-fallback-ap.service" "$ed-web.service" "$ed-taskmgr.service" >/dev/null 2>&1
+            rm -f /etc/systemd/system/"$ed"-fallback-ap.service /etc/systemd/system/"$ed"-web.service /etc/systemd/system/"$ed"-taskmgr.service
+            rm -rf "/opt/$ed-taskmgr"
+            rm -f /usr/local/bin/"$ed"-taskmgr /usr/local/bin/"$ed"-helper /usr/local/bin/"$ed"-web /usr/local/sbin/"$ed"-fallback-ap \
+                  /etc/sudoers.d/"$ed"-taskmgr /usr/share/applications/"$ed"-taskmgr.desktop "$home/.config/autostart/$ed-taskmgr.desktop" \
+                  /etc/NetworkManager/dispatcher.d/90-"$ed"-led /etc/NetworkManager/dnsmasq-shared.d/"$ed"-taskmgr.conf
+            nmcli con delete "${ed^^}-OPEN" >/dev/null 2>&1
+            for f in "$home/.config/labwc/rc.xml" "$home/.config/openbox/lxde-pi-rc.xml" "$home/.config/wayfire.ini"; do
+                [ -f "$f" ] && sed -i "/$ed/d" "$f"
+            done
+            systemctl daemon-reload 2>/dev/null
+        done
+        have="$(cat "/opt/$EDITION-taskmgr/VERSION" 2>/dev/null || echo 0)"
+        if fetch "$TM_REPO" "$tmp/tm" && [ -f "$tmp/tm/$EDITION-taskmgr/install.sh" ]; then
+            new="$(cat "$tmp/tm/$EDITION-taskmgr/VERSION" 2>/dev/null || echo 0)"
+            if [[ "$new" > "$have" ]]; then
+                echo "   Installing version $new (this Pi had ${have/#0/an earlier version})…"
+                if ( cd "$tmp/tm/$EDITION-taskmgr" && SKIP_AI=1 bash install.sh < /dev/null ) > "$tmp/tm-install.log" 2>&1; then
+                    echo "   Done. Close and reopen the Task Manager (or restart the Pi) to use it."
+                    touch "$tmp/reboot"
+                else
+                    echo "   ! The new version didn't install: $(tail -2 "$tmp/tm-install.log" | tr '\n' ' ')"
+                fi
+            else
+                echo "   Already the newest version ($have)."
+            fi
+        else
+            echo "   ! Couldn't check for a newer Task Manager this time."
+        fi
+        # Put the newest Task Manager downloads on The Shelf (Programs), replacing any older copies there
+        if [ -n "${shelf:-}" ] && [ -d "$tmp/tm" ]; then
+            progs="$shelf/shared/Programs"; owner="$(stat -c %U "$shelf")"
+            sudo -u "$owner" mkdir -p "$progs"
+            ver="$(cat "$tmp/tm/$EDITION-taskmgr/VERSION" 2>/dev/null)"
+            made=0; removed=0
+            for ed in "rpi4""00" "rpi5""00" "rpize""ro"; do
+                [ -f "$tmp/tm/$ed-taskmgr/install.sh" ] || continue
+                for old in "$progs/$ed-taskmgr"*.zip; do
+                    [ -e "$old" ] && [ "$old" != "$progs/$ed-taskmgr.zip" ] && rm -f "$old" && removed=$((removed + 1))
+                done
+                if ( cd "$tmp/tm" && python3 -m zipfile -c "$tmp/$ed-taskmgr.zip" "$ed-taskmgr" ) \
+                   && install -m 644 -o "$owner" "$tmp/$ed-taskmgr.zip" "$progs/$ed-taskmgr.zip"; then
+                    made=$((made + 1))
+                fi
+            done
+            echo "-- The Shelf's Programs folder: the $made Task Manager downloads are now version ${ver:-?}$([ $removed -gt 0 ] && echo "; removed $removed older copies")."
+        fi
+        finish done "Everything is up to date. $n system package(s) updated."
+        ;;
+    status)
+        read -r st t0 t1 rb 2>/dev/null < "$UPD_STATE" || { echo "idle"; exit 0; }
+        if [ "$st" = running ] && ! upd_running; then st=failed; fi
+        echo "$st ${t0:-0} ${t1:-0} ${rb:-0}"
+        tail -n 15 "$UPD_LOG" 2>/dev/null
+        ;;
+    *) echo "usage: rpi400-helper update start|status"; exit 2 ;;
+    esac
+    ;;
+
+reboot)   systemctl reboot ;;
+poweroff) systemctl poweroff ;;
+
+*)
+    echo "usage: rpi400-helper {dropcaches|bt-on|bt-rescue|ap-ensure|ap-up|ap-down|ap-band 2.4|5|ap-set NAME PASS|ap-data keep|share|oc stock|2000|2147|2600|2800|3000|gpu-boost on|off|gov powersave|ondemand|performance|kill PID TERM|KILL|kick MAC|led on|off|start|stop|test|status|ai on|off|install|status|vpn install|up|key KEY|down|logout|web on|off|status|update start|status|vnc-enable|reboot|poweroff}"
+    exit 2
+    ;;
+esac

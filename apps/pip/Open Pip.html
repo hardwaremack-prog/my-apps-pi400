@@ -1,0 +1,60 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pip</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#14111f;color:#f4efe6;font:16px/1.5 "DejaVu Sans",system-ui,sans-serif;padding:16px;box-sizing:border-box;
+  background:radial-gradient(900px 400px at 10% -10%,#3a2459 0%,transparent 60%),radial-gradient(700px 400px at 110% 10%,#123c4a 0%,transparent 60%),#14111f}
+.box{max-width:580px;width:100%;background:#1f1a30;border:2px solid #2a2341;border-radius:18px;padding:28px}
+h1{margin:0 0 6px;font-size:26px;display:flex;align-items:center;gap:14px}
+h1 img{width:52px;height:52px;border-radius:12px;object-fit:cover}
+p{color:#a79fbd;margin:10px 0} b{color:#f4efe6}
+code{background:#14111f;border:1px solid #2a2341;border-radius:6px;padding:2px 7px;color:#4fd1c5;font-size:13.5px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
+button{appearance:none;border:0;border-radius:999px;padding:12px 22px;font:inherit;font-weight:800;cursor:pointer;background:#4fd1c5;color:#14111f}
+button.alt{background:transparent;color:#f4efe6;border:2px solid #2a2341}
+button:disabled{opacity:.55;cursor:default}
+.st{display:inline-flex;align-items:center;gap:8px;color:#a79fbd;font-size:14.5px}
+.dot{width:11px;height:11px;border-radius:50%;background:#e5484d}
+.dot.on{background:#3fd27f;box-shadow:0 0 9px rgba(63,210,127,.7)}
+</style></head><body><div class="box">
+<h1><img src="web/icon.png" alt="">Pip</h1>
+<p>Your offline voice assistant. Plug in the headset, talk, and Pip listens, thinks and answers out loud, all on this Pi with no internet.</p>
+<div class="row">
+  <button id="go">Start Pip</button>
+  <span class="st"><span class="dot" id="dot"></span><span id="st">Checking…</span></span>
+</div>
+<p style="margin-top:18px">Pip needs a one-time setup (about 1.5 to 3.5 GB, 10 to 20 minutes, 64-bit Raspberry Pi OS). <b>Set Up My Apps.sh</b> offers to do it, or in a Terminal: <code>bash ~/Pip/install.sh</code>. After that, the <b>Pip</b> icon on the Desktop or this button starts it, and this page jumps to it as soon as it's ready. On the Pi 400 it picks the slim, quicker setup by itself.</p>
+</div>
+<script src="../../status/token.js"></script>
+<script>
+// MODE: 'web' = jump to it once it's running; 'app' = it opens its own window when started
+// (button opens it here if it's already running); 'window' = a desktop program, the button always opens it
+const ID='pip', MODE='web', DESKTOP=MODE!=='web';
+const BASE='http://127.0.0.1:'+((window.MYAPPS_STATUS&&MYAPPS_STATUS.port)||8399);
+const $=id=>document.getElementById(id);
+let srv=null, helper=false;
+function reloadToken(){return new Promise(r=>{const s=document.createElement('script');s.src='../../status/token.js?'+Date.now();s.onload=s.onerror=()=>{s.remove();r()};document.head.appendChild(s)})}
+async function post(path,body,retry=true){
+  try{const r=await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json','X-MyApps-Key':(window.MYAPPS_STATUS||{}).token||''},body:JSON.stringify(body)});
+    if(r.status===403&&retry){await reloadToken();return post(path,body,false)} return await r.json();
+  }catch(e){return {ok:false,msg:'The My Apps helper is not running. Run Set Up My Apps.sh once.'}}
+}
+async function check(){
+  try{const r=await fetch(BASE+'/status',{cache:'no-store'});const d=await r.json();helper=true;
+    srv=(d.servers||[]).find(s=>s.id===ID)||null;}catch(e){helper=false;srv=null}
+  const up=!!(srv&&srv.up);
+  $('dot').classList.toggle('on',up);
+  $('dot').style.visibility=(MODE==='window'&&!up)?'hidden':'';
+  if(!helper){$('st').textContent='Can\'t check (run Set Up My Apps.sh once)';return}
+  if(up&&MODE==='web'){$('st').textContent='Running · opening…';location.replace(srv.url);return}
+  if(MODE==='app')$('go').textContent=up?'Open it':'Start Pip';
+  $('st').textContent=up?(MODE==='window'?'Its web page is on too (port '+srv.port+')':'Running on port '+srv.port):(MODE==='window'?'Ready':'Not running yet');
+}
+$('go').onclick=async()=>{
+  if(MODE==='app'&&srv&&srv.up){location.href=srv.url;return}
+  $('go').disabled=true;$('st').textContent='Starting…';
+  const r=await post('/start',{id:ID});
+  $('st').textContent=r.ok?(DESKTOP?'Opening its window…':'Starting… this page opens it when it\'s ready'):(r.msg||'Couldn\'t start it.');
+  setTimeout(()=>{$('go').disabled=false},4000);
+};
+check();setInterval(()=>{if(!document.hidden)check()},2500);
+</script></body></html>

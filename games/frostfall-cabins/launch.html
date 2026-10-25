@@ -44,22 +44,37 @@
     <input id="addr" placeholder="Host address, e.g. 192.168.1.42" autocomplete="off">
     <button id="join">Join</button>
   </div>
-  <p style="font-size:13px">No icon? In a Terminal: <code>bash ~/Desktop/"My Apps"/games/frostfall-cabins/start-pi.sh</code></p>
+  <p style="font-size:13px">If the server says it moved to another port (like 8791), type <code>address:8791</code> under Join.<br>No icon? In a Terminal: <code>bash ~/Desktop/"My Apps"/games/frostfall-cabins/start-pi.sh</code></p>
 </div>
 <script>
-const PORT = 8765;
+const PORT = 8790;
 const $ = (id) => document.getElementById(id);
 function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+let found = PORT;
 async function check() {
   $('st').textContent = 'Checking…';
-  try {
-    await fetch(`http://localhost:${PORT}/game.js`, { mode: 'no-cors', cache: 'no-store' });
-    $('dot').classList.add('on'); $('st').textContent = 'Server is running on this Pi';
-  } catch (e) {
-    $('dot').classList.remove('on'); $('st').textContent = 'Server not running here yet';
+  for (let p = PORT; p < PORT + 20; p++) {
+    try {
+      const ok = await new Promise((res) => {
+        const s = document.createElement('script');
+        const t = setTimeout(() => { s.remove(); res(false); }, 1200);
+        s.onload = () => { clearTimeout(t); s.remove(); res(!!window.__ffcProbe); };
+        s.onerror = () => { clearTimeout(t); s.remove(); res(false); };
+        window.__ffcProbe = false;
+        s.src = `http://localhost:${p}/probe.js?${Date.now()}`;
+        document.head.appendChild(s);
+      });
+      if (ok) {
+        found = p;
+        $('dot').classList.add('on'); $('st').textContent = `Server is running on this Pi (port ${p})`;
+        return;
+      }
+    } catch (e) { /* keep looking */ }
   }
+  found = PORT;
+  $('dot').classList.remove('on'); $('st').textContent = 'Server not running here yet';
 }
-$('play').onclick = () => { location.href = `http://localhost:${PORT}/`; };
+$('play').onclick = () => { location.href = `http://localhost:${found}/`; };
 $('recheck').onclick = check;
 $('addr').value = store('ffc.host') || '';
 function join() {

@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{APP_NAME}}</title>
+<link rel="icon" href="/static/icon.svg">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="theme-{{THEME}}">
+
+<!-- First click unlocks the microphone and speakers (browser rule) -->
+<div id="gate" class="gate">
+  <div class="gate-card">
+    <div class="gate-avatar"></div>
+    <h1>{{APP_NAME}}</h1>
+    <p>Put on your headset, then start.</p>
+    <button id="gateBtn" class="btn-primary">Start talking</button>
+    <p class="fine">Runs entirely on this computer. Nothing leaves it.</p>
+  </div>
+</div>
+
+<header class="top">
+  <!-- Address bar: where to reach the app, always visible -->
+  <div class="addr" id="addrBar">
+    <div class="addr-field" id="addrLocalField">
+      <svg class="addr-ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+      <span class="addr-label" id="addrLocalLabel">This Pi</span>
+      <span class="addr-url" id="addrLocal" title="Click to copy">http://127.0.0.1/</span>
+      <button class="addr-copy" id="addrLocalCopy" title="Copy this address">Copy</button>
+    </div>
+    <div class="addr-field" id="addrNetField">
+      <svg class="addr-ico" viewBox="0 0 24 24"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg>
+      <span class="addr-label">Wi-Fi</span>
+      <span class="addr-url" id="addrNet" title="Click to copy">off</span>
+      <button class="addr-copy" id="addrNetCopy" title="Copy this address">Copy</button>
+    </div>
+    <label class="addr-switch" id="shareSwitch" title="Let phones, tablets and other computers on your home network use it">
+      <input type="checkbox" id="shareToggle"><span class="sw"></span><span>Share on Wi-Fi</span>
+    </label>
+  </div>
+  <div class="brand">
+    <span class="brand-mark"></span>
+    <span class="brand-name">{{APP_NAME}}</span>
+    <span class="edition" id="edition" style="display:none"></span>
+  </div>
+  <div class="health" id="health">
+    <span class="dot" id="hBrain" title="AI model">Brain</span>
+    <span class="dot" id="hEars" title="Speech recognition">Ears</span>
+    <span class="dot" id="hVoice" title="Speech voice">Voice</span>
+    <span class="dot" id="hNet" style="display:none">Network</span>
+  </div>
+  <div class="top-actions">
+    <button class="update-chip" id="updChip" style="display:none" title="A newer version is ready">Update available</button>
+    <select id="modelSel" title="AI model"></select>
+    <div class="doc-wrap">
+      <button class="icon-btn" id="docBtn" title="Save as a document (PDF)">
+        <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
+      </button>
+      <div class="doc-menu" id="docMenu">
+        <button id="docWrite"><b>Write it up as a document</b><span>A clean PDF with a title and headings, made from this chat</span></button>
+        <button id="docChat"><b>Save the conversation</b><span>The chat exactly as it happened, as a PDF</span></button>
+      </div>
+    </div>
+    <button class="icon-btn" id="newChat" title="New chat">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button class="icon-btn" id="gear" title="Settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="stage">
+  <section class="presence">
+    <div id="avatar" class="avatar state-idle">
+      <!-- Halo ring -->
+      <svg class="halo" viewBox="0 0 200 200" aria-hidden="true">
+        <defs>
+          <linearGradient id="hg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="var(--ring-a)"/>
+            <stop offset="1" stop-color="var(--ring-b)"/>
+          </linearGradient>
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="6" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <circle class="halo-track" cx="100" cy="100" r="70"/>
+        <circle class="halo-ring" cx="100" cy="100" r="70" stroke="url(#hg)" filter="url(#glow)"/>
+        <circle class="halo-arc" cx="100" cy="100" r="84" stroke="url(#hg)"/>
+        <circle class="halo-core" cx="100" cy="100" r="44"/>
+      </svg>
+      <!-- Pip face -->
+      <svg class="pip" viewBox="0 0 200 200" aria-hidden="true">
+        <ellipse class="pip-shadow" cx="100" cy="182" rx="52" ry="7"/>
+        <g class="pip-body-g">
+          <path class="pip-body" d="M100 26c44 0 70 30 70 74 0 46-28 72-70 72s-70-26-70-72c0-44 26-74 70-74z"/>
+          <path class="pip-sprout" d="M100 28c0-12 6-20 18-22-2 12-8 19-18 22z"/>
+          <circle class="pip-cheek" cx="58" cy="118" r="9"/>
+          <circle class="pip-cheek" cx="142" cy="118" r="9"/>
+          <g class="pip-eyes">
+            <ellipse class="pip-eye" cx="76" cy="96" rx="9" ry="12"/>
+            <ellipse class="pip-eye" cx="124" cy="96" rx="9" ry="12"/>
+            <circle class="pip-glint" cx="79" cy="91" r="3"/>
+            <circle class="pip-glint" cx="127" cy="91" r="3"/>
+          </g>
+          <ellipse class="pip-mouth" cx="100" cy="128" rx="10" ry="3"/>
+        </g>
+        <g class="pip-dots">
+          <circle cx="150" cy="44" r="5"/><circle cx="166" cy="32" r="6"/><circle cx="184" cy="18" r="7"/>
+        </g>
+      </svg>
+      <!-- Spark -->
+      <svg class="spark" viewBox="0 0 200 200" aria-hidden="true">
+        <defs>
+          <radialGradient id="sg" cx=".5" cy=".5" r=".5">
+            <stop offset="0" stop-color="#fff6d8"/>
+            <stop offset=".45" stop-color="var(--accent)"/>
+            <stop offset="1" stop-color="var(--accent-2)"/>
+          </radialGradient>
+          <filter id="sglow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <circle class="spark-aura" cx="100" cy="100" r="58"/>
+        <g class="spark-rays" filter="url(#sglow)">
+          <line class="spark-ray long" x1="100" y1="62" x2="100" y2="22" transform="rotate(0 100 100)"/>
+          <line class="spark-ray" x1="100" y1="62" x2="100" y2="36" transform="rotate(30 100 100)"/>
+          <line class="spark-ray long" x1="100" y1="62" x2="100" y2="22" transform="rotate(60 100 100)"/>
+          <line class="spark-ray" x1="100" y1="62" x2="100" y2="36" transform="rotate(90 100 100)"/>
+          <line class="spark-ray long" x1="100" y1="62" x2="100" y2="22" transform="rotate(120 100 100)"/>
+          <line class="spark-ray" x1="100" y1="62" x2="100" y2="36" transform="rotate(150 100 100)"/>
+          <line class="spark-ray long" x1="100" y1="62" x2="100" y2="22" transform="rotate(180 100 100)"/>
+          <line class="spark-ray" x1="100" y1="62" x2="100" y2="36" transform="rotate(210 100 100)"/>
+          <line class="spark-ray long" x1="100" y1="62" x2="100" y2="22" transform="rotate(240 100 100)"/>
+          <line class="spark-ray" x1="100" y1="62" x2="100" y2="36" transform="rotate(270 100 100)"/>
+          <line class="spark-ray long" x1="100" y1="62" x2="100" y2="22" transform="rotate(300 100 100)"/>
+          <line class="spark-ray" x1="100" y1="62" x2="100" y2="36" transform="rotate(330 100 100)"/>
+        </g>
+        <g class="spark-bits"><circle class="spark-bit b0" cx="165.8" cy="123.9" r="3"/><circle class="spark-bit b1" cx="37.2" cy="152.7" r="2.4"/><circle class="spark-bit b2" cx="78.1" cy="39.9" r="2.8"/><circle class="spark-bit b3" cx="167.4" cy="43.4" r="2"/></g>
+        <circle class="spark-core" cx="100" cy="100" r="26" fill="url(#sg)" filter="url(#sglow)"/>
+      </svg>
+    </div>
+    <div class="state-label" id="stateLabel">Ready</div>
+    <div class="meter"><div class="meter-fill" id="micMeter"></div><div class="meter-thr" id="micThr"></div></div>
+  </section>
+
+  <section class="transcript" id="transcript" aria-live="polite">
+    <div class="empty" id="emptyNote"></div>
+  </section>
+</main>
+
+<footer class="dock">
+  <div class="mode-toggle" role="radiogroup" aria-label="Talk mode">
+    <button id="modePtt" role="radio" aria-checked="true">Push to talk</button>
+    <button id="modeHf" role="radio" aria-checked="false">Hands-free</button>
+    <span class="mode-pill"></span>
+  </div>
+
+  <button id="talkBtn" class="talk-btn">
+    <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    <span id="talkText">Hold to talk</span>
+  </button>
+
+  <form id="typeForm" class="type-row" autocomplete="off">
+    <input id="typeBox" placeholder="…or type a message" />
+    <button type="submit" class="icon-btn send" title="Send">
+      <svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>
+    </button>
+    <button type="button" class="icon-btn stop" id="stopBtn" title="Stop (Esc)">
+      <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
+  </form>
+  <div class="hint" id="hint">Hold <kbd>Space</kbd> or the button while you talk. <kbd>Esc</kbd> stops a reply.</div>
+</footer>
+
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2>Settings</h2>
+    <button class="icon-btn" id="closeDrawer" title="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+
+  <h3>Headset</h3>
+  <label>Microphone<select id="micSel"></select></label>
+  <label id="outRow">Speakers / headphones<select id="outSel"></select></label>
+
+  <h3>Voice</h3>
+  <label>Voice<select id="voiceSel"></select></label>
+  <label>Speaking speed <span class="val" id="speedVal"></span>
+    <input type="range" id="speed" min="0.7" max="1.5" step="0.05"></label>
+  <label class="switch"><input type="checkbox" id="speak"> Read replies out loud</label>
+
+  <h3>Hands-free listening</h3>
+  <label>Sensitivity <span class="val" id="thrVal"></span>
+    <input type="range" id="thr" min="0.004" max="0.12" step="0.002"></label>
+  <p class="fine">Watch the bar under the {{APP_NAME}} picture. Set the line just above the level when you're quiet.</p>
+  <label>Wait after you stop talking <span class="val" id="silVal"></span>
+    <input type="range" id="sil" min="400" max="2500" step="100"></label>
+  <label class="switch"><input type="checkbox" id="barge"> Talk over a reply to interrupt it</label>
+
+  <h3>Personality</h3>
+  <label>How {{APP_NAME}} should act
+    <textarea id="sysPrompt" rows="6"></textarea></label>
+  <button class="btn-secondary" id="savePrompt">Save personality</button>
+  <p class="fine" id="promptNote"></p>
+
+  <div id="shareSection">
+    <h3>Use from other devices</h3>
+    <div id="shareBox"></div>
+  </div>
+
+  <div id="updSection" style="display:none">
+    <h3>Updates</h3>
+    <p class="fine" id="updStatus"></p>
+    <pre class="upd-notes" id="updNotes" style="display:none"></pre>
+    <div class="upd-actions">
+      <button class="btn-primary" id="updRun" style="display:none">Update now</button>
+      <button class="btn-secondary" id="updCheck">Check for updates</button>
+    </div>
+    <pre class="upd-log" id="updLog" style="display:none"></pre>
+  </div>
+
+  <h3>About</h3>
+  <p class="fine" id="about"></p>
+</aside>
+<div class="scrim" id="scrim"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

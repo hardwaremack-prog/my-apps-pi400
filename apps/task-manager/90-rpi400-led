@@ -1,0 +1,10 @@
+#!/bin/sh
+# NetworkManager runs this whenever a connection goes up or down.
+# When the RPI400-OPEN hotspot comes up, flash the power light; when it goes down, put it back.
+# Installed to /etc/NetworkManager/dispatcher.d/ by RPi400 Task Manager.
+[ "$CONNECTION_ID" = "RPI400-OPEN" ] || exit 0
+case "$2" in
+    up)             /usr/local/bin/rpi400-helper led start ;;
+    down|pre-down)  /usr/local/bin/rpi400-helper led stop ;;
+esac
+exit 0

@@ -11,7 +11,7 @@ One computer runs the server (a Raspberry Pi is plenty). Nothing to install — 
 - **Raspberry Pi / Linux / Mac:** double-click `start-pi.sh` (or run `./start-pi.sh` in a terminal)
 - **Windows:** double-click `start-windows.bat` (Python 3 must be installed)
 
-The window prints an address like `http://192.168.1.42:8765`. Everyone opens that address in Chrome/Chromium on their own computer or Pi and picks a name and coat colour. The server computer can play too at `http://localhost:8765`.
+The window prints an address like `http://192.168.1.42:8790`. Everyone opens that address in Chrome/Chromium on their own computer or Pi and picks a name and coat colour. The server computer can play too at `http://localhost:8790`.
 
 Options: `python3 server.py --minutes 20` for a longer night (default 12), `--port 9000` to change the port.
 

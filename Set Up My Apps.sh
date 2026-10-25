@@ -1,11 +1,21 @@
 #!/bin/bash
-# Set Up My Apps - puts this folder on the Desktop and adds a "My Apps" icon
+# Set Up My Apps (Raspberry Pi 400) - puts this folder on the Desktop and adds a "My Apps" icon
 # to the Desktop and to the Raspberry Pi menu (under Games).
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DESK="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"
 mkdir -p "$DESK"
 DEST="$DESK/My Apps"
+NEED_REBOOT=""
+
+# ask "question [y/N] " n   -> yes/no (no answer = the default; nothing typed in a window with no keyboard = skip)
+ask() {
+  local a
+  if [ ! -t 0 ]; then return 1; fi
+  read -r -p "$1" a || a=""
+  a="${a:-$2}"
+  case "$a" in [Yy]*) return 0 ;; *) return 1 ;; esac
+}
 
 # 1. Make sure the folder lives on the Desktop
 if [ "$HERE" != "$DEST" ]; then
@@ -286,6 +296,52 @@ if [ -f "$PM/pimesh.py" ]; then
   fi
 fi
 
+# 3h2. RPi400 Task Manager (installs for the whole Pi, so it asks first)
+TM="$DEST/apps/task-manager"
+if [ -f "$TM/install.sh" ]; then
+  chmod +x "$TM"/*.sh "$TM/rpi400_taskmgr.py" 2>/dev/null || true
+  NEW_V="$(cat "$TM/VERSION" 2>/dev/null)"
+  OLD_V="$(cat /opt/rpi400-taskmgr/VERSION 2>/dev/null || true)"
+  if [ -z "$OLD_V" ]; then
+    echo
+    echo "  RPi400 Task Manager: Windows-style Task Manager (Ctrl+Shift+Esc), Update everything button and offline AI."
+    echo "  Installing it also sets up the RPI400-OPEN travel hotspot (only starts when there's no network),"
+    echo "  turns on VNC and makes the Pi boot straight to the desktop."
+    if ask "  Install the Task Manager now? You'll be asked for your password. [y/N] " n; then
+      sudo bash "$TM/install.sh" && NEED_REBOOT=1 || echo "  Note: the Task Manager didn't finish. Try:  sudo bash \"$TM/install.sh\""
+    else
+      echo "  Skipped. Install it later with:  sudo bash \"$TM/install.sh\""
+    fi
+  elif [ "$OLD_V" != "$NEW_V" ]; then
+    echo
+    if ask "  Update the Task Manager ($OLD_V -> $NEW_V)? Your settings are kept. [Y/n] " y; then
+      sudo bash "$TM/install.sh" || echo "  Note: the Task Manager update didn't finish. Try:  sudo bash \"$TM/install.sh\""
+    fi
+  fi
+fi
+
+# 3h3. Pip (offline voice chat). It lives in ~/Pip and keeps itself up to date from there.
+PIPSRC="$DEST/apps/pip"
+PIPDIR="$HOME/Pip"
+if [ -f "$PIPSRC/server.py" ]; then
+  if [ ! -f "$PIPDIR/server.py" ]; then
+    cp -r "$PIPSRC" "$PIPDIR"
+    rm -f "$PIPDIR/Open Pip.html"
+  fi
+  chmod +x "$PIPDIR"/*.sh 2>/dev/null || true
+  if [ ! -x "$PIPDIR/.venv/bin/python" ]; then
+    echo
+    echo "  Pip (offline voice chat) needs a one-time setup: it downloads 1.5 to 3.5 GB and takes 10 to 20 minutes."
+    if ask "  Set up Pip now? [y/N] " n; then
+      (cd "$PIPDIR" && bash ./install.sh) || echo "  Note: Pip's setup didn't finish. Try again with:  bash ~/Pip/install.sh"
+    else
+      echo "  Skipped. Set it up later with:  bash ~/Pip/install.sh"
+    fi
+  else
+    bash "$PIPDIR/shortcuts.sh" >/dev/null 2>&1 || true
+  fi
+fi
+
 # 3i. Server lights for the menu (SSH, VNC, The Shelf, PiMesh, PodDeck, ... like Command Center on Windows).
 #     A tiny Python helper that starts with the Pi and only listens on this Pi (127.0.0.1:8399).
 ST="$DEST/status"
@@ -339,9 +395,10 @@ done
 
 echo
 echo "  All set! Double-click 'My Apps' on the Desktop,"
-echo "  (RPi400 Performance, NetPulse, NetSentry, Halo Studio, PiDirStat, PON Lab, PON Fleet, WiFi Share, Blueprint Wiki, PodDeck, PiMesh, Frostfall Cabins Server and the Snipping Tool have their own icons too),"
+echo "  (RPi400 Performance, the Task Manager, Pip, NetPulse, NetSentry, Halo Studio, PiDirStat, PON Lab, PON Fleet, WiFi Share, Blueprint Wiki, PodDeck, PiMesh, Frostfall Cabins Server and the Snipping Tool have their own icons too),"
 echo "  or find it in the Raspberry Pi menu under Games."
 echo "  The server lights (SSH, VNC, The Shelf, PiMesh and more) are at the top of the menu."
+[ -n "$NEED_REBOOT" ] && echo "  Restart the Pi once so the Task Manager starts cleanly:  sudo reboot"
 echo
 "$DEST/.open-menu.sh" >/dev/null 2>&1 &
 sleep 3

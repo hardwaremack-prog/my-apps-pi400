@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>RPi400 Task Manager</title>
+<style>
+:root{--bg:#14171c;--panel:#1d2229;--panel2:#262d36;--fg:#e8ebf0;--dim:#8b95a3;--accent:#4fb3ff;--green:#3ddc84;
+--amber:#ffb020;--red:#ff4d5a;--off:#39414c;--grid:#2c333d;--r:10px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 "DejaVu Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--grid);padding:10px 16px}
+.hrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;max-width:1200px;margin:0 auto}
+.brand{font-weight:700;font-size:17px;white-space:nowrap}
+.ip{color:var(--dim)}
+.chip{background:var(--panel2);border-radius:999px;padding:3px 10px;font-weight:700;font-size:13px;white-space:nowrap;cursor:pointer;border:0}
+.chip.on{color:var(--green)}
+.lights{display:flex;flex-wrap:wrap;gap:4px 12px;margin-left:auto;align-items:center;font-size:12px;color:var(--dim)}
+.lights b{color:var(--fg);font-size:13px;margin-right:2px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--off);margin:0 4px 0 6px;vertical-align:-1px;transition:background .15s}
+.dot.g{background:var(--green)}.dot.a{background:var(--amber)}.dot.r{background:var(--red)}.dot.b{background:var(--accent)}
+nav{display:flex;gap:4px;overflow-x:auto;padding:10px 16px 0;scrollbar-width:none;max-width:1232px;margin:0 auto}
+nav button{background:var(--panel);border:1px solid var(--grid);border-bottom:none;border-radius:var(--r) var(--r) 0 0;
+padding:8px 16px;color:var(--dim);font-weight:700;cursor:pointer;white-space:nowrap}
+nav button.sel{background:var(--panel2);color:var(--fg)}
+main{padding:12px 16px 90px;max-width:1200px;margin:0 auto}
+.tab{display:none}.tab.sel{display:block}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.card{background:var(--panel);border:1px solid var(--grid);border-radius:var(--r);padding:12px 14px;min-width:0}
+.card h3{margin:0 0 8px;font-size:15px;color:var(--accent)}
+.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
+.gauge{text-align:center}
+.gauge svg{width:100%;max-width:128px;height:auto;display:block;margin:0 auto}
+.gauge .lbl{font-weight:700;font-size:13px;margin-top:-6px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:14px}
+.kv span:nth-child(odd){color:var(--dim)}
+.muted{color:var(--dim);font-size:13px}
+.small{font-size:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{background:var(--panel2);border:1px solid var(--grid);border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;min-height:40px}
+.btn:hover{background:#34404d}.btn.acc{background:#1d5a88;border-color:#236ca0}.btn.acc:hover{background:#2a78b3}
+.btn.danger{background:#7a2630;border-color:#8a2c38}.btn.danger:hover{background:#9a3140}
+.btn.sm{padding:5px 10px;min-height:32px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.full{width:100%}
+a.btn{text-decoration:none;color:var(--fg);display:inline-flex;align-items:center}
+#ocBtns .btn{flex:1 1 72px}
+.devrow{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--grid);padding:6px 0}
+.devrow>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.locked .needs-auth{display:none}
+.unlocked .when-locked{display:none}
+.lockmsg{background:var(--panel2);border-radius:8px;padding:8px 12px;color:var(--dim);font-size:13px}
+svg.chart{width:100%;height:120px;background:var(--panel2);border-radius:8px;display:block}
+.bars .bar{display:grid;grid-template-columns:60px 1fr 44px;gap:8px;align-items:center;font-size:12px;color:var(--dim);margin:4px 0}
+.bars .track{height:10px;background:var(--panel2);border-radius:5px;overflow:hidden}
+.bars .fill{height:100%;background:var(--accent);transition:width .4s}
+.bars .pct{color:var(--fg);text-align:right}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;background:var(--panel2);padding:7px 8px;position:sticky;top:0;cursor:pointer;white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
+td.num,th.num{text-align:right}
+tr.joined td{color:var(--green)}tr.left td{color:var(--amber)}tr.sys td{color:var(--accent)}
+.tablewrap{overflow:auto;max-height:65vh;border-radius:8px;border:1px solid var(--grid)}
+input[type=text],input[type=password],select{background:var(--panel2);border:1px solid var(--grid);border-radius:8px;padding:9px 12px;min-height:40px}
+.switch{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-weight:700}
+.switch input{position:absolute;opacity:0}
+.switch .trk{width:46px;height:26px;border-radius:13px;background:var(--off);position:relative;transition:.2s;flex:none}
+.switch .trk::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.switch input:checked+.trk{background:var(--green)}
+.switch input:checked+.trk::after{left:23px}
+.switch input:focus-visible+.trk{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg label{background:var(--panel2);border:1px solid var(--grid);border-radius:8px;padding:8px 12px;cursor:pointer}
+.seg input{accent-color:var(--accent);margin-right:6px}
+.qr{width:170px;height:170px;background:#fff;border-radius:8px;padding:6px;display:block}
+.big{font-size:22px;font-weight:700}
+.code{font-size:40px;font-weight:800;color:var(--amber);letter-spacing:4px;text-align:center;margin:8px 0}
+.verdict{font-weight:700;margin-top:8px}
+.ok{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}.dimc{color:var(--dim)}
+.progress{height:10px;background:var(--panel2);border-radius:5px;overflow:hidden}
+.progress>div{height:100%;background:var(--accent);width:0;transition:width .8s}
+.banner{background:#4a2a12;border:1px solid var(--amber);color:#ffd8a0;border-radius:var(--r);padding:10px 14px;margin:12px 16px 0;display:none}
+.log{font-family:"DejaVu Sans Mono",ui-monospace,monospace;font-size:12px;max-height:200px;overflow:auto;background:var(--panel2);border-radius:8px;padding:8px}
+.log div{padding:2px 0}.log .t{color:var(--dim);margin-right:8px}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--grid);
+border-radius:10px;padding:10px 16px;max-width:92vw;box-shadow:0 6px 24px #0008;display:none;z-index:20}
+dialog{background:var(--panel);color:var(--fg);border:1px solid var(--grid);border-radius:14px;padding:20px;width:min(380px,92vw)}
+dialog::backdrop{background:#000a}
+.pill{display:inline-block;background:var(--panel2);border-radius:6px;padding:1px 7px;font-size:12px;color:var(--dim)}
+@media (max-width:560px){main{padding:10px 10px 90px}header{padding:8px 10px;position:static}.brand{font-size:16px}nav{padding:8px 10px 0}.lights{margin-left:0;width:100%}
+.hide-sm{display:none}}
+</style>
+</head>
+<body class="locked">
+<header>
+  <div class="hrow">
+    <div class="brand">▣ RPi400 Task Manager</div>
+    <div class="ip" id="hip">…</div>
+    <span class="chip" id="huser" title="The Pi's user account" style="cursor:default">👤 …</span>
+    <button class="chip" id="hpeople" title="Who's connected">👥 …</button>
+    <div class="lights" id="hlights"></div>
+    <button class="btn sm" id="loginBtn">🔒 Log in</button>
+  </div>
+</header>
+<div class="banner" id="banner"><span id="bannerText"></span> <button class="btn sm needs-auth" id="bannerOk">OK</button></div>
+<nav id="tabs">
+  <button data-tab="overview" class="sel">Overview</button>
+  <button data-tab="procs">Processes</button>
+  <button data-tab="network">Network</button>
+  <button data-tab="hotspot">Hotspot</button>
+  <button data-tab="tools">Tools</button>
+</nav>
+<main>
+<!-- OVERVIEW -->
+<section class="tab sel" id="t-overview">
+  <div class="card"><div class="gauges" id="gauges"></div></div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card">
+      <h3>CPU usage — last 2 minutes</h3>
+      <svg class="chart" id="cpuChart" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      <div class="bars" id="cores" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <h3>Power</h3>
+      <div class="kv" id="power"></div>
+      <div class="muted" style="margin-top:8px">Right now</div><div id="now"></div>
+      <div class="muted" style="margin-top:6px">Since boot</div><div id="past"></div>
+      <div class="muted" id="powerHint" style="margin-top:8px"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <h3>System</h3>
+    <div class="grid g3" id="system"></div>
+    <div id="svclights" style="margin-top:10px" class="small"></div>
+  </div>
+</section>
+
+<!-- PROCESSES -->
+<section class="tab" id="t-procs">
+  <div class="row" style="margin-bottom:10px">
+    <input type="text" id="pfilter" placeholder="Filter by name or PID" style="flex:1;min-width:180px">
+    <span class="muted" id="pcount"></span>
+  </div>
+  <div class="lockmsg when-locked" style="margin-bottom:10px">🔒 Log in to end or force-kill programs.</div>
+  <div class="tablewrap"><table id="ptable"><thead><tr>
+    <th data-k="pid" class="num">PID</th><th data-k="name">Name</th><th data-k="user" class="hide-sm">User</th>
+    <th data-k="cpu" class="num">CPU %</th><th data-k="mem" class="num">Mem %</th><th data-k="rss" class="num hide-sm">Memory</th>
+    <th class="needs-auth"></th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<!-- NETWORK -->
+<section class="tab" id="t-network">
+  <div class="grid g3" id="nics"></div>
+  <div class="card" style="margin-top:12px">
+    <h3>All traffic — last 2 minutes <span class="pill" style="color:var(--green)">● download</span> <span class="pill" style="color:var(--amber)">● upload</span> <span class="pill" id="netMax"></span></h3>
+    <svg class="chart" id="netChart" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+  </div>
+</section>
+
+<!-- HOTSPOT -->
+<section class="tab" id="t-hotspot">
+  <div class="grid">
+    <div class="card">
+      <h3>Wi-Fi hotspot</h3>
+      <div class="row" style="margin-bottom:10px"><span id="apState"></span></div>
+      <div class="row needs-auth" style="margin-bottom:10px">
+        <button class="btn acc" id="apBtn">Start hotspot</button>
+      </div>
+      <div class="lockmsg when-locked" style="margin-bottom:10px">🔒 Log in to start or stop the hotspot.</div>
+      <div class="row" style="align-items:flex-start;gap:16px">
+        <div class="kv" id="apInfo"></div>
+        <div><img class="qr" id="qr" alt="QR code to join the hotspot" src="/api/qr.svg"><div class="muted small" style="text-align:center">Scan with a phone camera to join</div></div>
+      </div>
+      <div class="muted small" style="margin-top:8px" id="apNote"></div>
+      <div class="row needs-auth" style="margin-top:12px;justify-content:space-between">
+        <label class="switch"><input type="checkbox" id="ledSw"><span class="trk"></span>Flash the green light while on</label>
+        <button class="btn sm" id="ledTest">Test</button>
+      </div>
+      <div class="needs-auth" style="margin-top:12px">
+        <label class="switch"><input type="checkbox" id="dataSw"><span class="trk"></span>Phones keep their mobile data</label>
+        <div class="muted small" id="dataNote" style="margin-top:4px"></div>
+      </div>
+      <details class="needs-auth small" id="apEdit" style="margin-top:12px"><summary class="muted" style="cursor:pointer">✏ Change the network name &amp; password</summary>
+        <div style="display:grid;gap:8px;margin-top:8px">
+          <label>Network name <span class="muted">(1 to 32 characters)</span><br><input type="text" id="apName" maxlength="32" autocomplete="off" spellcheck="false" style="width:100%"></label>
+          <label>Password <span class="muted">(8 to 63 characters)</span><br><input type="text" id="apPass" maxlength="63" autocomplete="off" spellcheck="false" style="width:100%"></label>
+          <div class="row"><button class="btn acc sm" id="apSave">Save</button><button class="btn sm" id="apDefault">Back to default</button></div>
+          <div id="apMsg" class="muted">Everyone joining needs the new name and password. If the hotspot is on, it restarts and devices drop off until they join again.</div>
+        </div>
+      </details>
+    </div>
+    <div class="card">
+      <h3>Who's connected <span id="peopleCount" class="pill"></span></h3>
+      <div class="lockmsg when-locked">🔒 Log in to see who's connected and the visitor log.</div>
+      <div class="needs-auth">
+        <div class="tablewrap" style="max-height:260px"><table id="activeT"><thead><tr><th>Device</th><th>IP</th><th class="hide-sm">Signal</th><th>Joined</th><th class="num">On for</th><th class="num">Data</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+  </div>
+  <div class="card needs-auth" style="margin-top:12px">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h3 style="margin:0">Visitor log</h3>
+      <div class="row"><a class="btn sm" href="/api/report.txt">💾 Save report</a><a class="btn sm" href="/api/visitors.csv">⬇ Spreadsheet log</a></div>
+    </div>
+    <div class="tablewrap" style="max-height:360px"><table id="histT"><thead><tr><th>When</th><th>Event</th><th>Device</th><th class="hide-sm">IP</th><th class="hide-sm">MAC</th><th class="num">Stayed</th><th class="num">Data</th></tr></thead><tbody></tbody></table></div>
+    <div class="muted small" id="logPath" style="margin-top:6px"></div>
+  </div>
+</section>
+
+<!-- TOOLS -->
+<section class="tab" id="t-tools">
+  <div class="lockmsg when-locked" style="margin-bottom:12px">🔒 The tools change the Pi, so they need the control password. <button class="btn sm acc" id="loginBtn2">Log in</button></div>
+  <div class="grid g3 needs-auth">
+    <div class="card">
+      <h3>Memory</h3>
+      <button class="btn acc full" data-act="dropcaches">🧹 Clean &amp; optimize memory</button>
+      <p class="muted">Drops cached files, compacts RAM and pulls swap back into memory. Best right before opening something big.</p>
+    </div>
+    <div class="card">
+      <h3>Bluetooth</h3>
+      <div class="row"><button class="btn acc" data-act="bt-rescue">🛟 Rescue Bluetooth</button><button class="btn" id="btScan">➕ Scan &amp; pair</button></div>
+      <div id="btList" style="margin-top:10px"></div>
+      <div class="code" id="btCode"></div>
+      <div class="muted" id="btMsg"></div>
+    </div>
+    <div class="card">
+      <h3>Performance</h3>
+      <div class="muted">CPU mode</div>
+      <div class="seg" id="govSeg" style="margin:4px 0 10px">
+        <label><input type="radio" name="gov" value="powersave">🔋 Battery saver</label>
+        <label><input type="radio" name="gov" value="ondemand">⚖ Balanced</label>
+        <label><input type="radio" name="gov" value="performance">🚀 Full speed</label>
+      </div>
+      <div class="muted">Overclock (applies after a reboot)</div>
+      <div class="row" id="ocBtns" style="margin:4px 0 6px"></div>
+      <div class="small">Current: <span id="ocNow"></span></div>
+    </div>
+    <div class="card">
+      <h3>🌍 Remote access</h3>
+      <div class="row" style="justify-content:space-between">
+        <label class="switch"><input type="checkbox" id="vpnSw"><span class="trk"></span>Tailscale</label>
+        <span class="muted small">reach this Pi from anywhere</span>
+      </div>
+      <div id="vpnInfo" class="small" style="margin-top:8px"></div>
+      <div id="vpnLogin" style="display:none;margin-top:10px;text-align:center">
+        <div class="small" style="text-align:left;margin-bottom:8px">One-time sign-in: scan this with your phone's camera, or tap the button, then sign in and press <b>Connect</b>.</div>
+        <img class="qr" id="vpnQr" alt="Tailscale sign-in code" style="margin:0 auto">
+        <a class="btn sm acc" id="vpnLink" target="_blank" rel="noopener noreferrer" style="margin-top:8px">Open the sign-in page</a>
+      </div>
+      <details class="small" style="margin-top:10px"><summary class="muted" style="cursor:pointer">More options</summary>
+        <div class="row" style="margin-top:8px"><input type="password" id="vpnKey" placeholder="tskey-… auth key" style="flex:1;min-width:140px"><button class="btn sm" id="vpnKeyGo">Join with key</button></div>
+        <button class="btn sm" id="vpnLogout" style="margin-top:8px">Sign out of Tailscale</button>
+      </details>
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <h3>🧪 Stability test</h3>
+      <p class="muted" style="margin-top:0">Runs all 4 cores flat out, checks every answer is correct, and watches temperature and throttling. If the speed is too high the Pi may freeze. The page will tell you next time it starts.</p>
+      <div class="row">
+        <div class="seg" id="durSeg">
+          <label><input type="radio" name="dur" value="1">1 min</label>
+          <label><input type="radio" name="dur" value="3" checked>3 min</label>
+          <label><input type="radio" name="dur" value="10">10 min</label>
+        </div>
+        <button class="btn acc" id="stStart">Start test</button><button class="btn" id="stStop">Stop</button>
+        <span class="muted" id="stSetting"></span>
+      </div>
+      <div class="grid g2" style="margin-top:10px">
+        <svg class="chart" id="stChart" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+        <div>
+          <div class="row" style="gap:22px">
+            <div><div class="muted small">Temperature</div><div class="big" id="stTemp">—</div></div>
+            <div><div class="muted small">Hottest</div><div class="big" id="stMax">—</div></div>
+            <div><div class="muted small">CPU clock</div><div class="big" id="stClock">—</div></div>
+            <div><div class="muted small">Time left</div><div class="big" id="stLeft">—</div></div>
+          </div>
+          <div id="stLights" class="small" style="margin-top:8px"></div>
+          <div class="progress" style="margin-top:10px"><div id="stBar"></div></div>
+          <div class="verdict" id="stVerdict"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Power</h3>
+      <div class="row"><button class="btn" data-act="reboot" data-confirm="Reboot the Pi now? This page will come back in about a minute.">Reboot</button>
+      <button class="btn danger" data-act="poweroff" data-confirm="Shut the Pi down now? You'll need to unplug and replug it to start it again.">Shut down</button></div>
+      <p class="muted">Use these instead of pulling the plug. It protects the SD card or SSD.</p>
+      <h3 style="margin-top:14px">Updates</h3>
+      <div class="row needs-auth"><button class="btn acc" id="updBtn">⬆ Update everything</button></div>
+      <div class="lockmsg when-locked">🔒 Log in to update the Pi.</div>
+      <p class="muted" id="updLine">System, firmware, The Shelf, Tailscale and this app, in one go.</p>
+      <div class="log needs-auth" id="updLog" style="display:none;max-height:260px;white-space:pre-wrap"></div>
+    </div>
+    <div class="card" style="grid-column:1/-1;min-width:0">
+      <h3>Activity log</h3>
+      <div class="log" id="actlog"></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<dialog id="loginDlg">
+  <form method="dialog" id="loginForm">
+    <h3 style="margin-top:0;color:var(--accent)">🔒 Control password</h3>
+    <p class="muted" style="margin-top:0">Anyone can look. Changing things needs the password you set when installing.</p>
+    <input type="password" id="pw" autocomplete="current-password" style="width:100%" placeholder="Password" required>
+    <div class="bad small" id="loginErr" style="min-height:1.4em;margin-top:6px"></div>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="loginCancel">Cancel</button><button type="submit" class="btn acc" id="loginGo" value="go">Log in</button></div>
+  </form>
+</dialog>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const C = {green:"#3ddc84",amber:"#ffb020",red:"#ff4d5a",off:"#39414c",accent:"#4fb3ff",panel2:"#262d36",fg:"#e8ebf0",dim:"#8b95a3"};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let INFO = {}, S = {}, AUTH = false, TAB = "overview", procSort = "cpu", procRows = [];
+
+async function api(path, body) {
+  const opt = body === undefined ? {} : {method:"POST", headers:{"Content-Type":"application/json","X-RZ":"1"}, body:JSON.stringify(body)};
+  const r = await fetch(path, Object.assign({credentials:"same-origin", cache:"no-store"}, opt));
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), {status:r.status});
+  return j;
+}
+function toast(msg, cls) {
+  const t = $("#toast"); t.innerHTML = `<span class="${cls||""}">${esc(msg)}</span>`; t.style.display = "block";
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = "none", 4200);
+}
+function setAuth(a) {
+  AUTH = a; document.body.className = a ? "unlocked" : "locked";
+  $("#loginBtn").textContent = a ? "🔓 Log out" : "🔒 Log in";
+}
+function dot(color, label) { return `<span class="dot" style="background:${color||C.off}"></span>${esc(label)}`; }
+
+// ---------- gauges
+function arcPath(frac) {
+  const cx = 60, cy = 60, r = 46, a0 = 210, sweep = 240 * Math.max(0.002, Math.min(1, frac));
+  const p = a => [cx + r * Math.cos(a * Math.PI / 180), cy - r * Math.sin(a * Math.PI / 180)];
+  const [x0, y0] = p(a0), [x1, y1] = p(a0 - sweep);
+  return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${sweep > 180 ? 1 : 0} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
+}
+function gaugeSVG(g) {
+  const v = g.value, frac = v == null ? 0 : (v - (g.min || 0)) / (g.max - (g.min || 0));
+  let col = C.off;
+  if (v != null) col = g.color || (v >= g.crit ? C.red : v >= g.warn ? C.amber : C.green);
+  return `<div class="gauge"><svg viewBox="0 0 120 112">
+    <path d="${arcPath(1)}" fill="none" stroke="${C.off}" stroke-width="10" stroke-linecap="round"/>
+    ${v == null ? "" : `<path d="${arcPath(frac)}" fill="none" stroke="${col}" stroke-width="10" stroke-linecap="round"/>`}
+    <text x="60" y="64" text-anchor="middle" fill="${C.fg}" font-size="20" font-weight="700">${esc(v == null ? "--" : g.text)}</text>
+    <text x="60" y="82" text-anchor="middle" fill="${C.dim}" font-size="8">${esc(g.sub || "")}</text>
+    </svg><div class="lbl">${esc(g.label)}</div></div>`;
+}
+function line(points, max, color) {
+  const n = points.length; if (n < 2) return "";
+  const d = points.map((v, i) => `${(i * 100 / (n - 1)).toFixed(2)},${(97 - Math.min(1, v / max) * 92).toFixed(2)}`).join(" ");
+  return `<polyline points="${d}" fill="none" stroke="${color}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+}
+function gridLines() { return [25, 50, 75].map(y => `<line x1="0" x2="100" y1="${y}" y2="${y}" stroke="#2c333d" vector-effect="non-scaling-stroke"/>`).join(""); }
+function fmtRate(b) { const u = ["B/s","KB/s","MB/s","GB/s"]; let i = 0; while (b >= 1024 && i < 3) { b /= 1024; i++; } return (i ? b.toFixed(1) : b.toFixed(0)) + " " + u[i]; }
+
+// ---------- render
+function renderHeader() {
+  $("#hip").textContent = (S.ips && S.ips.length) ? S.ips.join(" · ") : "no network";
+  const p = $("#hpeople");
+  p.textContent = S.ap_on ? `👥 ${S.people} on hotspot` : "👥 hotspot off";
+  p.classList.toggle("on", !!S.people);
+  let h = "";
+  for (const n of (S.nics || []).slice(0, 3)) {
+    h += `<span><b>${esc(n.name)}</b>${dot(n.up ? C.green : C.red, "LINK")}${dot(n.rx > 200 ? C.green : null, "RX")}${dot(n.tx > 200 ? C.amber : null, "TX")}</span>`;
+  }
+  const bt = !S.bt_present ? [C.red, "BT: none"] : !S.bt_powered ? [C.red, "BT off"] :
+             (S.bt_connected || []).length ? [C.green, "ᛒ " + S.bt_connected.join(", ").slice(0, 22)] : [C.amber, "ᛒ nothing connected"];
+  h += `<span>${dot(bt[0], bt[1])}</span>`;
+  $("#hlights").innerHTML = h;
+  const st = S.stability || {};
+  $("#banner").style.display = st.warning ? "block" : "none";
+  $("#bannerText").textContent = st.warning ? "⚠ " + st.warning : "";
+}
+function renderOverview() {
+  const g = [
+    {label:"CPU", value:S.cpu, max:100, warn:70, crit:90, text:Math.round(S.cpu) + "%", sub:INFO.ncpu + " cores"},
+    {label:"CPU clock", value:S.clock, max:S.clock_max || 1200, text:S.clock, sub:"MHz · max " + (S.clock_max || "?"), color:C.accent},
+    {label:"Temperature", value:S.temp, max:85, warn:65, crit:80, text:S.temp == null ? "--" : Math.round(S.temp) + "°C", sub:"slows at 80°C"},
+    {label:"Memory", value:S.mem && S.mem.pct, max:100, warn:80, crit:92, text:S.mem ? Math.round(S.mem.pct) + "%" : "", sub:S.mem ? S.mem.short : ""},
+    {label:"Swap", value:S.swap ? S.swap.pct : null, max:100, warn:50, crit:80, text:S.swap ? Math.round(S.swap.pct) + "%" : "", sub:S.swap ? S.swap.short : "no swap"},
+    {label:"Disk", value:S.disk && S.disk.pct, max:100, warn:80, crit:92, text:S.disk ? Math.round(S.disk.pct) + "%" : "", sub:S.disk ? S.disk.free + " free" : ""},
+  ];
+  $("#gauges").innerHTML = g.map(gaugeSVG).join("");
+  $("#cpuChart").innerHTML = gridLines() + line(S.cpu_hist || [], 100, C.accent);
+  $("#cores").innerHTML = (S.cores || []).map((v, i) =>
+    `<div class="bar"><span>Core ${i}</span><div class="track"><div class="fill" style="width:${v}%;background:${v >= 90 ? C.red : v >= 70 ? C.amber : C.accent}"></div></div><span class="pct">${v}%</span></div>`).join("");
+  const gov = {powersave:"Battery saver", ondemand:"Balanced", schedutil:"Balanced", performance:"Full speed"}[S.governor] || S.governor || "—";
+  $("#power").innerHTML = `<span>Core voltage</span><span>${S.vcore ? S.vcore.toFixed(3) + " V" : "—"}</span>
+    <span>CPU mode</span><span>${esc(gov)}</span><span>Overclock</span><span>${esc(S.oc || "—")}</span>`;
+  const th = S.throttled;
+  const names = ["Power", "Throttled", "Capped", "Hot"], nowBits = [0x1, 0x4, 0x2, 0x8], pastBits = [0x10000, 0x40000, 0x20000, 0x80000];
+  if (th == null) { $("#now").innerHTML = $("#past").innerHTML = names.map(n => dot(null, n)).join(""); $("#powerHint").textContent = "Power readings appear once the Pi firmware tools respond."; }
+  else {
+    $("#now").innerHTML = names.map((n, i) => dot(th & nowBits[i] ? C.red : C.green, i === 0 ? (th & 1 ? "Under-voltage!" : "Power OK") : n)).join("");
+    $("#past").innerHTML = names.map((n, i) => dot(th & pastBits[i] ? C.amber : null, n)).join("");
+    $("#powerHint").textContent = th & 1 ? "⚠ Supply is too weak right now. Use a 5 V 2.5 A micro-USB supply or a better cable/battery bank."
+      : th & 0x10000 ? "Voltage dipped at some point since boot. Common on battery banks and thin cables." : "Power has been solid since boot.";
+  }
+  $("#system").innerHTML = [["Host", INFO.host], ["Uptime", S.uptime], ["Load", (S.load || []).join("  ")], ["Processes", S.nprocs],
+    ["Disk read", S.disk_read], ["Disk write", S.disk_write], ["Model", (INFO.model || "").replace("Raspberry Pi", "Pi")], ["OS", INFO.os]]
+    .map(([k, v]) => `<div class="kv"><span>${k}</span><span>${esc(v ?? "—")}</span></div>`).join("");
+  $("#svclights").innerHTML = dot(S.ssh ? C.green : C.off, "SSH :22") + dot(S.ap_on ? C.green : null, S.ap_on ? `Hotspot (${S.people} connected)` : "Hotspot") +
+    dot(S.fallback ? C.green : null, "Auto-hotspot at boot") + dot(C.green, "Web page :" + INFO.port) +
+    dot(S.vpn && S.vpn.state === "Running" ? C.green : S.vpn && S.vpn.state === "NeedsLogin" ? C.amber : null, "Tailscale");
+}
+function renderNetwork() {
+  $("#nics").innerHTML = (S.nics || []).map(n => {
+    let extra = n.up ? "Connected" : "Not connected";
+    if (n.name.startsWith("wl")) extra = S.ap_on ? `Hosting ${esc(INFO.ssid)} · ${S.people} connected` : S.ssid ? `Joined “${esc(S.ssid)}”` + (S.signal != null ? ` · ${S.signal} dBm` : "") : "Not connected";
+    return `<div class="card"><h3>${esc(n.name)} · ${esc(n.kind)}</h3>
+      <div>${dot(n.up ? C.green : C.red, "LINK")}${dot(n.rx > 200 ? C.green : null, "RX")}${dot(n.tx > 200 ? C.amber : null, "TX")}</div>
+      <div class="kv" style="margin-top:6px"><span>IP</span><span>${esc(n.ip || "no address")}</span><span>Now</span><span>↓ ${esc(n.rx_rate)} ↑ ${esc(n.tx_rate)}</span>
+      <span>Since boot</span><span>↓ ${esc(n.rx_total)} ↑ ${esc(n.tx_total)}</span></div><div class="muted small" style="margin-top:6px">${extra}</div></div>`;
+  }).join("");
+  const h = S.net_hist || [], max = Math.max(1024, ...h.map(x => Math.max(x[0], x[1]))) * 1.2;
+  $("#netChart").innerHTML = gridLines() + line(h.map(x => x[0]), max, C.green) + line(h.map(x => x[1]), max, C.amber);
+  $("#netMax").textContent = "top: " + fmtRate(max);
+}
+function renderHotspot() {
+  $("#apState").innerHTML = S.ap_on ? dot(C.green, `Hotspot ON · ${S.people} connected`) : dot(null, S.nm === false ? "NetworkManager not found" : "Hotspot off");
+  $("#apBtn").textContent = S.ap_on ? "⏹ Stop hotspot" : "📶 Start hotspot";
+  $("#apInfo").innerHTML = `<span>Network</span><span>${esc(INFO.ssid)}</span><span>Password</span><span>${esc(INFO.pass)}</span>
+    <span>Pi address</span><span>${esc(INFO.ap_ip)}</span><span>This page</span><span>http://${esc(INFO.ap_ip)}:${INFO.port}</span><span>The Shelf</span><span>${esc(S.shelf_url || INFO.shelf)}</span>`;
+  $("#apNote").innerHTML = dot(S.fallback ? C.green : null, "Starts by itself at boot when there's no network") + " · " + (S.ap_band === "a" ? "5 GHz" : "2.4 GHz") + " (change the band in the Task Manager on the Pi)";
+  if (document.activeElement !== $("#ledSw")) $("#ledSw").checked = !!S.led;
+  if (S.ap_keep_data !== undefined) {
+    if (document.activeElement !== $("#dataSw")) $("#dataSw").checked = !!S.ap_keep_data;
+    $("#dataNote").textContent = S.ap_keep_data ? "Phones use the hotspot only to reach the Pi and The Shelf, and their mobile data for the internet."
+      : "Devices on the hotspot use the Pi's own internet. Only useful when the Pi is online (for example by Ethernet).";
+  }
+  if (S.ap_ssid && S.ap_ssid !== INFO.ssid) refreshInfo();
+  $("#peopleCount").textContent = S.ap_on ? S.people + " now" : "hotspot off";
+}
+let updWatching = false;
+async function watchUpdate(force) {
+  if (updWatching && !force) return;
+  updWatching = true;
+  try {
+    for (;;) {
+      let u; try { u = await api("/api/update"); } catch (e) { break; }
+      const box = $("#updLog"), atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
+      if (u.log) { box.style.display = ""; box.textContent = u.log; if (atEnd || u.state !== "running") box.scrollTop = box.scrollHeight; }
+      const steps = (u.log || "").split("\n").filter(l => l.startsWith("== "));
+      const last = steps.length ? steps[steps.length - 1].slice(3) : "";
+      if (u.state === "running") {
+        $("#updLine").innerHTML = `<span class="warn">Updating… ${esc(last)} (${fmtDur(Date.now() / 1000 - u.start)} so far). You can close this page; it keeps going.</span>`;
+        $("#updBtn").disabled = true;
+      } else {
+        $("#updBtn").disabled = false;
+        if (u.state === "done") $("#updLine").innerHTML = `<span class="ok">✔ Updated ${new Date(u.end * 1000).toLocaleString()}.</span>` +
+          (u.reboot ? ` <span class="warn">Restart the Pi to finish.</span> <button class="btn acc sm" data-act="reboot" data-confirm="Restart the Pi now to finish the update?">Restart now</button>` : "");
+        else if (u.state === "failed") $("#updLine").innerHTML = `<span class="bad">✖ ${esc(last || "The last update didn't finish.")}</span>`;
+        break;
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  } finally { updWatching = false; }
+}
+$("#updBtn").onclick = async () => {
+  if (!confirm("Update everything on this Pi now?\n\n• Raspberry Pi OS and all installed programs, including Tailscale\n• Firmware\n• The Shelf, the local AI engine and RPi Task Manager itself\n• Old versions and leftovers are removed\n\nIt needs internet and can take 5 to 30 minutes. Keep the Pi plugged in.")) return;
+  await act("update", {}, "Update everything");
+  watchUpdate(true);
+};
+function renderTools() {
+  if (AUTH && TAB === "tools" && !updWatching && !renderTools.checked) { renderTools.checked = true; watchUpdate(); }
+  if (!$("#govSeg").contains(document.activeElement)) {
+    const g = S.governor === "schedutil" ? "ondemand" : S.governor;
+    $$('input[name=gov]').forEach(r => r.checked = r.value === g);
+  }
+  $("#ocNow").textContent = S.oc || "—";
+  const st = S.stability || {};
+  $("#stSetting").textContent = "Testing: " + (S.oc || "").replace(" (overclocked)", "");
+  const temps = st.temps || [];
+  $("#stChart").innerHTML = gridLines() + line(temps.length ? temps : [0, 0], 90, C.amber);
+  const last = temps.length ? temps[temps.length - 1] : null;
+  $("#stTemp").textContent = last == null ? "—" : Math.round(last) + "°C";
+  $("#stTemp").style.color = last >= 80 ? C.red : last >= 70 ? C.amber : C.fg;
+  $("#stMax").textContent = st.max ? Math.round(st.max) + "°C" : "—";
+  $("#stClock").textContent = st.clock ? st.clock + " MHz" : "—";
+  $("#stLeft").textContent = st.running ? fmtDur(st.left) : st.verdict ? "0s" : "—";
+  $("#stBar").style.width = (st.running ? st.progress : st.verdict && st.level !== "dim" ? 100 : 0) + "%";
+  const seen = st.seen || 0, on = st.running || st.verdict;
+  $("#stLights").innerHTML = dot(on ? (seen & 1 ? C.red : C.green) : null, "Power") + dot(on ? (seen & 6 ? C.amber : C.green) : null, "Throttled") +
+    dot(on ? (seen & 8 ? C.amber : C.green) : null, "Hot") + dot(on ? (st.errors ? C.red : C.green) : null, "Wrong answers");
+  $("#stVerdict").textContent = st.running ? "Running on all cores… keep an eye on the temperature." : (st.verdict || "");
+  $("#stVerdict").className = "verdict " + ({ok:"ok", warn:"warn", bad:"bad", dim:"dimc"}[st.level] || "");
+  $("#stStart").disabled = !!st.running; $("#stStop").disabled = !st.running;
+  renderVpn();
+  $("#actlog").innerHTML = (S.log || []).slice().reverse().map(l => `<div class="${l.ok === true ? "ok" : l.ok === false ? "bad" : ""}"><span class="t">${esc(l.t)}</span>${esc(l.text)}</div>`).join("") || '<div class="muted">Nothing yet.</div>';
+}
+let vpnBusyUntil = 0, vpnQrUrl = "";
+function renderVpn() {
+  const v = S.vpn; if (!v) return;
+  if (Date.now() > vpnBusyUntil && document.activeElement !== $("#vpnSw")) $("#vpnSw").checked = v.state === "Running";
+  let t, cls = "muted";
+  if (!v.installed) t = "Off. Switch on to set it up. The Pi needs internet once, and it's free for personal use.";
+  else if (v.state === "Running") { t = `On. This Pi is <b>${esc(v.ip)}</b>${v.name ? " (" + esc(v.name.split(".")[0]) + ")" : ""}. From your phone or PC on Tailscale, open <b>http://${esc(v.ip)}:${INFO.port}</b> or use <b>ssh</b> to ${esc(v.ip)}.` + (v.peers ? ` ${v.peers} of your devices online.` : ""); cls = "ok"; }
+  else if (v.state === "NeedsLogin") { t = v.auth_url ? "Waiting for you to sign in…" : "Needs a one-time sign-in. Switch it on to get the sign-in code."; cls = "warn"; }
+  else t = "Off. You're still signed in, so switching on is instant.";
+  if (S.ap_on && v.state !== "Running") t += " <br><span class='warn'>While the Pi runs its own hotspot it has no internet, so Tailscale can't connect. Use it while the Pi is on your normal Wi-Fi.</span>";
+  $("#vpnInfo").innerHTML = t; $("#vpnInfo").className = "small " + cls;
+  const showLogin = v.state === "NeedsLogin" && !!v.auth_url;
+  $("#vpnLogin").style.display = showLogin ? "block" : "none";
+  if (showLogin && vpnQrUrl !== v.auth_url) { vpnQrUrl = v.auth_url; $("#vpnQr").src = "/api/vpn-qr.svg?u=" + encodeURIComponent(v.auth_url); $("#vpnLink").href = v.auth_url; }
+}
+function fmtDur(s) { s = Math.max(0, s | 0); const m = Math.floor(s / 60); return m ? `${m}m ${String(s % 60).padStart(2, "0")}s` : `${s}s`; }
+
+// ---------- processes
+async function loadProcs() {
+  try { const j = await api("/api/procs?sort=" + procSort); procRows = j.rows; $("#pcount").textContent = `${j.total} processes`; renderProcs(); } catch (e) {}
+}
+function renderProcs() {
+  const f = $("#pfilter").value.trim().toLowerCase();
+  const rows = procRows.filter(r => !f || r.name.toLowerCase().includes(f) || String(r.pid).includes(f));
+  $("#ptable tbody").innerHTML = rows.map(r => `<tr><td class="num">${r.pid}</td><td>${esc(r.name)}</td><td class="hide-sm">${esc(r.user)}</td>
+    <td class="num">${r.cpu.toFixed(1)}</td><td class="num">${r.mem.toFixed(1)}</td><td class="num hide-sm">${esc(r.rss_h)}</td>
+    <td class="needs-auth"><button class="btn sm" data-kill="${r.pid}" data-name="${esc(r.name)}">End</button>
+    <button class="btn sm danger" data-kill="${r.pid}" data-force="1" data-name="${esc(r.name)}">Kill</button></td></tr>`).join("");
+  $$("#ptable th").forEach(th => th.textContent = th.textContent.replace(/ [▼▲]$/, "") + (th.dataset.k === procSort ? " ▼" : ""));
+}
+
+// ---------- visitors
+async function loadVisitors() {
+  if (!AUTH) return;
+  try {
+    const v = await api("/api/visitors");
+    $("#activeT tbody").innerHTML = v.active.map(a => `<tr><td>${esc(a.name)}</td><td>${esc(a.ip || "…")}</td>
+      <td class="hide-sm">${a.signal != null ? esc(a.signal + " dBm " + a.quality) : "—"}</td><td>${esc(a.joined)}</td>
+      <td class="num">${esc(a.duration)}</td><td class="num">${esc(a.data)}</td>
+      <td><button class="btn sm danger" data-kick="${esc(a.mac)}" data-name="${esc(a.name)}">Disconnect</button></td></tr>`).join("")
+      || `<tr><td colspan="7" class="muted">Nobody right now.</td></tr>`;
+    $("#histT tbody").innerHTML = v.history.map(r => {
+      const cls = r.Event === "Joined" ? "joined" : r.Event === "Left" ? "left" : "sys";
+      return `<tr class="${cls}"><td>${esc(r.Date + " " + r.Time)}</td><td>${esc(r.Event)}</td><td>${esc(r["Device name"])}</td>
+        <td class="hide-sm">${esc(r["IP address"])}</td><td class="hide-sm">${esc(r["MAC address"])}</td><td class="num">${esc(r.Stayed)}</td><td class="num">${esc(r["Data used"])}</td></tr>`;
+    }).join("") || `<tr><td colspan="7" class="muted">No visitors yet.</td></tr>`;
+    $("#logPath").textContent = v.error || "Every join and leave is also saved on the Pi in " + v.path;
+  } catch (e) {}
+}
+
+// ---------- actions
+async function act(action, extra, label) {
+  try {
+    const j = await api("/api/action", Object.assign({action}, extra || {}));
+    if (j.job) return await watchJob(j.job, label);
+    poll();
+  } catch (e) { if (e.status === 403) { setAuth(false); openLogin(); } toast(e.message, "bad"); }
+}
+async function watchJob(id, label, onEvent) {
+  toast("⏳ " + (label || "Working…"));
+  for (;;) {
+    await new Promise(r => setTimeout(r, 700));
+    let j; try { j = await api("/api/job/" + id); } catch (e) { return null; }
+    if (onEvent) onEvent(j);
+    if (j.done) { toast((j.rc === 0 ? "✔ " : "✖ ") + j.label + (j.out ? " — " + j.out.split("\n").slice(-1)[0] : ""), j.rc === 0 ? "ok" : "bad"); poll(); return j; }
+  }
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]");
+  if (b) { if (b.dataset.confirm && !confirm(b.dataset.confirm)) return; act(b.dataset.act, {}, b.textContent.trim()); return; }
+  const k = e.target.closest("[data-kill]");
+  if (k) { const force = !!k.dataset.force; if (confirm(`${force ? "Force kill" : "End"} “${k.dataset.name}” (PID ${k.dataset.kill})?`)) act("kill", {pid:+k.dataset.kill, force}, (force ? "Force kill " : "End ") + k.dataset.name).then(loadProcs); return; }
+  const q = e.target.closest("[data-kick]");
+  if (q) { if (confirm(`Disconnect ${q.dataset.name}? They can rejoin if they still have the password.`)) act("kick", {mac:q.dataset.kick}, "Disconnect " + q.dataset.name); return; }
+  const oc = e.target.closest("[data-oc]");
+  if (oc) {
+    if (!confirm(`Set the CPU to ${oc.dataset.full}? It takes effect after a reboot. A backup of config.txt is kept.\n\nAfter rebooting, run the Stability test.`)) return;
+    act("oc", {profile:oc.dataset.oc}, "Overclock → " + oc.dataset.full).then(j => { if (j && j.rc === 0 && confirm("Saved. Reboot now to apply it?")) act("reboot", {}, "Reboot"); });
+  }
+  const p = e.target.closest("[data-pair]");
+  if (p) pair(p.dataset.pair, p.dataset.name);
+});
+$("#apBtn").onclick = () => {
+  if (S.ap_on) { if (confirm("Stop the hotspot? Anyone using this page over the hotspot will lose the connection.")) act("ap-down", {}, "Stop hotspot"); }
+  else if (confirm(`Start the ${INFO.ssid} hotspot?` + (S.ssid ? `\n\nThis disconnects Wi-Fi from “${S.ssid}”. If you're on this page over that Wi-Fi, join ${INFO.ssid} and open http://${INFO.ap_ip}:${INFO.port}` : ""))) act("ap-up", {}, "Start hotspot");
+};
+let infoBusy = false;
+async function refreshInfo() {
+  if (infoBusy) return; infoBusy = true;
+  setTimeout(() => infoBusy = false, 3000);
+  try { Object.assign(INFO, await api("/api/info")); } catch (e) { return; }
+  $("#qr").src = "/api/qr.svg?v=" + encodeURIComponent(INFO.ssid + "|" + INFO.pass);
+  if (S) renderHotspot();
+}
+function apProblem(n, p) {
+  const ok = v => /^[ -~]+$/.test(v);
+  if (n.length < 1 || n.length > 32 || n !== n.trim() || !ok(n)) return "The network name must be 1 to 32 letters, numbers or symbols, with no spaces at the start or end.";
+  if (p.length < 8 || p.length > 63 || !ok(p)) return "The password must be 8 to 63 letters, numbers or symbols.";
+  return "";
+}
+$("#apEdit").addEventListener("toggle", () => { if ($("#apEdit").open) { $("#apName").value = INFO.ssid; $("#apPass").value = INFO.pass; $("#apMsg").className = "muted"; } });
+async function saveAp(extra, label) {
+  const j = await act("ap-set", extra, label);
+  await refreshInfo();
+  if (j && j.rc === 0) { $("#apEdit").open = false; }
+}
+$("#apSave").onclick = () => {
+  const n = $("#apName").value, p = $("#apPass").value, bad = apProblem(n, p);
+  if (bad) { $("#apMsg").textContent = bad; $("#apMsg").className = "bad"; return; }
+  if (n === INFO.ssid && p === INFO.pass) { $("#apEdit").open = false; return; }
+  if (S.ap_on && !confirm(`Rename the hotspot to “${n}”?\n\nIt restarts, so everyone on it (including you, if you're on this page over the hotspot) drops off and has to join “${n}” with the new password.`)) return;
+  saveAp({ssid:n, password:p}, "Hotspot name → " + n);
+};
+$("#apDefault").onclick = () => {
+  if (!confirm("Go back to the original name and password (RPI400-OPEN / fifty-seven57)?" + (S.ap_on ? "\n\nThe hotspot restarts and everyone on it has to join again." : ""))) return;
+  saveAp({default:true}, "Hotspot name → default");
+};
+["#apName", "#apPass"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") $("#apSave").click(); }));
+["#apName", "#apPass"].forEach(id => $(id).addEventListener("input", () => { if ($("#apMsg").className === "bad") { $("#apMsg").className = "muted"; $("#apMsg").textContent = ""; } }));
+$("#dataSw").onchange = e => {
+  const keep = e.target.checked;
+  if (S.ap_on && !confirm("The hotspot restarts to apply this, so connected devices drop off for a few seconds and then rejoin by themselves.\n\nGo ahead?")) { e.target.checked = !keep; return; }
+  act("ap-data", {mode: keep ? "keep" : "share"}, "Phones keep their mobile data: " + (keep ? "on" : "off"));
+};
+$("#ledSw").onchange = e => act(e.target.checked ? "led-on" : "led-off", {}, "Flash light: " + (e.target.checked ? "on" : "off"));
+$("#ledTest").onclick = () => act("led-test", {}, "Light test");
+$("#vpnSw").onchange = e => {
+  const on = e.target.checked;
+  if (on && S.vpn && !S.vpn.installed && !confirm("Set up Tailscale?\n\nIt lets you reach this Pi from anywhere, even on mobile data, with no router setup. Free for personal use: you sign in once with a Google, Microsoft, Apple or GitHub account.\n\nThe Pi needs internet for the one-minute install.")) { e.target.checked = false; return; }
+  vpnBusyUntil = Date.now() + 120000;
+  act(on ? "vpn-on" : "vpn-down", {}, on ? "Tailscale on" : "Tailscale off").then(() => { vpnBusyUntil = 0; });
+};
+$("#vpnKeyGo").onclick = () => { const k = $("#vpnKey").value.trim(); if (!k) return; act("vpn-key", {key:k}, "Join Tailscale with a key").then(() => $("#vpnKey").value = ""); };
+$("#vpnLogout").onclick = () => { if (confirm("Sign this Pi out of Tailscale? Switching it on again will ask you to sign in.")) act("vpn-logout", {}, "Sign out of Tailscale"); };
+$$('input[name=gov]').forEach(r => r.onchange = () => act("gov", {mode:r.value}, "CPU mode → " + r.parentElement.textContent.trim()));
+$("#stStart").onclick = () => act("stability-start", {minutes:+document.querySelector('input[name=dur]:checked').value});
+$("#stStop").onclick = () => act("stability-stop");
+$("#bannerOk").onclick = () => act("dismiss-warning");
+$("#hpeople").onclick = () => showTab("hotspot");
+$("#pfilter").oninput = renderProcs;
+$$("#ptable th[data-k]").forEach(th => th.onclick = () => { procSort = th.dataset.k; loadProcs(); });
+
+// ---------- bluetooth
+$("#btScan").onclick = async () => {
+  $("#btList").innerHTML = '<div class="muted">Put the mouse or keyboard into pairing mode… scanning for 10 seconds.</div>'; $("#btCode").textContent = ""; $("#btMsg").textContent = "";
+  try {
+    const {job} = await api("/api/action", {action:"bt-scan"});
+    const j = await watchJob(job, "Bluetooth scan");
+    const devs = (j && j.devices) || [];
+    $("#btList").innerHTML = devs.length ? devs.map(d => `<div class="devrow">
+      <span>${esc(d.name)} <span class="muted small">${esc(d.mac)}</span>${d.paired ? ' <span class="pill">paired</span>' : ""}</span>
+      <button class="btn sm acc" data-pair="${esc(d.mac)}" data-name="${esc(d.name)}">Pair</button></div>`).join("")
+      : '<div class="warn">Nothing found. Check it is in pairing mode and scan again.</div>';
+  } catch (e) { toast(e.message, "bad"); }
+};
+async function pair(mac, name) {
+  $("#btCode").textContent = ""; $("#btMsg").textContent = `Pairing with ${name}… up to a minute.`;
+  try {
+    const {job} = await api("/api/action", {action:"bt-pair", mac});
+    const j = await watchJob(job, "Pair " + name, jj => {
+      for (const ev of jj.events || []) {
+        if (ev.kind === "passkey") { $("#btCode").textContent = ev.text; $("#btMsg").textContent = "Type this code on the NEW keyboard, then press its Enter key."; }
+        if (ev.kind === "confirm") { $("#btCode").textContent = ev.text; $("#btMsg").textContent = "Code confirmed automatically."; }
+        if (ev.kind === "info") $("#btMsg").textContent = ev.text;
+      }
+    });
+    if (j) { $("#btMsg").textContent = `${name}: ${j.out}`; $("#btMsg").className = j.rc === 0 ? "ok" : "bad"; if (j.rc === 0) $("#btCode").textContent = ""; }
+  } catch (e) { toast(e.message, "bad"); }
+}
+
+// ---------- login
+function openLogin() { $("#loginErr").textContent = ""; $("#pw").value = ""; $("#loginDlg").showModal(); $("#pw").focus(); }
+$("#loginBtn").onclick = async () => { if (AUTH) { await api("/api/logout", {}); setAuth(false); toast("Logged out"); poll(); } else openLogin(); };
+$("#loginBtn2").onclick = openLogin;
+$("#loginCancel").onclick = () => $("#loginDlg").close();
+$("#loginForm").onsubmit = async e => {   // Enter in the password box and the Log in button both land here
+  e.preventDefault();
+  $("#loginGo").disabled = true;
+  try { await api("/api/login", {password:$("#pw").value}); $("#loginDlg").close(); setAuth(true); toast("🔓 Logged in", "ok"); poll(); loadVisitors(); }
+  catch (err) { $("#loginErr").textContent = err.message; }
+  $("#loginGo").disabled = false;
+};
+
+// ---------- tabs + polling
+function showTab(t) {
+  TAB = t; $$("nav button").forEach(b => b.classList.toggle("sel", b.dataset.tab === t));
+  $$(".tab").forEach(s => s.classList.toggle("sel", s.id === "t-" + t));
+  if (t === "procs") loadProcs(); if (t === "hotspot") loadVisitors();
+  try { localStorage.setItem("rz-tab", t); } catch (e) {}
+}
+$$("nav button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+async function poll() {
+  try {
+    S = await api("/api/stats");
+    if (S.authed !== AUTH) setAuth(S.authed);
+    renderHeader(); renderOverview(); renderNetwork(); renderHotspot(); renderTools();
+  } catch (e) { $("#hip").textContent = "⚠ can't reach the Pi"; }
+}
+(async () => {
+  try { INFO = await api("/api/info"); setAuth(INFO.authed); } catch (e) {}
+  $("#huser").textContent = "👤 " + (INFO.user || "?");
+  document.title = INFO.app || document.title;
+  $("#ocBtns").innerHTML = (INFO.oc_presets || []).map(([p, t, f]) => `<button class="btn" data-oc="${p}" data-full="${esc(f)}">${esc(t)}</button>`).join("");
+  let t = "overview"; try { t = localStorage.getItem("rz-tab") || t; } catch (e) {}
+  showTab(t); poll();
+  setInterval(poll, 2000);
+  setInterval(() => { if (TAB === "procs") loadProcs(); if (TAB === "hotspot") loadVisitors(); }, 3500);
+})();
+</script>
+</body>
+</html>
