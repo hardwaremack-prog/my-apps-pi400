@@ -2,6 +2,8 @@
 
 A clickable menu of all my apps and games for the Pi 400, with server lights at the top.
 
+![My Apps on the Pi 400](screenshot.png)
+
 - **Games**, **Apps** and the **Tidy Suite** as big tiles (arrow keys, Enter, `/` to search)
 - **Server lights**: this Pi's temperature, CPU, memory, SD card and power, plus a green/red light
   for every server (SSH, VNC, The Shelf, PiMesh, PodDeck, Blueprint Wiki, NetPulse, Pip, ...)
