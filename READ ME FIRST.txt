@@ -126,6 +126,9 @@ RAID FORGE (point-and-click RAID 0, 1, 5, 6 or 10)
   array and sets it to come back after every reboot. The My Arrays tab
   shows rebuild progress and can swap a failed drive, add a spare,
   scrub and speed-test; Drive Health shows SMART pass/fail and temps.
+  'Move system to RAID' copies the whole SD card system onto an array
+  so the Pi runs from the RAID and the SD card only starts it ('Boot
+  from SD again' switches back). Use RAID 1 or better for that.
   The Pi 400 has no PCIe connector, so use its blue USB 3 ports with
   powered drives or a multi-bay USB dock (a Pi 5 can also use SATA/NVMe HATs).
   Start it with the RAID Forge icon on the Desktop (menu: System Tools)

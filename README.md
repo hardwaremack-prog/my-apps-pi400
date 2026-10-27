@@ -11,7 +11,7 @@ A clickable menu of all my apps and games for the Pi 400, with server lights at 
 - **RPi400 Task Manager**: Windows-style Task Manager (Ctrl+Shift+Esc) with an Update everything button
 - **Pip**: offline voice assistant for your headset
 - **RPi400 Performance**: make the Pi run as fast as it can
-- **RAID Forge**: point-and-click RAID 0/1/5/6/10 on USB 3 drives or a drive HAT, with a safe demo mode
+- **RAID Forge**: point-and-click RAID 0/1/5/6/10 on USB 3 drives or a drive HAT, can move the whole system onto the RAID, with a safe demo mode
 
 ## Set up
 Unzip it on the Pi and run `Set Up My Apps.sh` once (double-click, then *Execute in Terminal*).
