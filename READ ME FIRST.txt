@@ -119,6 +119,19 @@ PIP (offline voice assistant)
   On the Pi 400 it picks the slim, quicker setup by itself.
   Update it with the Update Pip icon or the gear menu inside Pip.
 
+RAID FORGE (point-and-click RAID 0, 1, 5, 6 or 10)
+  Boot from the SD card, plug in your drives, tick the ones to use and
+  pick a RAID level. It shows the usable space and how many drives you
+  can lose, then (after you type ERASE) builds, formats and mounts the
+  array and sets it to come back after every reboot. The My Arrays tab
+  shows rebuild progress and can swap a failed drive, add a spare,
+  scrub and speed-test; Drive Health shows SMART pass/fail and temps.
+  The Pi 400 has no PCIe connector, so use its blue USB 3 ports with
+  powered drives or a multi-bay USB dock (a Pi 5 can also use SATA/NVMe HATs).
+  Start it with the RAID Forge icon on the Desktop (menu: System Tools)
+  or its tile. RAID Forge (Demo) in the menu uses pretend drives and
+  changes nothing - try that first. RAID is not a backup.
+
 PIDIRSTAT (disk space viewer)
   Shows what's filling up the SD card: biggest folders, file types and
   a colored block map like WinDirStat. It's a small Python program, so

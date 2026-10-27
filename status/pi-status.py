@@ -54,6 +54,10 @@ KNOWN = [
          note="RPi400 Task Manager for phones and PCs."),
     dict(id="pip", name="Pip", title=r"\bpip\b", ports=[8765], launch="pip-voice",
          note="Offline voice chat."),
+    dict(id="raidforge", name="RAID Forge", kind="launch", ports=[], launch="raidforge",
+         note="Software RAID builder (desktop window)."),
+    dict(id="raidforge-demo", name="RAID Forge demo", kind="launch", ports=[], launch="raidforge-demo",
+         note="RAID Forge with pretend drives."),
     dict(id="rdp", name="Remote Desktop", kind="tcp", ports=[3389], note="xrdp: connect from Windows Remote Desktop."),
     dict(id="samba", name="File sharing", kind="tcp", ports=[445], note="Samba: this Pi's shared folders."),
 ]
@@ -241,6 +245,8 @@ def scan():
                 used.add(hit)
     for k in KNOWN:
         kind = k.get("kind", "web")
+        if kind == "launch":      # desktop programs: startable from the menu, no server light
+            continue
         if kind == "web":
             p = k["_port"]
             up = p is not None

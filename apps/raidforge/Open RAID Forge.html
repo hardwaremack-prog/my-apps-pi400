@@ -1,0 +1,56 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAID Forge</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#e6edf3;font:16px/1.5 "DejaVu Sans",system-ui,sans-serif;padding:16px;box-sizing:border-box;
+  background:radial-gradient(900px 400px at 10% -10%,#4a1226 0%,transparent 60%),radial-gradient(700px 400px at 110% 10%,#123049 0%,transparent 60%),#0f1419}
+.box{max-width:600px;width:100%;background:#161d26;border:2px solid #2a3646;border-radius:18px;padding:28px}
+h1{margin:0 0 6px;font-size:26px;display:flex;align-items:center;gap:14px}
+h1 img{width:52px;height:52px;border-radius:12px}
+p{color:#8b98a9;margin:10px 0} b{color:#e6edf3}
+code{background:#0f1419;border:1px solid #2a3646;border-radius:6px;padding:2px 7px;color:#ff6b93;font-size:13.5px}
+ul{padding-left:20px;color:#c9d1d9;margin:8px 0} li{margin:4px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
+button{appearance:none;border:0;border-radius:999px;padding:12px 22px;font:inherit;font-weight:800;cursor:pointer;background:#c51a4a;color:#fff}
+button.alt{background:transparent;color:#e6edf3;border:2px solid #2a3646}
+button:disabled{opacity:.55;cursor:default}
+.st{display:inline-flex;align-items:center;gap:8px;color:#8b98a9;font-size:14.5px}
+</style></head><body><div class="box">
+<h1><img src="raidforge.svg" alt="">RAID Forge</h1>
+<p>Point-and-click RAID 0, 1, 5, 6 or 10. Boot from the SD card, plug in your drives, tick the boxes and it builds, formats and mounts the array, and brings it back after every reboot.</p>
+<ul>
+<li><b>Pi 5</b>: SATA or NVMe HAT (it can switch PCIe on for you) or USB 3 drives</li>
+<li><b>Pi 500 / Pi 400</b>: no PCIe, so use the blue USB 3 ports with powered drives or a multi-bay dock</li>
+<li>Live rebuild progress, drive replacement, hot spares, scrubs, speed test and SMART health</li>
+</ul>
+<div class="row">
+  <button id="go">Open RAID Forge</button>
+  <button class="alt" id="demo">Try the demo</button>
+  <span class="st" id="st">Checking…</span>
+</div>
+<p style="margin-top:18px">It opens in its own window. Or use the <b>RAID Forge</b> icon on the Desktop (menu: <b>System Tools</b>). The demo uses pretend drives and changes nothing. Building an array <b>erases the drives you tick</b>, and RAID is not a backup.</p>
+<p>By hand: <code>python3 ~/Desktop/"My Apps"/apps/raidforge/raidforge.py</code> (add <code>--demo</code> to try it).</p>
+</div>
+<script src="../../status/token.js"></script>
+<script>
+const BASE='http://127.0.0.1:'+((window.MYAPPS_STATUS&&MYAPPS_STATUS.port)||8399);
+const $=id=>document.getElementById(id);
+function reloadToken(){return new Promise(r=>{const s=document.createElement('script');s.src='../../status/token.js?'+Date.now();s.onload=s.onerror=()=>{s.remove();r()};document.head.appendChild(s)})}
+async function post(path,body,retry=true){
+  try{const r=await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json','X-MyApps-Key':(window.MYAPPS_STATUS||{}).token||''},body:JSON.stringify(body)});
+    if(r.status===403&&retry){await reloadToken();return post(path,body,false)} return await r.json();
+  }catch(e){return {ok:false,msg:'The My Apps helper is not running. Run Set Up My Apps.sh once.'}}
+}
+async function check(){
+  try{await fetch(BASE+'/status',{cache:'no-store'});$('st').textContent='Ready';}
+  catch(e){$('st').textContent='Can\'t start it from here (run Set Up My Apps.sh once) - use the Desktop icon'}
+}
+async function start(id,btn){
+  btn.disabled=true;$('st').textContent='Opening its window…';
+  const r=await post('/start',{id});
+  $('st').textContent=r.ok?'Opening its window… (it may ask for your password when it changes drives)':(r.msg||'Couldn\'t start it.');
+  setTimeout(()=>{btn.disabled=false},4000);
+}
+$('go').onclick=()=>start('raidforge',$('go'));
+$('demo').onclick=()=>start('raidforge-demo',$('demo'));
+check();
+</script></body></html>

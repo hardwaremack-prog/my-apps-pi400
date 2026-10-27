@@ -271,6 +271,44 @@ Categories=Game;"
   gio set "$DESK/Frostfall Cabins Server.desktop" metadata::trusted true 2>/dev/null || true
 fi
 
+# 3f3. RAID Forge (software RAID 0/1/5/6/10 builder; opens in its own window)
+RF="$DEST/apps/raidforge"
+if [ -f "$RF/raidforge.py" ]; then
+  chmod +x "$RF/raidforge.py" "$RF/install.sh" 2>/dev/null || true
+  RFL="[Desktop Entry]
+Type=Application
+Name=RAID Forge
+Comment=Build and manage RAID 0/1/5/6/10 arrays
+Exec=python3 \"$RF/raidforge.py\"
+Path=$RF
+Icon=$RF/raidforge.svg
+Terminal=false
+Categories=System;Utility;"
+  RFD="[Desktop Entry]
+Type=Application
+Name=RAID Forge (Demo)
+Comment=Try RAID Forge with pretend drives - changes nothing
+Exec=python3 \"$RF/raidforge.py\" --demo
+Path=$RF
+Icon=$RF/raidforge.svg
+Terminal=false
+Categories=System;Utility;"
+  printf '%s\n' "$RFL" > "$HOME/.local/share/applications/raidforge.desktop"
+  printf '%s\n' "$RFD" > "$HOME/.local/share/applications/raidforge-demo.desktop"
+  printf '%s\n' "$RFL" > "$DESK/RAID Forge.desktop"
+  chmod +x "$DESK/RAID Forge.desktop" "$HOME/.local/share/applications/raidforge.desktop" \
+    "$HOME/.local/share/applications/raidforge-demo.desktop"
+  gio set "$DESK/RAID Forge.desktop" metadata::trusted true 2>/dev/null || true
+  if ! python3 -c "import tkinter" 2>/dev/null || ! command -v mdadm >/dev/null 2>&1; then
+    echo
+    echo "  RAID Forge needs two small packages (python3-tk for its window, mdadm for RAID)."
+    if ask "  Install them now? You'll be asked for your password. [Y/n] " y; then
+      sudo apt-get install -y --no-install-recommends python3-tk mdadm smartmontools \
+        || echo "  Note: that didn't finish. Try:  sudo apt-get install python3-tk mdadm smartmontools"
+    fi
+  fi
+fi
+
 # 3g. PiSnip (Snipping Tool) - runs its own installer the first time, or when there's a newer copy.
 #     The installer adds the Snipping Tool icon, menu entry and Print Screen shortcut.
 PS="$DEST/apps/pisnip"
@@ -395,7 +433,7 @@ done
 
 echo
 echo "  All set! Double-click 'My Apps' on the Desktop,"
-echo "  (RPi400 Performance, the Task Manager, Pip, NetPulse, NetSentry, Halo Studio, PiDirStat, PON Lab, PON Fleet, WiFi Share, Blueprint Wiki, PodDeck, PiMesh, Frostfall Cabins Server and the Snipping Tool have their own icons too),"
+echo "  (RPi400 Performance, the Task Manager, Pip, NetPulse, NetSentry, Halo Studio, PiDirStat, PON Lab, PON Fleet, WiFi Share, Blueprint Wiki, PodDeck, PiMesh, Frostfall Cabins Server, RAID Forge and the Snipping Tool have their own icons too),"
 echo "  or find it in the Raspberry Pi menu under Games."
 echo "  The server lights (SSH, VNC, The Shelf, PiMesh and more) are at the top of the menu."
 [ -n "$NEED_REBOOT" ] && echo "  Restart the Pi once so the Task Manager starts cleanly:  sudo reboot"
