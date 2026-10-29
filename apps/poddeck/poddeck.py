@@ -10,6 +10,7 @@ Options (environment variables):
   PODDECK_PORT=8070          port to listen on
   PODDECK_HOST=0.0.0.0       use 127.0.0.1 to allow only this Pi
   PODDECK_PASSWORD=secret    require a password (strongly recommended on a shared network)
+  PODDECK_PASSWORD_FILE=path read the password from a file instead (install.sh uses this)
   PODDECK_PODMAN=podman      path to the podman command
 """
 import base64
@@ -20,6 +21,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -28,6 +30,13 @@ from urllib.parse import urlparse, parse_qs
 PORT = int(os.environ.get("PODDECK_PORT", "8070"))
 HOST = os.environ.get("PODDECK_HOST", "0.0.0.0")
 PASSWORD = os.environ.get("PODDECK_PASSWORD", "")
+_pwfile = os.environ.get("PODDECK_PASSWORD_FILE", "")
+if _pwfile:
+    try:
+        PASSWORD = Path(_pwfile).expanduser().read_text().rstrip("\r\n")
+    except OSError as e:
+        print(f"Couldn't read the password file ({e}); refusing to start without a password.")
+        raise SystemExit(1)
 PODMAN = os.environ.get("PODDECK_PODMAN", "podman")
 HERE = Path(__file__).resolve().parent
 UI_FILE = HERE / "ui.html"
@@ -40,6 +49,41 @@ SAFE_VOL = re.compile(r"^[^\x00:]{1,300}:[^\x00:]{1,300}(:(ro|rw|z|Z))?$")
 RESTART = {"no", "always", "on-failure", "unless-stopped"}
 
 SESSIONS = set()
+VERSION = "1.1"
+STATE_DIR = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "poddeck"
+
+
+def qualify_image(name):
+    """Turn a short name like 'nginx' or 'louislam/uptime-kuma' into a full one.
+    Raspberry Pi OS ships Podman with no default search registry, so short names fail."""
+    first, slash, _ = name.partition("/")
+    if slash and ("." in first or ":" in first or first == "localhost"):
+        return name                      # already has a registry
+    if not slash:
+        return "docker.io/library/" + name
+    return "docker.io/" + name
+
+
+def friendly(err):
+    """Swap Podman's most confusing errors for plain English."""
+    e = err.strip()
+    low = e.lower()
+    if "privileged port" in low:
+        return ("Ports below 1024 (like 80 or 443) need special permission on the Pi. "
+                "Use a bigger number on the Pi side instead, e.g. 8080:80.")
+    if re.search(r'container name ".*" is already in use', e):
+        return "That name is already taken by another container. Pick a different name or remove the old one."
+    if "address already in use" in low or ("port" in low and "already" in low and "bind" in low):
+        return "That port is already being used by something else on this Pi. Pick a different Pi-side port."
+    if "manifest unknown" in low or "not found" in low and "manifest" in low:
+        return "That image or tag doesn't exist. Check the spelling (e.g. docker.io/library/nginx:latest)."
+    if "no image found in manifest list for architecture" in low or "exec format error" in low:
+        return "That image isn't built for Raspberry Pi (ARM). Look for an arm64 version."
+    if "image is in use" in low:
+        return "A container is still using this image. Remove that container first."
+    if "requested access to the resource is denied" in low or "unauthorized" in low:
+        return "The registry refused that image. It may be private or the name may be misspelled."
+    return e
 
 
 def run(args, timeout=60):
@@ -203,7 +247,7 @@ def container_action(cid, action):
         raise ValueError("Unknown action.")
     code, out, err = run(cmds[action], timeout=90)
     if code != 0:
-        raise RuntimeError(err.strip() or out.strip())
+        raise RuntimeError(friendly(err or out))
     return {"ok": True}
 
 
@@ -224,18 +268,18 @@ def inspect(cid):
 
 
 def pull_image(name):
-    check_id(name)
+    name = qualify_image(check_id(name))
     code, out, err = run(["pull", name], timeout=900)
     if code != 0:
-        raise RuntimeError(err.strip() or out.strip())
-    return {"ok": True, "output": (out + err)[-3000:]}
+        raise RuntimeError(friendly(err or out))
+    return {"ok": True, "image": name, "output": (out + err)[-3000:]}
 
 
 def remove_image(iid):
     check_id(iid)
     code, out, err = run(["rmi", iid], timeout=120)
     if code != 0:
-        raise RuntimeError(err.strip() or out.strip())
+        raise RuntimeError(friendly(err or out))
     return {"ok": True}
 
 
@@ -247,7 +291,7 @@ def prune():
 
 
 def run_container(spec):
-    image = check_id((spec.get("image") or "").strip())
+    image = qualify_image(check_id((spec.get("image") or "").strip()))
     args = ["run", "-d"]
     name = (spec.get("name") or "").strip()
     if name:
@@ -264,6 +308,12 @@ def run_container(spec):
             continue
         if not SAFE_PORT.match(p):
             raise ValueError(f"Port '{p}' should look like 8080:80")
+        nums = [int(x) for x in re.findall(r"\d+", p)]
+        if any(n < 1 or n > 65535 for n in nums):
+            raise ValueError(f"Port '{p}': port numbers go from 1 to 65535.")
+        if ":" in p and os.geteuid() != 0 and nums[0] < unprivileged_start():
+            raise ValueError(f"Port {nums[0]} is below 1024, which needs special permission on the Pi. "
+                             f"Use a bigger number on the Pi side instead, e.g. {8000 + nums[0]}:{nums[1]}.")
         args += ["-p", p]
     for e in spec.get("env") or []:
         e = e.strip()
@@ -282,13 +332,56 @@ def run_container(spec):
     args.append(image)
     code, out, err = run(args, timeout=900)
     if code != 0:
-        raise RuntimeError(err.strip() or out.strip())
-    return {"ok": True, "id": out.strip()[:12]}
+        # A failed start (busy port, etc.) leaves a never-started container that blocks the name.
+        if name and not re.search(r'container name ".*" is already in use', err or ""):
+            c2, st, _ = run(["inspect", "--format", "{{.State.Status}}", name], timeout=15)
+            if c2 == 0 and st.strip() == "created":
+                run(["rm", "-f", name], timeout=30)
+        raise RuntimeError(friendly(err or out))
+    return {"ok": True, "id": out.strip().splitlines()[-1][:12] if out.strip() else ""}
+
+
+def unprivileged_start():
+    try:
+        return int(read_first("/proc/sys/net/ipv4/ip_unprivileged_port_start", "1024"))
+    except ValueError:
+        return 1024
+
+
+# ---------- After a reboot ----------
+def restore_after_boot(force=False):
+    """Podman's own restart service only brings back containers set to 'Always'.
+    Once per boot, also start 'Unless I stop it' containers you didn't stop yourself."""
+    boot = read_first("/proc/sys/kernel/random/boot_id")
+    mark = STATE_DIR / "last_boot"
+    if not force and boot and read_first(mark) == boot:
+        return []
+    started = []
+    try:
+        ids = [c["Id"] for c in run_json(["ps", "-a", "--format", "json"], [])
+               if (c.get("State") or "").lower() not in ("running", "paused")]
+        info = run_json(["inspect", *ids], []) if ids else []
+        for c in info:
+            policy = ((c.get("HostConfig") or {}).get("RestartPolicy") or {}).get("Name") or ""
+            stopped_by_you = bool((c.get("State") or {}).get("StoppedByUser"))
+            if policy == "always" or (policy == "unless-stopped" and not stopped_by_you):
+                code, _, err = run(["start", c["Id"]], timeout=120)
+                name = (c.get("Name") or c["Id"][:12]).lstrip("/")
+                started.append(name)
+                print(("Started %s after reboot" if code == 0 else "Couldn't start %s: " + err.strip()[:200]) % name)
+    except Exception as e:
+        print("After-reboot check skipped:", e)
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        mark.write_text(boot)
+    except OSError:
+        pass
+    return started
 
 
 # ---------- Web server ----------
 class Handler(BaseHTTPRequestHandler):
-    server_version = "PodDeck/1.0"
+    server_version = "PodDeck/" + VERSION
 
     def log_message(self, fmt, *args):
         pass  # keep the terminal quiet
@@ -332,7 +425,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(401, {"error": "Please sign in."})
         try:
             if url.path == "/api/overview":
-                return self._send(200, {"host": host_stats(), "podman": podman_version()})
+                return self._send(200, {"host": host_stats(), "podman": podman_version(), "version": VERSION})
             if url.path == "/api/containers":
                 cs = list_containers()
                 st = container_stats() if q.get("stats") else {}
@@ -388,7 +481,12 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     cpu_percent()  # prime the CPU counter
-    srv = ThreadingHTTPServer((HOST, PORT), Handler)
+    try:
+        srv = ThreadingHTTPServer((HOST, PORT), Handler)
+    except OSError as e:
+        print(f"PodDeck couldn't use port {PORT}: {e}. Is it already running? Try http://localhost:{PORT}")
+        raise SystemExit(1)
+    threading.Thread(target=restore_after_boot, daemon=True).start()
     shown = "localhost" if HOST in ("0.0.0.0", "") else HOST
     print(f"PodDeck is running → http://{shown}:{PORT}")
     if HOST == "0.0.0.0":

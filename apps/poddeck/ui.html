@@ -146,11 +146,11 @@ pre.logs{flex:1;overflow:auto;background:#0a0e11;color:#cfe3d4;border-radius:10p
       <p class="sub">The packaged apps stored on this Pi. Pull new ones or clear out old ones.</p>
       <div class="card" style="margin-bottom:14px">
         <div class="row">
-          <input type="text" id="pullName" placeholder="e.g. docker.io/library/nginx:latest" style="flex:1;min-width:220px" onkeydown="if(event.key==='Enter')pull()">
+          <input type="text" id="pullName" placeholder="e.g. nginx or docker.io/library/nginx:latest" style="flex:1;min-width:220px" onkeydown="if(event.key==='Enter')pull()">
           <button class="btn primary" id="pullBtn" onclick="pull()">⇣ Pull image</button>
           <button class="btn" onclick="pruneImgs()">🧹 Clean unused</button>
         </div>
-        <div class="hint">Tip: include the registry (docker.io/…) — Podman likes full names. Raspberry Pi needs images built for ARM (arm64).</div>
+        <div class="hint">Short names like <span class="mono">nginx</span> are looked up on Docker Hub. Raspberry Pi needs images built for ARM (arm64).</div>
       </div>
       <div class="card" style="padding:4px 12px"><table><thead><tr><th>Image</th><th>ID</th><th>Size</th><th>Created</th><th></th></tr></thead><tbody id="imgList"></tbody></table></div>
     </section>
@@ -166,14 +166,14 @@ pre.logs{flex:1;overflow:auto;background:#0a0e11;color:#cfe3d4;border-radius:10p
           <div><label>Name</label><input type="text" id="nName" placeholder="my-web-server"></div>
         </div>
         <div class="two">
-          <div><label>Ports <span class="hint">(one per line, pi:container)</span></label><textarea id="nPorts" rows="3" placeholder="8080:80"></textarea></div>
+          <div><label>Ports <span class="hint">(one per line, pi:container)</span></label><textarea id="nPorts" rows="3" placeholder="8080:80"></textarea><div class="hint">Use 1024 or higher on the Pi side.</div></div>
           <div><label>Folders <span class="hint">(one per line, pi-folder:container-folder)</span></label><textarea id="nVols" rows="3" placeholder="/home/pi/site:/usr/share/nginx/html:Z"></textarea></div>
         </div>
         <div class="two">
           <div><label>Settings <span class="hint">(one per line, KEY=value)</span></label><textarea id="nEnv" rows="3" placeholder="TZ=America/New_York"></textarea></div>
           <div><label>Restart</label>
             <select id="nRestart"><option value="unless-stopped">Unless I stop it (recommended)</option><option value="always">Always</option><option value="on-failure">Only if it crashes</option><option value="no">Never</option></select>
-            <div class="hint">For containers to come back after a reboot, run the included install.sh once — it turns on Podman's restart service.</div>
+            <div class="hint">“Always” and “Unless I stop it” both come back after a reboot, as long as PodDeck is installed (install.sh). “Unless I stop it” stays off if you stopped it.</div>
           </div>
         </div>
         <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn" onclick="clearForm()">Clear</button><button class="btn primary" id="runBtn" onclick="runNew()">▶ Create &amp; start</button></div>
@@ -231,7 +231,7 @@ async function loadOverview(){
     const o = await api("/api/overview"), h = o.host;
     $("#hostTitle").textContent = h.hostname;
     $("#hostSub").textContent = `${h.model} · ${h.arch} · up ${fmtUp(h.uptime)}`;
-    $("#podver").textContent = o.podman.ok ? `Podman ${o.podman.version}` : "Podman not found";
+    $("#podver").textContent = (o.podman.ok ? `Podman ${o.podman.version}` : "Podman not found") + (o.version ? ` · PodDeck ${o.version}` : "");
     const pm = $("#podmanMissing");
     if (!o.podman.ok){ pm.classList.remove("hidden"); pm.innerHTML = `<b>Podman isn't responding.</b><br>${esc(o.podman.error)}<br>Install it with <span class="mono">sudo apt install podman</span>, then refresh.`; }
     else pm.classList.add("hidden");
@@ -257,7 +257,7 @@ async function loadOverview(){
 function ctrCard(c){
   const host = location.hostname;
   const ports = c.ports.map(p => `<span class="chip">🔌 <a href="http://${esc(host)}:${esc(p.host)}" target="_blank" rel="noopener">${esc(p.host)}</a> → ${esc(p.container)}</span>`).join("");
-  const st = c.stats ? `<span class="chip">CPU ${esc(c.stats.cpu ?? "—")}</span><span class="chip">RAM ${esc(c.stats.mem ?? "—")}</span>` : "";
+  const st = c.stats && c.state === "running" ? `<span class="chip">CPU ${esc(c.stats.cpu ?? "—")}</span><span class="chip">RAM ${esc(c.stats.mem ?? "—")}</span>` : "";
   const running = c.state === "running", paused = c.state === "paused";
   const id = esc(c.id);
   return `<div class="card ctr">
@@ -325,7 +325,7 @@ async function loadImages(){
 async function pull(){
   const name = $("#pullName").value.trim(); if (!name) return;
   const b = $("#pullBtn"); b.disabled = true; b.textContent = "Pulling… (can take a while)";
-  try { await api("/api/pull", {image:name}); toast(`Pulled ${name}`); $("#pullName").value = ""; loadImages(); }
+  try { const r = await api("/api/pull", {image:name}); toast(`Pulled ${r.image || name}`); $("#pullName").value = ""; loadImages(); }
   catch(e){ toast(e.message, true); }
   b.disabled = false; b.textContent = "⇣ Pull image";
 }
