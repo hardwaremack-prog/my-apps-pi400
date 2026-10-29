@@ -135,6 +135,10 @@ RAID FORGE (point-and-click RAID 0, 1, 5, 6 or 10)
   Identical USB drives? Press Blink on any drive and its activity light
   flashes on/off, with its USB port and serial shown. 'Find the failed
   drive' blinks the healthy ones so the dead one is the light that stays dark.
+  RAID WATCH: turn it on in My Arrays and it watches your arrays all the
+  time. If a drive fails or an array needs service, its window flashes
+  red with an alarm sound, the Pi's green light flashes fast, and (if you
+  set up the free ntfy app) your phone gets a push. Try 'Test alarm'.
   The Pi 400 has no PCIe connector, so use its blue USB 3 ports with
   powered drives or a multi-bay USB dock (a Pi 5 can also use SATA/NVMe HATs).
   Start it with the RAID Forge icon on the Desktop (menu: System Tools)
