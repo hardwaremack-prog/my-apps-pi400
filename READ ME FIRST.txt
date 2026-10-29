@@ -39,6 +39,25 @@ SERVER LIGHTS (top of the menu, like Command Center on Windows)
   Set Up My Apps.sh turns on; it starts by itself every time the Pi boots
   and can only be reached from the Pi itself.
 
+WEB ACCESS (open My Apps from your phone or PC, with a password)
+  Click "Web access" above the server lights.
+  1. Type a password twice (8 or more characters) and click
+     "Save password & turn on".
+  2. On your phone or PC (same Wi-Fi), open the link it shows, like
+     http://192.168.1.50:8400/ , and type the password. That device
+     stays signed in for 30 days.
+  - The switch turns it on and off. It stays the way you left it, even
+    after a restart. The green dot on the button means it's on.
+  - "Change password" signs every device out. "Sign everyone out" does
+    the same without a new password.
+  - 5 wrong passwords lock that device out for a while.
+  - Phones and PCs can play the games, open the pages and see the
+    server lights, but they can't start, stop or change anything on the
+    Pi. Apps that run a program on the Pi (Pip, PodDeck...) need to be
+    started on the Pi first.
+  - It's for your home Wi-Fi only: don't forward port 8400 on your
+    router.
+
 RUGGED (grid-down guide)
   Rugged is in the Tidy Suite tab. It works with no internet, so it's
   the one to keep handy in a power outage. Run the Pi from a USB-C power

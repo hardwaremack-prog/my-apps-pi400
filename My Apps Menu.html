@@ -90,11 +90,35 @@ kbd{background:var(--panel2);border-radius:5px;padding:1px 7px;color:var(--ink);
 .watchform.on{display:flex}
 .watchform input{background:var(--panel);border:2px solid var(--panel2);color:var(--ink);font:inherit;font-size:14px;padding:7px 12px;border-radius:10px;min-width:0}
 .watchform input:focus{outline:none;border-color:var(--apps)}
-.pibar.closed .body2{display:none}
+.pibar.closed .body2>:not(.sechead){display:none}
 #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
   background:#f4efe6;color:#14111f;font-weight:700;padding:12px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.4);transition:.2s;max-width:90vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}
-@media (max-width:640px){.pibar{margin-left:16px;margin-right:16px}}
+.webpanel{display:none;background:var(--panel);border:2px solid var(--panel2);border-radius:14px;padding:12px 14px;margin:4px 0 10px}
+.webpanel.on{display:block}
+.webpanel .wrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.webpanel .wrow+.wrow{margin-top:10px}
+.wtxt{flex:1;min-width:200px;display:flex;flex-direction:column;gap:2px;font-size:15px}
+.wtxt span{color:var(--dim);font-size:13.5px}
+.wtxt a{color:var(--apps);font-weight:700}
+.webpanel input[type=password]{background:var(--bg);border:2px solid var(--panel2);color:var(--ink);font:inherit;font-size:14px;padding:7px 12px;border-radius:10px;min-width:0;width:230px}
+.webpanel input[type=password]:focus{outline:none;border-color:var(--apps)}
+.wnote{color:var(--dim);font-size:12.5px;margin:10px 0 0;line-height:1.4}
+.switch{position:relative;display:inline-block;width:46px;height:26px;flex:none}
+.switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:1}
+.switch span{position:absolute;inset:0;background:var(--panel2);border-radius:999px;transition:.15s}
+.switch span::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:var(--dim);transition:.15s}
+.switch input:checked+span{background:#3fd27f}
+.switch input:checked+span::after{transform:translateX(20px);background:#fff}
+.switch input:focus-visible+span{outline:2px solid #fff;outline-offset:2px}
+.switch input:disabled+span{opacity:.5}
+.mini .sw{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e5484d;margin-left:5px;vertical-align:0}
+.mini .sw.lit{background:#3fd27f;box-shadow:0 0 8px rgba(63,210,127,.7)}
+a.mini{text-decoration:none;display:inline-block}
+.sechead .mini{white-space:nowrap}
+a.mini[hidden]{display:none}
+.remote .stopb,.remote #stopall,.remote #watchbtn,.remote #webbtn,.remote #webpanel{display:none!important}
+@media (max-width:640px){.pibar{margin-left:16px;margin-right:16px}.webpanel input[type=password]{width:100%}}
 </style>
 <!--/STATUSBAR-CSS-->
 </head>
@@ -108,6 +132,8 @@ kbd{background:var(--panel2);border-radius:5px;padding:1px 7px;color:var(--ink);
   <div class="row" id="hostrow"><span class="pioff">Checking this Pi…</span></div>
   <div class="body2">
     <div class="sechead"><span id="srvhead">Servers</span><span class="sp"></span>
+      <button class="mini" id="webbtn" title="Open My Apps from your phone or PC, with a password" hidden>🌐 Web access</button>
+      <a class="mini" id="signout" href="/__myapps/logout" title="Sign this device out" hidden>Sign out</a>
       <button class="mini" id="watchbtn" title="Keep an eye on a server on another computer, like your PC's Shelf">+ Watch</button>
       <button class="mini" id="pibartoggle" title="Hide the server lights">Hide</button></div>
     <form class="watchform" id="watchform" autocomplete="off">
@@ -116,6 +142,20 @@ kbd{background:var(--panel2);border-radius:5px;padding:1px 7px;color:var(--ink);
       <input id="wport" placeholder="Port (8080)" inputmode="numeric" maxlength="5" style="width:110px" required>
       <button class="mini" type="submit">Add</button><button class="mini" type="button" id="wcancel">Cancel</button>
     </form>
+    <div class="webpanel" id="webpanel">
+      <div class="wrow">
+        <label class="switch" title="Let your phone and other computers open My Apps"><input type="checkbox" id="webon" aria-label="Web access"><span></span></label>
+        <div class="wtxt"><b id="webstate">Web access is off</b><span id="webinfo"></span></div>
+        <button class="mini" type="button" id="webcopy" hidden>Copy link</button>
+        <button class="mini" type="button" id="webkick" hidden>Sign everyone out</button>
+      </div>
+      <form class="wrow" id="webpw" autocomplete="off">
+        <input type="password" id="pw1" maxlength="128" autocomplete="new-password" placeholder="Make a password (8+ characters)">
+        <input type="password" id="pw2" maxlength="128" autocomplete="new-password" placeholder="Same password again">
+        <button class="mini" type="submit" id="pwsave">Save password &amp; turn on</button>
+      </form>
+      <p class="wnote">For your home Wi-Fi only: don't forward port 8400 on your router. Phones and PCs can play the games, open the pages and see the server lights, but can't start or stop anything on this Pi. Apps that run a program on this Pi need to be started here first.</p>
+    </div>
     <div class="srvs" id="srvs"></div>
     <div id="watchwrap" hidden>
       <div class="sechead"><span>Other computers</span></div>
@@ -177,7 +217,9 @@ render();
   const bar=document.getElementById('pibar'), hostrow=document.getElementById('hostrow'), srvs=document.getElementById('srvs'),
         head=document.getElementById('srvhead'), wl=document.getElementById('watchlist'), ww=document.getElementById('watchwrap'),
         wf=document.getElementById('watchform'), toastEl=document.getElementById('toast');
-  const BASE='http://127.0.0.1:'+((window.MYAPPS_STATUS&&MYAPPS_STATUS.port)||8399);
+  const REMOTE=!!(window.MYAPPS_STATUS&&MYAPPS_STATUS.remote);   // opened from a phone or PC through Web access
+  const BASE=REMOTE?location.origin+'/__myapps':'http://127.0.0.1:'+((window.MYAPPS_STATUS&&MYAPPS_STATUS.port)||8399);
+  if(REMOTE){document.body.classList.add('remote');document.getElementById('signout').hidden=false;}
   const h=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   let last=null, failures=0, toastT;
   const armed={}, busy={};   // Stop buttons: port -> time the "click again" ends / stop in progress
@@ -186,6 +228,7 @@ render();
   function dur(s){const d=Math.floor(s/86400),hh=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return d?d+'d '+hh+'h':hh?hh+'h '+m+'m':m+'m'}
   function reloadToken(){return new Promise(r=>{const s=document.createElement('script');s.src='status/token.js?'+Date.now();s.onload=s.onerror=()=>{s.remove();r()};document.head.appendChild(s)})}
   async function post(path,body,retry=true){
+    if(REMOTE)return {ok:false,msg:'From another device you can look and play. Start and stop things on the Pi itself.'};
     try{
       const r=await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json','X-MyApps-Key':(window.MYAPPS_STATUS||{}).token||''},body:JSON.stringify(body||{})});
       if(r.status===403&&retry){await reloadToken();return post(path,body,false)}
@@ -219,6 +262,8 @@ render();
     if(x.powerNow)p.push(`<span class="pill warn" title="The power supply is too weak right now. Use the official 5.1 V 3 A supply.">⚡ <b>Low power!</b></span>`);
     else if(x.powerEver)p.push(`<span class="pill warn" title="The power dipped since the Pi started. A better power supply or cable helps.">⚡ Power dipped</span>`);
     if(x.hotNow)p.push(`<span class="pill warn" title="The Pi is slowing itself down to stay cool or because of power.">🐢 <b>Slowed down</b></span>`);
+    if(REMOTE)p.push(`<span class="pill ok" title="You opened My Apps from another device">🌐 <b>Web</b> · signed in</span>`);
+    else if(d.web&&d.web.on)p.push(`<span class="pill ok" title="Phones and PCs can open My Apps at ${h(d.web.url)}">🌐 <b>Web on</b> · :${d.web.port}</span>`);
     hostrow.innerHTML=p.join('');
   }
   function paintHead(){
@@ -250,7 +295,7 @@ render();
       <span class="sub">${stop}${act?`<span class="act">${act}</span> `:''}${h(sub)}</span></button>`;
   }
   function paint(d){
-    last=d; paintHost(d); paintHead();
+    last=d; paintHost(d); paintHead(); paintWeb(d);
     const list=d.servers.slice().sort((a,b)=>(b.up-a.up));
     const html=list.map(tile).join('');
     if(html!==srvs._html){srvs._html=html;srvs.innerHTML=html}   // redraw only on change, so clicks aren't lost
@@ -275,7 +320,7 @@ render();
     if(s.up){
       if(s.kind==='ssh')return copy('ssh '+(last.host.user||'pi')+'@'+last.host.ip,'Copied: ssh '+(last.host.user||'pi')+'@'+last.host.ip);
       if(s.kind==='vnc')return copy(last.host.ip,'Copied '+last.host.ip+' — type it into VNC Viewer on your other computer');
-      if(s.url)return window.open(s.url,'_blank');
+      if(s.url)return window.open(REMOTE&&s.lanUrl?s.lanUrl:s.url,'_blank');
       return toast(s.name+' is running on port '+s.port);
     }
     if(s.config){const r=await post('/config');return toast(r.msg||'')}
@@ -288,7 +333,54 @@ render();
     if(rm){const r=await post('/watch',{remove:true,host:w.host,port:w.port});if(r.ok){toast('Stopped watching '+w.name);poll()}return}
     if(w.url)window.open(w.url,'_blank'); else toast(w.up?w.name+' is answering on port '+w.port:w.name+' isn\'t answering. Is that computer on?');
   };
+  // ---- Web access: open My Apps from a phone or PC, behind a password
+  const wbtn=document.getElementById('webbtn'), wpan=document.getElementById('webpanel'), won=document.getElementById('webon'),
+        wst=document.getElementById('webstate'), winf=document.getElementById('webinfo'), wcopy=document.getElementById('webcopy'),
+        wkick=document.getElementById('webkick'), wpf=document.getElementById('webpw'), pw1=document.getElementById('pw1'),
+        pw2=document.getElementById('pw2'), pwsave=document.getElementById('pwsave');
+  let webBusy=false, wantOn=false;
+  wpf.addEventListener('keydown',e=>e.stopPropagation());
+  wbtn.onclick=()=>{wpan.classList.toggle('on');if(wpan.classList.contains('on')&&last&&last.web&&!last.web.hasPassword)pw1.focus()};
+  function paintWeb(d){
+    const w=d&&d.web; if(REMOTE||!w){wbtn.hidden=true;wpan.classList.remove('on');return}
+    wbtn.hidden=false;
+    wbtn.innerHTML='🌐 Web access<span class="sw'+(w.on?' lit':'')+'"></span>';
+    wbtn.title=w.on?'Web access is on: '+w.url:'Open My Apps from your phone or PC, with a password';
+    if(!webBusy)won.checked=w.on;
+    won.disabled=webBusy;
+    wst.textContent=w.on?'Web access is on':(w.want&&w.err?'Web access couldn\'t start':'Web access is off');
+    const html=w.on?`Open <a href="${h(w.url)}" target="_blank">${h(w.url)}</a> on your phone or PC (same Wi-Fi)${w.devices?' · '+w.devices+' device'+(w.devices>1?'s':'')+' signed in':''}`
+      :w.err?h(w.err):w.hasPassword?'Flip the switch so your phone and PCs can open My Apps.':'Make a password below. Other devices type it to get in.';
+    if(winf._h!==html){winf._h=html;winf.innerHTML=html}
+    wcopy.hidden=!w.on; wkick.hidden=!w.on||!w.devices;
+    pwsave.textContent=w.hasPassword?(wantOn&&!w.on?'Save & turn on':'Change password'):'Save password & turn on';
+    pw1.placeholder=w.hasPassword?'New password (8+ characters)':'Make a password (8+ characters)';
+  }
+  async function webSend(body){
+    webBusy=true; if(last)paintWeb(last);
+    const r=await post('/web',body);
+    webBusy=false; if(r.web&&last)last.web=r.web;
+    toast(r.msg||(r.ok?'Saved.':'Couldn\'t save that.')); if(last)paintWeb(last);
+    return r;
+  }
+  won.onchange=async()=>{
+    const w=last&&last.web; if(!w)return;
+    if(won.checked&&!w.hasPassword){won.checked=false;wantOn=true;wpan.classList.add('on');paintWeb(last);pw1.focus();
+      return toast('Make a password first. Your phone and PCs will need it to get in.')}
+    await webSend({on:won.checked});
+  };
+  wpf.onsubmit=async e=>{e.preventDefault();
+    const w=last&&last.web; if(!w)return;
+    if(pw1.value.length<8){pw1.focus();return toast('Use at least 8 characters.')}
+    if(pw1.value!==pw2.value){pw2.focus();return toast('The two passwords don\'t match.')}
+    const body={password:pw1.value}; if(!w.hasPassword||wantOn)body.on=true;
+    const r=await webSend(body); if(r.ok){wpf.reset();wantOn=false;if(last)paintWeb(last)}
+  };
+  wcopy.onclick=()=>{if(last&&last.web)copy(last.web.url,'Copied '+last.web.url+' — open it on your phone or PC')};
+  wkick.onclick=()=>webSend({signout:true});
   function offline(){
+    if(REMOTE){head.textContent='Servers';hostrow.innerHTML='<span class="pioff">📡 Can\'t reach the Pi right now. Is it on, and is Web access still switched on?</span>';
+      srvs.innerHTML='';srvs._html='';ww.hidden=true;return}
     head.textContent='Servers';
     hostrow.innerHTML=`<span class="pioff">💤 The server lights are off. To turn them on, run <code>Set Up My Apps.sh</code> once
       (or in a Terminal: <code>python3 ~/Desktop/"My Apps"/status/pi-status.py &amp;</code>). They come on by themselves after that.</span>`;
@@ -298,8 +390,9 @@ render();
     try{
       const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),2500);
       const r=await fetch(BASE+'/status',{cache:'no-store',signal:ctl.signal}); clearTimeout(t);
+      if(REMOTE&&r.status===401){location.href='/__myapps/login?next='+encodeURIComponent(location.pathname);return}
       const d=await r.json(); failures=0;
-      if(!window.MYAPPS_STATUS||!MYAPPS_STATUS.token)reloadToken();
+      if(!REMOTE&&(!window.MYAPPS_STATUS||!MYAPPS_STATUS.token))reloadToken();
       paint(d);
     }catch(e){ if(++failures>=2||!last)offline(); }
   }

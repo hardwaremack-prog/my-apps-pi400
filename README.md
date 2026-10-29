@@ -7,6 +7,7 @@ A clickable menu of all my apps and games for the Pi 400, with server lights at 
 - **Games**, **Apps** and the **Tidy Suite** as big tiles (arrow keys, Enter, `/` to search)
 - **Server lights**: this Pi's temperature, CPU, memory, SD card and power, plus a green/red light
   for every server (SSH, VNC, The Shelf, PiMesh, PodDeck, Blueprint Wiki, NetPulse, Pip, ...)
+- **Web access**: one switch opens My Apps to your phone and PCs on port 8400, behind a password (off until you turn it on)
 - **Stop buttons**: shut down any running web server one at a time (click, then confirm)
 - **RPi400 Task Manager**: Windows-style Task Manager (Ctrl+Shift+Esc) with an Update everything button
 - **Pip**: offline voice assistant for your headset

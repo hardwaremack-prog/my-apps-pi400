@@ -12,11 +12,21 @@ does on Windows:
 
 It only listens on 127.0.0.1 (this Pi), and the start/watch buttons need a
 key that only the menu page on this Pi can read (status/token.js).
+
+Web access (web_share.py, off until you switch it on in the menu) shares the
+My Apps folder with your phone or PC on port 8400, behind a password.
 """
 import json, os, re, secrets, shutil, signal, socket, subprocess, sys, threading, time
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import web_share      # web access for other devices, with a password
+except Exception as e:  # keep the server lights working even if it can't load
+    web_share = None
+    print("web access unavailable:", e, file=sys.stderr)
 
 PORT = int(os.environ.get("MYAPPS_STATUS_PORT", "8399"))
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -62,6 +72,8 @@ KNOWN = [
     dict(id="samba", name="File sharing", kind="tcp", ports=[445], note="Samba: this Pi's shared folders."),
 ]
 SKIP_PORTS = {PORT, 8399, 53, 111, 631, 4713}   # this helper, DNS, rpcbind, printer queue, sound server
+if web_share:
+    SKIP_PORTS.add(web_share.WEB_PORT)                # web access (it has its own switch)
 
 state = {"servers": [], "host": {}, "watch": [], "at": None, "scans": 0}
 lock = threading.Lock()
@@ -491,7 +503,7 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         if u.path in ("/", "/status"):
             with lock:
-                self._send(200, dict(state, ok=True, helper=PORT))
+                self._send(200, dict(state, ok=True, helper=PORT, web=web_share.info() if web_share else None))
         else:
             self._send(404, {"ok": False})
 
@@ -525,6 +537,13 @@ class Handler(BaseHTTPRequestHandler):
                 ok, msg = False, "Couldn't stop it: %s" % e
             threading.Thread(target=scan, daemon=True).start()
             return self._send(200, {"ok": ok, "msg": msg})
+        if u.path == "/web":
+            if not web_share:
+                return self._send(500, {"ok": False, "msg": "web_share.py is missing. Run Set Up My Apps.sh again."})
+            try:
+                return self._send(200, web_share.control(body))
+            except Exception as e:  # noqa
+                return self._send(500, {"ok": False, "msg": "Couldn't change web access: %s" % e})
         if u.path == "/config":
             ok, msg = open_config()
             return self._send(200, {"ok": ok, "msg": msg})
@@ -556,6 +575,8 @@ def main():
     except OSError as e:
         sys.exit("My Apps status helper: port %d is busy (%s). Is it already running?" % (PORT, e))
     threading.Thread(target=scanner, daemon=True).start()
+    if web_share:
+        web_share.start(state, lock)
     print("My Apps status helper on http://127.0.0.1:%d/status" % PORT)
     srv.serve_forever()
 
