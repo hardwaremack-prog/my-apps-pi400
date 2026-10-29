@@ -3234,6 +3234,87 @@ def pair_window():
     root.mainloop()
 
 
+# ---------- one copy only
+# If the Task Manager is started again while it's already open (two startup entries, a double-click,
+# Ctrl+Shift+Esc), the new copy asks the open one to come to the front and quits, instead of opening
+# a second window.
+_INSTANCE_LOCK = None
+
+
+def _instance_paths():
+    run = os.environ.get("XDG_RUNTIME_DIR") or os.path.expanduser("~/.cache")
+    os.makedirs(run, exist_ok=True)
+    return os.path.join(run, "rpi400-taskmgr.lock"), os.path.join(run, "rpi400-taskmgr.sock")
+
+
+def claim_single_instance():
+    """True if this is the only copy running. Otherwise wakes the open copy and returns False."""
+    global _INSTANCE_LOCK
+    lock_path, sock_path = _instance_paths()
+    f = open(lock_path, "w")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        try:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.settimeout(2)
+            s.connect(sock_path)
+            s.sendall(b"show\n")
+            s.close()
+        except OSError:
+            pass
+        return False
+    _INSTANCE_LOCK = f      # held until the app closes; the system releases it even after a crash
+    return True
+
+
+def listen_for_second_copy(app):
+    """Bring the window to the front whenever another copy is started."""
+    _, sock_path = _instance_paths()
+    try:
+        os.unlink(sock_path)
+    except OSError:
+        pass
+    try:
+        srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        srv.bind(sock_path)
+        srv.listen(4)
+    except OSError:
+        return
+    wake = threading.Event()
+
+    def accept_loop():
+        while True:
+            try:
+                conn, _ = srv.accept()
+            except OSError:
+                return
+            try:
+                conn.settimeout(1)
+                conn.recv(16)
+            except OSError:
+                pass
+            conn.close()
+            wake.set()
+
+    def check():
+        if wake.is_set():
+            wake.clear()
+            try:
+                app.deiconify()
+                app.lift()
+                app.attributes("-topmost", True)
+                app.after(400, lambda: app.attributes("-topmost", False))
+                app.focus_force()
+            except tk.TclError:
+                pass
+        app.after(400, check)
+
+    threading.Thread(target=accept_loop, daemon=True).start()
+    app.after(400, check)
+
+
 def main():
     if "--version" in sys.argv:
         print(f"{APP_NAME} {VERSION}")
@@ -3241,7 +3322,11 @@ def main():
     if "--pair" in sys.argv:
         pair_window()
         return
-    App().mainloop()
+    if not claim_single_instance():
+        return          # already open; that window was brought to the front
+    app = App()
+    listen_for_second_copy(app)
+    app.mainloop()
 
 
 if __name__ == "__main__":
