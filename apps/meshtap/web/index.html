@@ -258,6 +258,7 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
         <div class="field"><label style="color:var(--dim);font-size:12px">TYPE</label>
           <select id="pMethod">
             <option value="ack">Quiet ping — waits for the delivery ACK</option>
+            <option value="hello">Hello — swaps node info (works even if they don't know your key)</option>
             <option value="trace">Traceroute — shows the path both ways</option>
             <option value="text">Text ping — shows "MeshTap ping 🏓" on their screen</option>
           </select></div>
@@ -351,7 +352,7 @@ if (!window.L) {
 }
 </script>
 <script>
-const PAGE_VERSION = '1.4.0';
+const PAGE_VERSION = '1.4.1';
 const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
            tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
 const $ = s => document.querySelector(s);
@@ -624,7 +625,7 @@ function fitAll() {
 
 // ---------- ping
 S.pings = [];
-const PMETH = {ack: 'Quiet', trace: 'Traceroute', text: 'Text'};
+const PMETH = {ack: 'Quiet', trace: 'Traceroute', text: 'Text', hello: 'Hello'};
 const PRES = {ok: '✅ Delivered', fail: '❌ Failed', timeout: '⏱ No answer', error: '⚠️ Error', waiting: '… Waiting', cancelled: '✖ Cancelled'};
 function pingTargets() {
   const sel = $('#pTo'), cur = sel.value || (S.status.ping_job && S.status.ping_job.to) || '';
@@ -649,7 +650,7 @@ function renderPing() {
   const live = $('#pLive');
   const last = S.pings.filter(p => p.status !== 'waiting' && p.status !== 'cancelled').slice(-1)[0];
   if (w) {
-    const el = Math.max(0, Date.now() / 1000 - (w.sent || w.ts)), max = {ack: 45, text: 45, trace: 60}[w.method] || 45;
+    const el = Math.max(0, Date.now() / 1000 - (w.sent || w.ts)), max = {ack: 45, text: 45, trace: 60, hello: 60}[w.method] || 45;
     live.className = 'live waiting';
     live.innerHTML = `<div style="color:var(--dim)">${esc(PMETH[w.method])} ping to <b style="color:var(--text)">${esc(w.to_name)}</b></div>
       <div class="big">${el.toFixed(0)} s</div><div style="color:var(--dim);font-size:13px">${esc(w.detail || 'Sent — waiting for the reply…')}</div>
@@ -707,6 +708,16 @@ function renderDiag() {
   else if (!relayed.length) { verdict = 'No one is passing your pings on. Nearby nodes may hear you poorly — your antenna, its height or your transmit power is the first thing to check.'; color = 'var(--red)'; }
   else if (!ok.length && directTried.length && !directOk) { verdict = `Your direct neighbor relays your pings but never confirms one addressed to it. That points to a one-way link — try a quiet ping to it a few more times, then raise the antenna.`; color = 'var(--red)'; }
   else if (!ok.length && !directTried.length && direct.length) { verdict = `Nearby nodes do hear you (they relay every ping), so it isn't your antenna's first hop. Messages are lost further out, or the confirmations don't make it back. Next: <a href="#" data-pingfor="${esc(direct[0].id)}" style="color:var(--green)">quiet-ping ${esc(direct[0].long || direct[0].id)}</a> — if it confirms, your link works both ways. Then try a traceroute or a higher hop limit to a far node.`; color = 'var(--amber)'; }
+  else if (directOk && tested.some(([id, b]) => !b.ok && !direct.some(n => n.id === id))) {
+    const dn = direct.find(n => byNode[n.id] && byNode[n.id].ok), far = tested.filter(([id, b]) => !b.ok && !direct.some(n => n.id === id))
+      .sort((x, y) => (((S.nodes.find(n => n.id === x[0]) || {}).hops ?? 9) - ((S.nodes.find(n => n.id === y[0]) || {}).hops ?? 9)));
+    const helloTried = all.some(p => p.method === 'hello' && far.some(([id]) => id === p.to)), helloOk = all.some(p => p.method === 'hello' && p.status === 'ok');
+    verdict = `Your antenna is fine: <b>${esc(dn.long || dn.id)}</b> confirms both ways. Nodes past it (${far.map(([, b]) => esc(b.name)).join(', ')}) don't answer. `
+      + (helloOk ? 'A Hello came back, so the path works — quiet pings were failing because those nodes didn\'t know your key yet. Try the quiet ping again now.'
+        : helloTried ? 'Hello didn\'t come back either, so it\'s the radio path past your neighbor — a far node may hear it but not be heard by it (common when one end runs higher power). Nothing to fix at your station.'
+        : `Either they don't know your key yet, or the path past your neighbor is one-way. <a href="#" data-hellofor="${esc(far[0][0])}" style="color:var(--green);font-weight:700">Send a Hello to ${esc(far[0][1].name)}</a> (your closest one past it) to tell which.`);
+    color = 'var(--amber)';
+  }
   else if (!ok.length) { verdict = 'Your pings get relayed, but no node has confirmed one yet. Messages may be dying further out — try a traceroute or a higher hop limit.'; color = 'var(--amber)'; }
   else { verdict = 'Some nodes confirm and some don\'t — the failing ones are probably too many hops away or on a weak path. A traceroute shows where.'; color = 'var(--amber)'; }
   lines.push(`<div style="margin-top:6px;border-left:3px solid ${color};padding-left:10px">${verdict}</div>`);
@@ -992,6 +1003,10 @@ $('#mapItems').onclick = e => {
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-feedfor]'); if (!a) return;
   e.preventDefault(); $('#q').value = a.dataset.feedfor; document.querySelector('.tab[data-tab=feed]').click(); renderFeed();
+});
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-hellofor]'); if (!a) return;
+  e.preventDefault(); pingTargets(); $('#pTo').value = a.dataset.hellofor; $('#pMethod').value = 'hello'; renderPing();
 });
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-pingfor]'); if (!a) return;

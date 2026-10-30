@@ -30,14 +30,14 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
 DB_PATH = os.path.join(DATA_DIR, "meshtap.db")
 SETTINGS_PATH = os.path.join(DATA_DIR, "settings.json")
 PING_MIN_INTERVAL = 30          # seconds between repeated pings (be kind to shared airtime)
-PING_TIMEOUT = {"ack": 45, "text": 45, "trace": 60}
+PING_TIMEOUT = {"ack": 45, "text": 45, "trace": 60, "hello": 60}
 BROADCAST = 0xFFFFFFFF
 BAUDS = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600]
 GPIO_UARTS = [("/dev/serial0", "Pi GPIO pins 8/10 (TX/RX) — serial0"), ("/dev/ttyAMA0", "Pi GPIO UART ttyAMA0"),
@@ -471,6 +471,17 @@ class Hub:
             self.add_log(f"[MeshTap] couldn't save settings: {exc}")
 
     # ---- real-time ping
+    def _my_user_pb(self, mesh_pb2):
+        """Our own User record (name, hardware, public key) as a protobuf, for a node-info exchange."""
+        from google.protobuf import json_format
+        me = (self.iface.getMyNodeInfo() or {}).get("user") or {}
+        user = mesh_pb2.User()
+        try:
+            json_format.ParseDict({k: v for k, v in me.items() if k != "raw"}, user, ignore_unknown_fields=True)
+        except Exception:
+            user = mesh_pb2.User(id=me.get("id", ""), long_name=me.get("longName", ""), short_name=me.get("shortName", ""))
+        return user
+
     def my_hop_limit(self):
         try:
             return int(self.iface.localNode.localConfig.lora.hop_limit) or None
@@ -535,7 +546,11 @@ class Hub:
                         from meshtastic.protobuf import mesh_pb2
                     except ImportError:
                         from meshtastic import mesh_pb2
-                    pkt = iface.sendData(mesh_pb2.RouteDiscovery(), destinationId=dest, portNum=70, wantResponse=True, hopLimit=hl)
+                    if method == "hello":  # node-info exchange: works even if they don't know our key yet
+                        pkt = iface.sendData(self._my_user_pb(mesh_pb2), destinationId=dest, portNum=4,  # NODEINFO_APP
+                                             wantResponse=True, hopLimit=hl)
+                    else:
+                        pkt = iface.sendData(mesh_pb2.RouteDiscovery(), destinationId=dest, portNum=70, wantResponse=True, hopLimit=hl)
                 rec["id"] = getattr(pkt, "id", None)
                 if not rec["id"]:
                     raise RuntimeError("the radio didn't give the ping an ID")
@@ -585,6 +600,14 @@ class Hub:
             else:
                 ping.update(status="fail", rtt=round((now - ping["sent"]) * 1000), detail=ROUTING_ERRORS.get(err, str(err)))
                 self._finish_ping(ping)
+        elif rec["port"] == "NODEINFO_APP" and ping["method"] == "hello" and rec["from"] == ping["to"]:
+            u = dec.get("user") or {}
+            ping.update(status="ok", rtt=round((now - ping["sent"]) * 1000), hops=rec.get("hops"), snr=rec.get("snr"),
+                        rssi=rec.get("rssi"),
+                        detail=f"{u.get('longName') or ping['to_name']} answered with its node info"
+                               + (f" over {rec['hops']} hop{'s' if rec['hops'] != 1 else ''}" if rec.get("hops") else " directly" if rec.get("hops") == 0 else "")
+                               + " — you now know each other's keys")
+            self._finish_ping(ping)
         elif rec["port"] == "TRACEROUTE_APP" and ping["method"] == "trace":
             tr = dec.get("traceroute") or {}
             route = [node_id(x) for x in tr.get("route") or []]
@@ -1020,7 +1043,11 @@ def demo_ping_reply(hub, ping):
     base = {"from": dest, "to": me, "fromId": ping["to"], "toId": hub.my_id, "rxSnr": round(random.uniform(-12, 9), 2),
             "rxRssi": random.randint(-118, -62), "hopStart": 3, "hopLimit": 3 - hops}
     if roll < 0.75:
-        if ping["method"] == "trace":
+        if ping["method"] == "hello":
+            n = next((x for x in DEMO_NODES if x[0] == dest), DEMO_NODES[1])
+            base["decoded"] = {"portnum": "NODEINFO_APP", "requestId": ping["id"],
+                               "user": {"id": ping["to"], "longName": n[1], "shortName": n[2], "hwModel": n[3]}}
+        elif ping["method"] == "trace":
             relays = random.sample([n[0] for n in DEMO_NODES[1:] if n[0] != dest], hops)
             base["decoded"] = {"portnum": "TRACEROUTE_APP", "requestId": ping["id"],
                                "traceroute": {"route": relays, "routeBack": relays[::-1],
