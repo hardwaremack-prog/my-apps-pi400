@@ -268,7 +268,7 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
           <button class="btn primary" id="pGo" style="flex:1">🏓 Ping now</button>
           <button class="btn danger" id="pStop" hidden>■ Stop</button>
         </div>
-        <div class="err" id="pMsg"></div>
+        <div class="err" id="pMsg" hidden></div>
         <div class="live" id="pLive"><div style="color:var(--dim)">Pick a node and press Ping. MeshTap times how long until the node confirms it got the message.</div></div>
         <p class="note">One ping at a time, at most every 30 seconds when repeating, so the shared channel stays clear. Quiet pings are invisible to the other person.</p>
       </div>
@@ -341,6 +341,14 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
+// If the bundled map library didn't load (e.g. an old MeshTap still running), fall back to the online copy.
+if (!window.L) {
+  document.write('<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">');
+  document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>');
+}
+</script>
+<script>
+const PAGE_VERSION = '1.3.1';
 const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
            tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
 const $ = s => document.querySelector(s);
@@ -512,7 +520,9 @@ function dist(a, b) {
 function fmtDist(m) { const mi = m / 1609.34; return mi < 0.2 ? Math.round(m * 3.281) + ' ft' : mi.toFixed(mi < 10 ? 2 : 1) + ' mi (' + (m / 1000).toFixed(1) + ' km)'; }
 function renderMap() {
   initMap();
-  if (!M.map) { mapNote('Map library failed to load.'); return; }
+  if (!M.map) { mapNote(S.status.version && S.status.version !== PAGE_VERSION
+      ? 'Map can\'t load: the old MeshTap is still running. Close its window and start MeshTap again.'
+      : 'Map library failed to load. Check your internet once, or restart MeshTap.'); return; }
   setTimeout(() => M.map.invalidateSize(), 0);
   const showOld = $('#mapOld').checked, now = Date.now() / 1000;
   const placed = S.nodes.filter(n => hasPos(n) && (showOld || n.id === S.status.my_id || (n.last && now - n.last < 7200)));
@@ -573,28 +583,40 @@ function fitAll() {
 // ---------- ping
 S.pings = [];
 const PMETH = {ack: 'Quiet', trace: 'Traceroute', text: 'Text'};
-const PRES = {ok: '✅ Delivered', fail: '❌ Failed', timeout: '⏱ No answer', error: '⚠️ Error', waiting: '… Waiting'};
+const PRES = {ok: '✅ Delivered', fail: '❌ Failed', timeout: '⏱ No answer', error: '⚠️ Error', waiting: '… Waiting', cancelled: '✖ Cancelled'};
 function pingTargets() {
   const sel = $('#pTo'), cur = sel.value || (S.status.ping_job && S.status.ping_job.to) || '';
   const list = S.nodes.filter(n => n.id !== S.status.my_id && n.id !== '^all' && /^!/.test(n.id))
     .sort((a, b) => (b.last || 0) - (a.last || 0));
-  const html = list.map(n => `<option value="${esc(n.id)}">${esc(n.long || n.id)}${n.hops != null ? ' · ' + (n.hops === 0 ? 'direct' : n.hops + ' hop' + (n.hops > 1 ? 's' : '')) : ''}${n.last ? ' · ' + ago(n.last) : ''}</option>`).join('')
+  const html = list.map(n => `<option value="${esc(n.id)}">${esc(n.long || n.id)}${n.hops != null ? ' · ' + (n.hops === 0 ? 'direct' : n.hops + ' hop' + (n.hops > 1 ? 's' : '')) : ''}</option>`).join('')
     || '<option value="">No nodes heard yet</option>';
+  if (document.activeElement === sel) return;   // never rebuild while you're picking
   if (sel.dataset.sig !== html) { sel.innerHTML = html; sel.dataset.sig = html; if (cur && list.some(n => n.id === cur)) sel.value = cur; }
 }
 function renderPing() {
   pingTargets();
   const st = S.status, job = st.ping_job, w = st.ping_waiting;
-  $('#pStop').hidden = !job; $('#pGo').textContent = job ? '🏓 Ping once more' : '🏓 Ping now';
+  $('#pStop').hidden = !job;
   if (job) { $('#pRepeat').checked = true; }
+  const sel = $('#pTo').value, selName = (S.nodes.find(n => n.id === sel) || {}).long || sel;
+  const go = $('#pGo');
+  if (w && w.to !== sel) { go.textContent = `↻ Cancel & ping ${selName}`; go.dataset.mode = 'replace'; go.disabled = false; }
+  else if (w) { go.textContent = '⏳ Waiting for the reply…'; go.dataset.mode = 'busy'; go.disabled = true; }
+  else if (job && job.to !== sel) { go.textContent = `↻ Switch repeat to ${selName}`; go.dataset.mode = 'retarget'; go.disabled = false; }
+  else { go.textContent = job ? '🏓 Ping now (repeat is on)' : '🏓 Ping now'; go.dataset.mode = ''; go.disabled = false; }
   const live = $('#pLive');
-  const last = S.pings.filter(p => p.status !== 'waiting').slice(-1)[0];
+  const last = S.pings.filter(p => p.status !== 'waiting' && p.status !== 'cancelled').slice(-1)[0];
   if (w) {
     const el = Math.max(0, Date.now() / 1000 - (w.sent || w.ts)), max = {ack: 45, text: 45, trace: 60}[w.method] || 45;
     live.className = 'live waiting';
     live.innerHTML = `<div style="color:var(--dim)">${esc(PMETH[w.method])} ping to <b style="color:var(--text)">${esc(w.to_name)}</b></div>
       <div class="big">${el.toFixed(0)} s</div><div style="color:var(--dim);font-size:13px">${esc(w.detail || 'Sent — waiting for the reply…')}</div>
-      <div class="bar2"><i style="width:${Math.min(100, el / max * 100)}%"></i></div>`;
+      <div class="bar2"><i style="width:${Math.min(100, el / max * 100)}%"></i></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><span style="color:var(--dim);font-size:12px">Gives up after ${max} s</span>
+      <button class="btn danger" id="pCancel" style="padding:3px 10px;font-size:12px">✖ Cancel</button></div>`;
+  } else if (S.pingErr) {
+    live.className = 'live error';
+    live.innerHTML = `<div class="big res error" style="font-size:18px">⚠️ Couldn't ping</div><div style="color:var(--text);font-size:14px;margin-top:4px">${esc(S.pingErr)}</div>`;
   } else if (last) {
     live.className = 'live ' + last.status;
     live.innerHTML = `<div style="color:var(--dim)">${esc(PMETH[last.method])} ping to <b style="color:var(--text)">${esc(last.to_name)}</b> · ${ago(last.done || last.ts)}</div>
@@ -604,7 +626,7 @@ function renderPing() {
   }
   const target = $('#pTo').value, only = $('#pOnlyThis').checked;
   const rows = S.pings.filter(p => !only || p.to === target);
-  const done = rows.filter(p => p.status !== 'waiting'), ok = done.filter(p => p.status === 'ok'), rtts = ok.map(p => p.rtt).filter(x => x != null);
+  const done = rows.filter(p => p.status !== 'waiting' && p.status !== 'cancelled'), ok = done.filter(p => p.status === 'ok'), rtts = ok.map(p => p.rtt).filter(x => x != null);
   const avg = rtts.length ? rtts.reduce((a, b) => a + b, 0) / rtts.length : null;
   const last10 = done.slice(-10), ok10 = last10.filter(p => p.status === 'ok').length;
   const card = (k, v, s) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || ''}</div></div>`;
@@ -619,7 +641,7 @@ function renderPing() {
     <td>${p.status === 'ok' ? fmtMs(p.rtt) : '—'}${p.relayed_at ? `<div style="color:var(--dim);font-size:11px">relayed ${fmtMs(p.relayed_at)}</div>` : ''}</td>
     <td>${p.hops ?? '—'}</td><td>${p.snr != null ? (+p.snr).toFixed(1) : '—'}</td><td class="det">${esc(p.detail || '')}</td></tr>`).join('')
     || `<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:24px">No pings yet</td></tr>`;
-  drawPingChart(rows.filter(p => p.status !== 'waiting').slice(-40));
+  drawPingChart(rows.filter(p => p.status !== 'waiting' && p.status !== 'cancelled').slice(-40));
 }
 function fmtMs(ms) { return ms == null ? '—' : ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(ms < 10000 ? 2 : 1) + ' s'; }
 function drawPingChart(list) {
@@ -649,15 +671,33 @@ function addPing(pg) {
   if (S.pings.length > 500) S.pings.shift();
   if (S.tab === 'ping') renderPing();
 }
+async function pingCall(path, body) {
+  let res;
+  try { res = await post(path, body); } catch (e) { return {ok: false, msg: 'MeshTap isn\'t answering. Is it still running?'}; }
+  if (res.status === 404) return {ok: false, msg: 'This MeshTap is still the old version. Close the MeshTap window and start it again, then try Ping.'};
+  try { return await res.json(); } catch (e) { return {ok: false, msg: 'Unexpected answer from MeshTap (' + res.status + ').'}; }
+}
 $('#pGo').onclick = async () => {
-  $('#pMsg').textContent = '';
+  const go = $('#pGo'), mode = go.dataset.mode;
+  if (mode === 'busy') return;
+  S.pingErr = ''; $('#pMsg').textContent = '';
+  if (!$('#pTo').value) pingTargets();
   const body = {to: $('#pTo').value, method: $('#pMethod').value};
-  if ($('#pRepeat').checked && !S.status.ping_job) { body.repeat = true; body.interval = Math.max(30, +$('#pInterval').value || 60); }
-  const r = await (await post('/api/ping', body)).json();
-  if (!r.ok) $('#pMsg').textContent = r.msg;
-  refresh();
+  if (!body.to) { S.pingErr = 'Pick a node first.'; renderPing(); return; }
+  if (mode === 'replace') body.replace = true;
+  if ($('#pRepeat').checked && (!S.status.ping_job || mode === 'retarget')) { body.repeat = true; body.interval = Math.max(30, +$('#pInterval').value || 60); }
+  go.disabled = true; go.textContent = 'Sending…';
+  const r = await pingCall('/api/ping', body);
+  if (!r.ok) S.pingErr = r.msg || 'Ping failed to send.';
+  await refresh(); renderPing();
 };
-$('#pStop').onclick = async () => { await post('/api/ping/stop'); $('#pRepeat').checked = false; refresh(); };
+$('#pStop').onclick = async () => { await pingCall('/api/ping/stop'); $('#pRepeat').checked = false; await refresh(); renderPing(); };
+document.addEventListener('click', async e => {
+  if (e.target.id !== 'pCancel') return;
+  await pingCall('/api/ping/cancel'); await refresh(); renderPing();
+});
+$('#pTo').addEventListener('change', () => { S.pingErr = ''; });
+$('#pRepeat').addEventListener('change', async () => { if (!$('#pRepeat').checked && S.status.ping_job) { await pingCall('/api/ping/stop'); await refresh(); renderPing(); } });
 ['#pTo', '#pOnlyThis'].forEach(sel => $(sel).addEventListener('change', renderPing));
 setInterval(() => { if (S.tab === 'ping' && (S.status.ping_waiting || S.status.ping_job)) renderPing(); }, 1000);
 
@@ -722,6 +762,12 @@ function renderStatus() {
   $('#connBtn').textContent = st.connected ? 'Change' : 'Connect';
   $('#connErr').textContent = st.error || (!st.have_lib ? 'Meshtastic library not installed — only Demo will work. Run the start script to install it.' : '');
   $('#ver').textContent = 'v' + (st.version || '');
+  const stale = st.version && st.version !== PAGE_VERSION;
+  let bn = document.getElementById('staleBanner');
+  if (stale && !bn) {
+    document.querySelector('main').insertAdjacentHTML('afterbegin', `<div id="staleBanner" class="panel" style="border-color:var(--amber);margin-bottom:12px">
+      ⚠️ <b>MeshTap was updated, but the old version is still running</b> (running v${esc(st.version)}, page is v${PAGE_VERSION}). Close the MeshTap window and start it again so new features like Ping work.</div>`);
+  } else if (!stale && bn) bn.remove();
   renderSave();
 }
 function renderCards() {
@@ -768,7 +814,7 @@ function listen() {
   es.onmessage = ev => {
     const m = JSON.parse(ev.data);
     if (m.type === 'packet') addPacket(m.packet);
-    else if (m.type === 'status') { S.status = m.status; renderStatus(); }
+    else if (m.type === 'status') { S.status = m.status; renderStatus(); if (S.tab === 'ping') renderPing(); }
     else if (m.type === 'log') addLog(m.log);
     else if (m.type === 'ping') addPing(m.ping);
     else if (m.type === 'saved') refresh();
@@ -849,6 +895,7 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   try { localStorage.setItem('meshtap.tab', S.tab); } catch (e) {}
   if (S.tab === 'nodes') renderNodes();
   if (S.tab === 'map') renderMap();
+  if (S.tab === 'ping') renderPing();
   if (S.tab === 'stats') renderStats();
 });
 $('#feed').onclick = e => { const el = e.target.closest('.pkt'); if (el) { const p = S.byK.get(+el.dataset.k); if (p) showPacket(p); } };
@@ -898,7 +945,7 @@ window.addEventListener('resize', () => { if (S.tab === 'stats') drawRate(); });
   } catch (e) {}
   renderFeed(); renderCards();
   try { (await (await fetch('/api/logs')).json()).forEach(addLog); } catch (e) {}
-  try { S.pings = await (await fetch('/api/pings')).json(); } catch (e) {}
+  try { const pj = await (await fetch('/api/pings')).json(); S.pings = Array.isArray(pj) ? pj : []; } catch (e) { S.pings = []; }
   listen();
   setInterval(refresh, 2500);
   let t0 = 'feed'; try { t0 = localStorage.getItem('meshtap.tab') || 'feed'; } catch (e) {}

@@ -30,7 +30,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
@@ -300,6 +300,7 @@ class Hub:
         self.ping_pending = {}         # packet id -> ping record
         self.ping_job = None           # repeating ping settings
         self.ping_seq = 0
+        self.ping_late = {}            # cancelled pings, so a late reply can still be noted
         self.db = sqlite3.connect(DB_PATH, check_same_thread=False)
         self.db.execute("CREATE TABLE IF NOT EXISTS packets (ts REAL, port TEXT, data TEXT)")
         self.db.execute("CREATE TABLE IF NOT EXISTS pings (ts REAL, data TEXT)")
@@ -474,7 +475,17 @@ class Hub:
             return int(nid[1:], 16)
         return int(nid)
 
-    def send_ping(self, to, method="ack"):
+    def cancel_ping(self, reason="Cancelled"):
+        """Stop waiting on the current ping (a late reply is still noted)."""
+        n = 0
+        for ping in list(self.ping_pending.values()):
+            ping.update(status="cancelled", detail=reason)
+            self.ping_late[ping["id"]] = ping
+            self._finish_ping(ping)
+            n += 1
+        return n
+
+    def send_ping(self, to, method="ack", replace=False):
         """Send one ping and start timing. Returns (ok, message)."""
         if method not in PING_TIMEOUT:
             return False, "Unknown ping type"
@@ -484,9 +495,14 @@ class Hub:
             return False, "Pick a node to ping."
         if self.my_id and to == self.my_id:
             return False, "That's your own radio — pick another node."
+        if self.ping_pending and replace:
+            old = next(iter(self.ping_pending.values()))
+            self.cancel_ping(f"Cancelled to ping {self.name_of(to)} instead")
         with self.lock:
             if self.ping_pending:
-                return False, "Still waiting on the last ping — one at a time keeps the channel clear."
+                w = next(iter(self.ping_pending.values()))
+                return False, (f"Still waiting on {w['to_name']} ({int(time.time() - w.get('sent', w['ts']))} s so far). "
+                               "Press Cancel, or wait — one at a time keeps the channel clear.")
             self.ping_seq += 1
             rec = {"n": self.ping_seq, "ts": time.time(), "to": to, "to_name": self.name_of(to), "method": method,
                    "status": "waiting", "rtt": None, "relayed_at": None, "hops": None, "snr": None, "rssi": None,
@@ -523,6 +539,11 @@ class Hub:
 
     def _check_ping_reply(self, rec, dec):
         req = dec.get("requestId") if isinstance(dec, dict) else None
+        if req and req in self.ping_late and rec["from"] == self.ping_late[req]["to"]:
+            late = self.ping_late.pop(req)
+            secs = rec["ts"] - late.get("sent", late["ts"])
+            self.add_log(f"[MeshTap] late reply: {late['to_name']} answered the cancelled ping after {secs:.1f} s")
+            return
         if not req or req not in self.ping_pending:
             return
         ping = self.ping_pending[req]
@@ -577,7 +598,7 @@ class Hub:
                     self.db.commit()
                 except sqlite3.Error:
                     pass
-        word = {"ok": "✅", "fail": "❌", "timeout": "⏱", "error": "⚠️"}.get(ping["status"], "")
+        word = {"ok": "✅", "fail": "❌", "timeout": "⏱", "error": "⚠️", "cancelled": "✖"}.get(ping["status"], "")
         self.add_log(f"[MeshTap] ping {ping['to_name']} ({ping['method']}): {word} {ping['status']}"
                      + (f" {ping['rtt']} ms" if ping.get("rtt") is not None and ping["status"] == "ok" else "")
                      + (f" — {ping['detail']}" if ping["status"] != "ok" else ""))
@@ -601,7 +622,11 @@ class Hub:
                     self.add_log(f"[MeshTap] repeat ping: {msg}")
 
     def start_ping_job(self, to, method, interval):
+        if not to or to == "^all" or (self.my_id and to == self.my_id):
+            return False, "Pick a node to ping."
         interval = max(PING_MIN_INTERVAL, int(interval or 60))
+        if self.ping_pending and next(iter(self.ping_pending.values()))["to"] != to:
+            self.cancel_ping(f"Cancelled — now pinging {self.name_of(to)}")
         self.ping_job = {"to": to, "method": method, "interval": interval, "next": 0}
         self.push_status()
         return True, f"Pinging {self.name_of(to)} every {interval} s"
@@ -1148,6 +1173,12 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/disconnect":
             HUB.disconnect()
             return self._send(200, {"ok": True})
+        if url.path == "/api/shutdown":  # lets a newer MeshTap replace this one; only from this computer
+            if self.client_address[0] not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+                return self._send(403, {"error": "only from this computer"})
+            self._send(200, {"ok": True, "version": VERSION})
+            threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start()
+            return
         if url.path == "/api/autosave":
             HUB.set_autosave(bool(body.get("on")))
             return self._send(200, {"ok": True})
@@ -1159,10 +1190,14 @@ class Handler(BaseHTTPRequestHandler):
             if body.get("repeat"):
                 ok, msg = HUB.start_ping_job(to, method, body.get("interval"))
             else:
-                ok, msg = HUB.send_ping(to, method)
+                ok, msg = HUB.send_ping(to, method, replace=bool(body.get("replace")))
             return self._send(200, {"ok": ok, "msg": msg})
+        if url.path == "/api/ping/cancel":
+            HUB.cancel_ping()
+            return self._send(200, {"ok": True})
         if url.path == "/api/ping/stop":
             HUB.stop_ping_job()
+            HUB.cancel_ping("Stopped")
             return self._send(200, {"ok": True})
         if url.path == "/api/clear":
             HUB.clear()
@@ -1212,6 +1247,55 @@ class Handler(BaseHTTPRequestHandler):
                     HUB.clients.remove(q)
 
 
+def running_version(port):
+    """Version of a MeshTap already answering on this port, or None."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state", timeout=2) as r:
+            return (json.loads(r.read()).get("status") or {}).get("version") or "?"
+    except Exception:
+        return None
+
+
+def bind_or_take_over(host, port, url, no_browser):
+    """Open the web port. If an older MeshTap holds it, ask it to close and take over;
+    if the same version is already running, just open it."""
+    import urllib.request
+    for attempt in range(2):
+        try:
+            server = ThreadingHTTPServer((host, port), Handler)
+            server.daemon_threads = True
+            return server
+        except OSError:
+            if attempt:
+                break
+            old = running_version(port)
+            if old is None:
+                break
+            if old == VERSION:
+                print(f"\n  MeshTap {VERSION} is already running — opening it.\n")
+                if not no_browser:
+                    webbrowser.open(url)
+                return None
+            print(f"\n  An older MeshTap (v{old}) is running — closing it so v{VERSION} can take over...")
+            try:
+                urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{port}/api/shutdown", data=b"{}",
+                                                              headers={"Content-Type": "application/json"}), timeout=3)
+            except Exception:
+                pass
+            for _ in range(20):
+                time.sleep(0.25)
+                if running_version(port) is None:
+                    break
+    old = running_version(port)
+    if old:
+        print(f"\n  MeshTap v{old} is still running in another window and is using port {port}.\n"
+              f"  Close that window (or end python.exe in Task Manager), then start MeshTap again.\n")
+    else:
+        print(f"\n  Port {port} is in use by another program. Start with a different one, e.g.:  --web-port 8743\n")
+    return None
+
+
 def auto_serial():
     try:
         import meshtastic.util
@@ -1234,6 +1318,11 @@ def main():
     ap.add_argument("--no-browser", action="store_true")
     args = ap.parse_args()
 
+    host = "0.0.0.0" if args.lan else "127.0.0.1"
+    url = f"http://localhost:{args.web_port}"
+    server = bind_or_take_over(host, args.web_port, url, args.no_browser)
+    if server is None:
+        return
     HUB = Hub()
     if args.demo:
         HUB.connect("demo")
@@ -1253,10 +1342,6 @@ def main():
             HUB.add_log("[MeshTap] " + ("no USB radio found — use Connect to pick WiFi, Bluetooth or a port"
                                          if not found else f"several ports found ({', '.join(found)}) — pick one in Connect"))
 
-    host = "0.0.0.0" if args.lan else "127.0.0.1"
-    server = ThreadingHTTPServer((host, args.web_port), Handler)
-    server.daemon_threads = True
-    url = f"http://localhost:{args.web_port}"
     print(f"\n  MeshTap {VERSION} running at {url}")
     if args.lan:
         print(f"  (also reachable from other devices on your network on port {args.web_port})")
