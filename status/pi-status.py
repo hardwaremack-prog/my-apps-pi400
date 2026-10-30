@@ -6,7 +6,7 @@ server lights at the top of "My Apps Menu.html", the same way Command Center
 does on Windows:
 
   * this Pi: name, IP, temperature, CPU, memory, SD card, uptime, power warnings
-  * SSH, VNC, The Shelf, PiMesh, PodDeck, Blueprint Wiki, NetPulse, ... (green/red)
+  * SSH, VNC, The Shelf, PiMesh, PodDeck, MeshTap, Blueprint Wiki, NetPulse, ... (green/red)
   * any other web server running on this Pi (found by itself)
   * other computers you add with "+ Watch" (your PC's Shelf, another Pi, ...)
 
@@ -46,6 +46,8 @@ KNOWN = [
          note="All your Pis and their stats."),
     dict(id="poddeck", name="PodDeck", title=r"poddeck", ports=[8070], always=True, launch="poddeck",
          note="Podman containers."),
+    dict(id="meshtap", name="MeshTap", title=r"meshtap", ports=[8742, 8743], launch="meshtap",
+         note="Live Meshtastic radio traffic."),
     dict(id="wiki", name="Blueprint Wiki", title=r"blueprint", ports=[8080, 8081, 8082, 8083], always=True,
          launch="blueprint-wiki", note="Projects, notes and diagrams."),
     dict(id="netpulse", name="NetPulse", title=r"netpulse", ports=[8790, 8791, 8792, 8793, 8794, 8795, 8765, 8766],

@@ -233,6 +233,27 @@ Categories=Office;Development;"
   gio set "$DESK/Blueprint Wiki.desktop" metadata::trusted true 2>/dev/null || true
 fi
 
+# 3f1. MeshTap (live Meshtastic traffic viewer; first run downloads the Meshtastic library)
+MT="$DEST/apps/meshtap"
+if [ -f "$MT/meshtap.py" ]; then
+  chmod +x "$MT/meshtap.py" "$MT/start-pi.sh" 2>/dev/null || true
+  # USB radios need the dialout group (takes effect after the next log in)
+  groups "$USER" | grep -qw dialout || sudo usermod -aG dialout "$USER" 2>/dev/null || true
+  MTL="[Desktop Entry]
+Type=Application
+Name=MeshTap
+Comment=See everything going through your Meshtastic radio
+Exec=bash \"$MT/start-pi.sh\" --lan
+Path=$MT
+Icon=$MT/meshtap-icon.png
+Terminal=true
+Categories=Network;HamRadio;"
+  printf '%s\n' "$MTL" > "$HOME/.local/share/applications/meshtap.desktop"
+  printf '%s\n' "$MTL" > "$DESK/MeshTap.desktop"
+  chmod +x "$DESK/MeshTap.desktop" "$HOME/.local/share/applications/meshtap.desktop"
+  gio set "$DESK/MeshTap.desktop" metadata::trusted true 2>/dev/null || true
+fi
+
 # 3f. PodDeck (Podman container control panel; first run installs Podman and makes it start on boot)
 PK="$DEST/apps/poddeck"
 if [ -f "$PK/poddeck.py" ]; then
@@ -433,7 +454,7 @@ done
 
 echo
 echo "  All set! Double-click 'My Apps' on the Desktop,"
-echo "  (RPi400 Performance, the Task Manager, Pip, NetPulse, NetSentry, Halo Studio, PiDirStat, PON Lab, PON Fleet, WiFi Share, Blueprint Wiki, PodDeck, PiMesh, Frostfall Cabins Server, RAID Forge and the Snipping Tool have their own icons too),"
+echo "  (RPi400 Performance, the Task Manager, Pip, NetPulse, NetSentry, Halo Studio, PiDirStat, PON Lab, PON Fleet, WiFi Share, Blueprint Wiki, PodDeck, MeshTap, PiMesh, Frostfall Cabins Server, RAID Forge and the Snipping Tool have their own icons too),"
 echo "  or find it in the Raspberry Pi menu under Games."
 echo "  The server lights (SSH, VNC, The Shelf, PiMesh and more) are at the top of the menu."
 [ -n "$NEED_REBOOT" ] && echo "  Restart the Pi once so the Task Manager starts cleanly:  sudo reboot"

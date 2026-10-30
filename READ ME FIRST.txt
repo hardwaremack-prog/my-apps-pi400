@@ -222,6 +222,20 @@ BLUEPRINT WIKI (projects, notes and diagrams)
   jumps straight to it once it's running. Your pages are kept in
   apps/blueprint-wiki/data.
 
+MESHTAP (Meshtastic traffic viewer)
+  Plug in your Meshtastic radio and see everything going through it,
+  live: every packet (texts, positions, telemetry, node info, ACKs,
+  traceroutes, encrypted ones), who sent it, signal (SNR/RSSI) and how
+  many hops it took. A Nodes tab lists every radio heard with battery,
+  hardware and a map link, and Breakdown shows traffic over time.
+  Everything is saved, and you can export to CSV or JSON.
+  Start it with the MeshTap icon on the Desktop (added by Set Up My
+  Apps.sh) or from the Pi menu under Internet. The first run downloads
+  the Meshtastic library, so it needs internet once. Connects by USB,
+  WiFi or Bluetooth (disconnect the radio from your phone first).
+  Log out and back in once after setup so USB radios work. Watch it
+  from your phone at http://<pi-ip>:8742. Try Demo if no radio is handy.
+
 PODDECK (container control panel)
   A dashboard for Podman containers: see the Pi's CPU, memory and
   temperature, start/stop/restart containers, watch their logs and

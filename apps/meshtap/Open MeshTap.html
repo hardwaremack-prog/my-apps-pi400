@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MeshTap</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0f1a;color:#e6edf7;font:16px/1.5 system-ui,sans-serif;padding:16px;box-sizing:border-box}
+.box{max-width:560px;background:#111a2b;border:1px solid #22304d;border-radius:16px;padding:28px}
+h1{margin:0 0 4px;font-size:24px;display:flex;align-items:center;gap:12px} img{width:48px;height:48px}
+p{color:#8b9bb8} code{background:#0a0f1a;border:1px solid #22304d;border-radius:6px;padding:2px 6px;color:#5eea94;font-size:14px}
+ol{padding-left:20px} li{margin:8px 0} #st{color:#ffc35c}
+</style></head><body><div class="box">
+<h1><img src="web/icon.svg" alt="">MeshTap</h1>
+<p id="st">Looking for MeshTap...</p>
+<div id="help" hidden>
+<p>MeshTap shows everything going through your Meshtastic radio. It's a small program that has to be running first.</p>
+<ol>
+<li>Double-click the <b>MeshTap</b> icon on the Desktop (added by <b>Set Up My Apps.sh</b>), or find it in the Raspberry Pi menu under <b>Internet</b>.</li>
+<li>The first time, it downloads the Meshtastic library (needs internet once). Then plug in your radio and press <b>Connect</b>.</li>
+</ol>
+<p>No icon? Open a Terminal and type:<br><code>bash ~/Desktop/"My Apps"/apps/meshtap/start-pi.sh --lan</code></p>
+<p>This page keeps checking and jumps to MeshTap as soon as it's running.</p>
+</div></div>
+<script>
+// MeshTap answers /meshtap.js with its port; other programs won't, so we never open the wrong app.
+const PORTS=[8742,8743];
+function probe(){window.__meshtap=[];let left=PORTS.length;
+  PORTS.forEach(p=>{const sc=document.createElement('script');sc.src='http://127.0.0.1:'+p+'/meshtap.js?'+Date.now();
+    sc.onload=sc.onerror=()=>{sc.remove();if(--left===0)done()};document.head.appendChild(sc)})}
+function done(){const p=(window.__meshtap||[])[0];
+  if(p){location.replace('http://127.0.0.1:'+p+'/');return}
+  document.getElementById('st').textContent='MeshTap isn\'t running yet.';document.getElementById('help').hidden=false;setTimeout(probe,2500)}
+probe();
+</script></body></html>

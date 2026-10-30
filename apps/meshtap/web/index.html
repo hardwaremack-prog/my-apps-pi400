@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeshTap</title>
+<link rel="icon" href="/icon.svg">
+<style>
+:root{
+  --bg:#0a0f1a;--panel:#111a2b;--panel2:#16213a;--line:#22304d;--text:#e6edf7;--dim:#8b9bb8;
+  --green:#5eea94;--blue:#5ab0ff;--amber:#ffc35c;--red:#ff6b6b;--violet:#b38cff;--teal:#3fd6c9;--pink:#ff8fc7;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,select,input{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:rgba(10,15,26,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:.3px}
+.brand img{width:30px;height:30px}
+.brand small{font-weight:500;color:var(--dim);font-size:12px}
+.conn{display:flex;align-items:center;gap:8px;margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(94,234,148,.6)}
+.dot.on{background:var(--green);animation:pulse 2s infinite}
+.dot.wait{background:var(--amber)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(94,234,148,.55)}70%{box-shadow:0 0 0 9px rgba(94,234,148,0)}100%{box-shadow:0 0 0 0 rgba(94,234,148,0)}}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn:hover{border-color:var(--blue)}
+.btn.primary{background:var(--green);color:#062312;border-color:var(--green);font-weight:600}
+.btn.pill{border-radius:999px}
+.btn.danger:hover{border-color:var(--red);color:var(--red)}
+main{padding:14px 16px 40px;max-width:1400px;margin:0 auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.card .k{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+.card .v{font-size:24px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.card .s{color:var(--dim);font-size:12px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:12px;overflow-x:auto}
+.tab{background:none;border:none;padding:9px 14px;cursor:pointer;color:var(--dim);border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--text);border-bottom-color:var(--green)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.toolbar input,.toolbar select{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.toolbar input[type=text],.toolbar input:not([type]){flex:1;min-width:160px}
+.toolbar input[type=checkbox]{accent-color:var(--green);width:16px;height:16px}
+a.btn{color:inherit;text-decoration:none}
+.toolbar label{display:flex;align-items:center;gap:6px;color:var(--dim)}
+.newbadge{background:var(--amber);color:#2a1d00;border-radius:999px;padding:2px 9px;font-weight:700;font-size:12px;display:none}
+.feed{display:flex;flex-direction:column;gap:6px}
+.pkt{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--c,var(--dim));border-radius:10px;padding:8px 12px;cursor:pointer;
+  display:grid;grid-template-columns:1fr auto;gap:2px 12px}
+.pkt:hover{border-color:var(--blue);border-left-color:var(--c,var(--dim))}
+.pkt.fresh{animation:fresh 1.2s ease-out}
+@keyframes fresh{from{background:#1d3a2c}to{background:var(--panel)}}
+.pkt .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--dim)}
+.pkt .who{color:var(--text);font-weight:600}
+.pkt .arrow{opacity:.6}
+.pkt .sum{grid-column:1;font-size:14px;word-break:break-word}
+.pkt .meta{grid-row:1/3;grid-column:2;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.badge{display:inline-block;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;letter-spacing:.3px;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c)}
+.chip{font-size:12px;color:var(--dim);background:var(--panel2);border-radius:6px;padding:2px 7px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip.good{color:var(--green)}.chip.ok{color:var(--amber)}.chip.bad{color:var(--red)}
+.dm{color:var(--pink);font-weight:700;font-size:11px}
+.empty{color:var(--dim);text-align:center;padding:40px 10px;border:1px dashed var(--line);border-radius:12px}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--panel)}
+tr:last-child td{border-bottom:none}
+td a{color:var(--blue)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.panel h3{margin:0 0 10px;font-size:14px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.bar{display:grid;grid-template-columns:120px 1fr 54px;gap:8px;align-items:center;margin:5px 0;font-size:13px}
+.bar .track{height:12px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.bar .fill{height:100%;border-radius:6px;background:var(--c,var(--blue))}
+.bar .lab{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .num{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
+canvas{width:100%;height:180px;display:block}
+.log{background:#060a12;border:1px solid var(--line);border-radius:12px;padding:10px 12px;height:60vh;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
+.log .t{color:var(--dim)}
+.log .mt{color:var(--green)}
+.note{color:var(--dim);font-size:13px;margin:8px 0}
+.note code{background:var(--panel2);padding:1px 6px;border-radius:5px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+.modal.on{display:flex}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:min(720px,100%);max-height:90vh;overflow:auto;padding:16px 18px}
+.sheet h2{margin:0 0 12px;font-size:18px;display:flex;align-items:center;justify-content:space-between}
+.field{margin:10px 0}
+.field label{display:block;color:var(--dim);font-size:12px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.field select,.field input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.seg button{padding:10px 6px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);cursor:pointer}
+.seg button.on{border-color:var(--green);color:var(--green);background:#123024}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:4px 12px;font-size:13px;margin-bottom:12px}
+.kv div:nth-child(odd){color:var(--dim)}
+pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.45 ui-monospace,Consolas,monospace;overflow:auto;max-height:45vh;margin:0}
+.err{color:var(--red);font-size:13px;margin-top:8px}
+.foot{color:var(--dim);font-size:12px;margin-top:16px;text-align:center}
+@media (max-width:640px){
+  header{padding:8px 10px}.conn{margin-left:0;width:100%}
+  main{padding:10px}
+  .pkt{grid-template-columns:1fr}.pkt .meta{grid-row:auto;grid-column:1;justify-content:flex-start}
+  .card .v{font-size:20px}
+  .seg{grid-template-columns:repeat(2,1fr)}
+  .bar{grid-template-columns:90px 1fr 44px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="/icon.svg" alt=""><div>MeshTap <small id="ver"></small></div></div>
+  <div class="conn">
+    <span class="dot" id="dot"></span>
+    <span id="connText">Not connected</span>
+    <button class="btn pill" id="connBtn">Connect</button>
+  </div>
+</header>
+
+<main>
+  <div class="cards">
+    <div class="card"><div class="k">Packets</div><div class="v" id="cTotal">0</div><div class="s" id="cSaved"></div></div>
+    <div class="card"><div class="k">Per minute</div><div class="v" id="cRate">0</div><div class="s">last 5 min avg</div></div>
+    <div class="card"><div class="k">Nodes heard</div><div class="v" id="cNodes">0</div><div class="s" id="cKnown"></div></div>
+    <div class="card"><div class="k">Messages</div><div class="v" id="cTexts">0</div><div class="s">text packets</div></div>
+    <div class="card"><div class="k">Encrypted</div><div class="v" id="cEnc">0</div><div class="s">couldn't decode</div></div>
+    <div class="card"><div class="k">Last packet</div><div class="v" id="cLast">—</div><div class="s" id="cLastWho"></div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="feed">📡 Live traffic</button>
+    <button class="tab" data-tab="nodes">🛰 Nodes</button>
+    <button class="tab" data-tab="stats">📊 Breakdown</button>
+    <button class="tab" data-tab="log">🧾 Device log</button>
+  </div>
+
+  <section id="tab-feed">
+    <div class="toolbar">
+      <input id="q" placeholder="Search names, IDs, messages…">
+      <select id="portSel"><option value="">All types</option></select>
+      <label><input type="checkbox" id="dmOnly"> To me only</label>
+      <button class="btn" id="pauseBtn">⏸ Pause</button>
+      <span class="newbadge" id="newBadge"></span>
+      <a class="btn" href="/api/export.csv">⬇ CSV</a>
+      <a class="btn" href="/api/export.jsonl">⬇ JSON</a>
+      <button class="btn danger" id="clearBtn">🗑 Clear</button>
+    </div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <section id="tab-nodes" hidden>
+    <div class="toolbar"><input id="nq" placeholder="Filter nodes…"><label><input type="checkbox" id="heardOnly" checked> Heard this session only</label></div>
+    <div class="tablewrap"><table>
+      <thead><tr>
+        <th data-s="name">Name</th><th data-s="id">ID</th><th data-s="packets">Packets</th><th data-s="last">Last heard</th>
+        <th data-s="snr">SNR</th><th data-s="rssi">RSSI</th><th data-s="hops">Hops</th><th data-s="battery">Battery</th><th data-s="hw">Hardware</th><th>Map</th>
+      </tr></thead>
+      <tbody id="nodeRows"></tbody>
+    </table></div>
+  </section>
+
+  <section id="tab-stats" hidden>
+    <div class="panel" style="margin-bottom:12px"><h3>Packets per minute (last hour)</h3><canvas id="rateChart"></canvas></div>
+    <div class="grid2">
+      <div class="panel"><h3>Traffic by type</h3><div id="portBars"></div></div>
+      <div class="panel"><h3>Top talkers</h3><div id="talkBars"></div></div>
+      <div class="panel"><h3>Signal (SNR) of recent packets</h3><div id="snrBars"></div></div>
+      <div class="panel"><h3>How far packets travelled</h3><div id="hopBars"></div></div>
+    </div>
+  </section>
+
+  <section id="tab-log" hidden>
+    <div class="note">Shows MeshTap events plus the radio's own debug lines. For full radio logs, turn on the debug log API:
+      <code>meshtastic --set security.debug_log_api_enabled true</code> (or Settings → Security → Debug log API in the phone app).</div>
+    <div class="toolbar"><label><input type="checkbox" id="logScroll" checked> Auto-scroll</label><button class="btn" id="logClear">Clear view</button></div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <div class="foot" id="foot"></div>
+</main>
+
+<div class="modal" id="connModal">
+  <div class="sheet">
+    <h2>Connect to your radio <button class="btn" data-close>✕</button></h2>
+    <div class="seg" id="modeSeg">
+      <button data-mode="serial" class="on">🔌 USB</button>
+      <button data-mode="tcp">📶 WiFi</button>
+      <button data-mode="ble">🔵 Bluetooth</button>
+      <button data-mode="demo">🎲 Demo</button>
+    </div>
+    <div class="field" id="fSerial"><label>Port</label><select id="serialSel"><option value="">Auto-detect</option></select></div>
+    <div class="field" id="fAddr" hidden><label id="addrLab">Address</label><input id="addr"></div>
+    <div class="note" id="modeHelp"></div>
+    <div class="err" id="connErr"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn danger" id="discBtn">Disconnect</button>
+      <button class="btn primary" id="goBtn">Connect</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="pktModal">
+  <div class="sheet">
+    <h2><span id="pktTitle">Packet</span> <button class="btn" data-close>✕</button></h2>
+    <div class="kv" id="pktKv"></div>
+    <pre class="json" id="pktJson"></pre>
+  </div>
+</div>
+
+<script>
+const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
+           tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const PORTS = {
+  TEXT_MESSAGE_APP: ['Text', '--green'], POSITION_APP: ['Position', '--blue'], NODEINFO_APP: ['Node info', '--violet'],
+  TELEMETRY_APP: ['Telemetry', '--teal'], ROUTING_APP: ['Routing', '--dim'], TRACEROUTE_APP: ['Traceroute', '--amber'],
+  NEIGHBORINFO_APP: ['Neighbors', '--amber'], ENCRYPTED: ['Encrypted', '--red'], WAYPOINT_APP: ['Waypoint', '--pink'],
+  ADMIN_APP: ['Admin', '--pink'], STORE_FORWARD_APP: ['Store & Fwd', '--violet'], RANGE_TEST_APP: ['Range test', '--teal'],
+  MAP_REPORT_APP: ['Map report', '--blue'], DETECTION_SENSOR_APP: ['Sensor', '--red'], PAXCOUNTER_APP: ['Paxcounter', '--teal'],
+};
+const portName = p => (PORTS[p] || [p.replace(/_APP$/, '').replace(/_/g, ' ').toLowerCase()])[0];
+const portVar = p => `var(${(PORTS[p] || [0, '--dim'])[1]})`;
+const fmtTime = ts => new Date(ts * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+function ago(ts) {
+  if (!ts) return '—';
+  const s = Math.max(0, Date.now() / 1000 - ts);
+  if (s < 60) return Math.round(s) + 's ago';
+  if (s < 3600) return Math.round(s / 60) + 'm ago';
+  if (s < 86400) return Math.round(s / 3600) + 'h ago';
+  return Math.round(s / 86400) + 'd ago';
+}
+const snrClass = v => v == null ? '' : v >= 0 ? 'good' : v >= -10 ? 'ok' : 'bad';
+const rssiClass = v => v == null ? '' : v >= -95 ? 'good' : v >= -112 ? 'ok' : 'bad';
+const nodeName = (id, fb) => { if (id === '^all') return 'Everyone'; const n = S.nodes.find(x => x.id === id); return (n && n.long) || fb || id; };
+
+// ---------- feed
+function matches(p) {
+  const port = $('#portSel').value;
+  if (port && p.port !== port) return false;
+  if ($('#dmOnly').checked && (!S.status.my_id || p.to !== S.status.my_id)) return false;
+  const q = $('#q').value.trim().toLowerCase();
+  if (q) {
+    const hay = [p.from, p.to, nodeName(p.from, p.from_name), nodeName(p.to, p.to_name), p.summary, portName(p.port)].join(' ').toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  return true;
+}
+function pktHTML(p, fresh) {
+  const toMe = S.status.my_id && p.to === S.status.my_id;
+  const meta = [];
+  if (p.snr != null) meta.push(`<span class="chip ${snrClass(p.snr)}">SNR ${(+p.snr).toFixed(1)}</span>`);
+  if (p.rssi != null) meta.push(`<span class="chip ${rssiClass(p.rssi)}">${p.rssi} dBm</span>`);
+  if (p.hops != null) meta.push(`<span class="chip">${p.hops === 0 ? 'direct' : p.hops + ' hop' + (p.hops > 1 ? 's' : '')}</span>`);
+  if (p.via_mqtt) meta.push(`<span class="chip">MQTT</span>`);
+  if (p.channel) meta.push(`<span class="chip">ch ${p.channel}</span>`);
+  return `<div class="pkt${fresh ? ' fresh' : ''}" style="--c:${portVar(p.port)}" data-k="${p.k}">
+    <div class="top"><span>${fmtTime(p.ts)}</span>
+      <span class="who">${esc(nodeName(p.from, p.from_name))}</span><span class="arrow">→</span><span>${esc(nodeName(p.to, p.to_name))}</span>
+      <span class="badge" style="--c:${portVar(p.port)}">${esc(portName(p.port))}</span>${toMe ? '<span class="dm">TO YOU</span>' : ''}</div>
+    <div class="sum">${esc(p.summary)}</div>
+    <div class="meta">${meta.join('')}</div></div>`;
+}
+function renderFeed() {
+  const list = [];
+  for (let i = S.packets.length - 1; i >= 0 && list.length < 400; i--) if (matches(S.packets[i])) list.push(pktHTML(S.packets[i]));
+  $('#feed').innerHTML = list.length ? list.join('') :
+    `<div class="empty">${S.status.connected ? 'Listening… packets will show up here as your radio hears them.' : 'Connect to your radio to start capturing traffic.'}</div>`;
+  S.pending = 0; updateBadge();
+}
+function addPacket(p) {
+  S.packets.push(p); S.byK.set(p.k, p);
+  while (S.packets.length > 3000) S.byK.delete(S.packets.shift().k);
+  S.stats.total = (S.stats.total || 0) + 1;
+  S.lastPkt = p;
+  if (S.paused) { if (matches(p)) S.pending++; updateBadge(); return; }
+  if (!matches(p)) return;
+  const feed = $('#feed');
+  const empty = feed.querySelector('.empty'); if (empty) empty.remove();
+  feed.insertAdjacentHTML('afterbegin', pktHTML(p, true));
+  while (feed.children.length > 400) feed.lastElementChild.remove();
+}
+function updateBadge() {
+  const b = $('#newBadge'); b.style.display = S.pending ? 'inline-block' : 'none'; b.textContent = S.pending + ' new';
+}
+function refreshPortOptions() {
+  const sel = $('#portSel'), cur = sel.value, ports = Object.keys(S.stats.ports || {}).sort();
+  const want = ['<option value="">All types</option>', ...ports.map(p => `<option value="${p}">${esc(portName(p))} (${S.stats.ports[p]})</option>`)].join('');
+  if (sel.dataset.sig !== want) { sel.innerHTML = want; sel.value = cur; sel.dataset.sig = want; }
+}
+function showPacket(p) {
+  $('#pktTitle').textContent = portName(p.port) + ' packet';
+  const rows = [
+    ['Time', new Date(p.ts * 1000).toLocaleString()], ['From', `${p.from_name || ''} (${p.from})`], ['To', `${p.to_name || ''} (${p.to})`],
+    ['Type', p.port], ['Summary', p.summary], ['Channel', p.channel], ['SNR', p.snr ?? '—'], ['RSSI', p.rssi != null ? p.rssi + ' dBm' : '—'],
+    ['Hops taken', p.hops ?? '—'], ['Hops left', p.hop_limit ?? '—'], ['Via MQTT', p.via_mqtt ? 'yes' : 'no'], ['Packet ID', p.id],
+  ];
+  $('#pktKv').innerHTML = rows.map(([k, v]) => `<div>${k}</div><div>${esc(v)}</div>`).join('');
+  $('#pktJson').textContent = JSON.stringify(p.raw, null, 2);
+  $('#pktModal').classList.add('on');
+}
+
+// ---------- nodes
+function renderNodes() {
+  const q = $('#nq').value.trim().toLowerCase(), heard = $('#heardOnly').checked;
+  let rows = S.nodes.filter(n => (!heard || n.packets > 0) && (!q || [n.name, n.id, n.short, n.hw].join(' ').toLowerCase().includes(q)));
+  const {key, dir} = S.sort;
+  rows.sort((a, b) => {
+    const x = a[key], y = b[key];
+    if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir;
+  });
+  $('#nodeRows').innerHTML = rows.map(n => `<tr>
+    <td><b>${esc(n.name)}</b>${n.short ? ` <span class="chip">${esc(n.short)}</span>` : ''}${n.id === S.status.my_id ? ' <span class="dm">YOU</span>' : ''}</td>
+    <td>${esc(n.id)}</td><td>${n.packets || 0}</td><td>${ago(n.last)}</td>
+    <td class="${snrClass(n.snr)}"><span class="chip ${snrClass(n.snr)}">${n.snr != null ? (+n.snr).toFixed(1) : '—'}</span></td>
+    <td><span class="chip ${rssiClass(n.rssi)}">${n.rssi != null ? n.rssi : '—'}</span></td>
+    <td>${n.hops ?? '—'}</td><td>${n.battery != null ? (n.battery > 100 ? '🔌 powered' : n.battery + '%') : '—'}</td>
+    <td>${esc(n.hw || '—')}</td>
+    <td>${n.lat != null ? `<a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${n.lat}&mlon=${n.lon}#map=14/${n.lat}/${n.lon}">map</a>` : '—'}</td></tr>`).join('')
+    || `<tr><td colspan="10" style="text-align:center;color:var(--dim);padding:30px">No nodes yet</td></tr>`;
+}
+
+// ---------- breakdown
+function bars(el, items, colorFn) {
+  const max = Math.max(1, ...items.map(i => i[1]));
+  el.innerHTML = items.length ? items.map(([lab, n, c]) => `<div class="bar" style="--c:${c || colorFn?.(lab) || 'var(--blue)'}">
+    <span class="lab" title="${esc(lab)}">${esc(lab)}</span><span class="track"><span class="fill" style="display:block;width:${(n / max * 100).toFixed(1)}%"></span></span>
+    <span class="num">${n}</span></div>`).join('') : '<div class="note">Nothing yet.</div>';
+}
+function renderStats() {
+  const ports = Object.entries(S.stats.ports || {}).sort((a, b) => b[1] - a[1]);
+  bars($('#portBars'), ports.map(([p, n]) => [portName(p), n, portVar(p)]));
+  const talkers = S.nodes.filter(n => n.packets).sort((a, b) => b.packets - a.packets).slice(0, 10);
+  bars($('#talkBars'), talkers.map(n => [n.name, n.packets, 'var(--violet)']));
+  const recent = S.packets.slice(-1000), snr = {'Great (≥ 5)': 0, 'Good (0–5)': 0, 'Fair (−10–0)': 0, 'Weak (< −10)': 0};
+  const hop = {};
+  for (const p of recent) {
+    if (p.snr != null) { const v = +p.snr; snr[v >= 5 ? 'Great (≥ 5)' : v >= 0 ? 'Good (0–5)' : v >= -10 ? 'Fair (−10–0)' : 'Weak (< −10)']++; }
+    if (p.hops != null) { const k = p.hops === 0 ? 'Direct' : p.hops + ' hop' + (p.hops > 1 ? 's' : ''); hop[k] = (hop[k] || 0) + 1; }
+  }
+  const sc = ['var(--green)', 'var(--teal)', 'var(--amber)', 'var(--red)'];
+  bars($('#snrBars'), Object.entries(snr).map(([k, v], i) => [k, v, sc[i]]));
+  bars($('#hopBars'), Object.entries(hop).sort((a, b) => (a[0] === 'Direct' ? -1 : parseInt(a[0])) - (b[0] === 'Direct' ? -1 : parseInt(b[0]))).map(([k, v]) => [k, v, 'var(--blue)']));
+  drawRate();
+}
+function drawRate() {
+  const c = $('#rateChart'), dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  if (!w) return;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  const now = Math.floor(Date.now() / 60000) * 60, map = new Map(S.stats.per_minute || []), vals = [];
+  for (let i = 59; i >= 0; i--) vals.push(map.get(now - i * 60) || 0);
+  const max = Math.max(4, ...vals), pad = 22, bw = (w - pad) / 60;
+  const css = getComputedStyle(document.documentElement);
+  g.fillStyle = css.getPropertyValue('--dim'); g.font = '11px system-ui';
+  g.fillText(max, 0, 10); g.fillText('0', 0, h - 4);
+  g.fillStyle = css.getPropertyValue('--green');
+  vals.forEach((v, i) => { const bh = (v / max) * (h - 16); g.fillRect(pad + i * bw + 1, h - bh - 2, Math.max(1, bw - 2), bh); });
+}
+
+// ---------- status & stats
+function renderStatus() {
+  const st = S.status;
+  $('#dot').className = 'dot' + (st.connected ? ' on' : st.connecting ? ' wait' : '');
+  $('#connText').textContent = st.connecting ? 'Connecting… ' + st.desc : st.connected ? (st.my_name ? st.my_name + ' · ' : '') + st.desc : (st.error ? 'Error — tap Connect' : 'Not connected');
+  $('#connBtn').textContent = st.connected ? 'Change' : 'Connect';
+  $('#connErr').textContent = st.error || (!st.have_lib ? 'Meshtastic library not installed — only Demo will work. Run the start script to install it.' : '');
+  $('#ver').textContent = 'v' + (st.version || '');
+}
+function renderCards() {
+  const st = S.stats;
+  $('#cTotal').textContent = (st.total || 0).toLocaleString();
+  $('#cSaved').textContent = (st.saved_total || 0).toLocaleString() + ' saved to disk';
+  const cutoff = Date.now() / 1000 - 300;
+  let n = 0; for (let i = S.packets.length - 1; i >= 0 && S.packets[i].ts >= cutoff; i--) n++;
+  $('#cRate').textContent = (n / 5).toFixed(1);
+  const heard = S.nodes.filter(x => x.packets > 0).length;
+  $('#cNodes').textContent = heard;
+  $('#cKnown').textContent = S.nodes.length + ' known to radio';
+  $('#cTexts').textContent = st.texts || 0;
+  $('#cEnc').textContent = st.encrypted || 0;
+  const last = S.packets[S.packets.length - 1];
+  $('#cLast').textContent = last ? ago(last.ts) : '—';
+  $('#cLastWho').textContent = last ? nodeName(last.from, last.from_name) : '';
+  $('#foot').textContent = st.db_path ? 'Traffic is saved to ' + st.db_path : '';
+}
+async function refresh() {
+  try {
+    const st = await (await fetch('/api/state')).json();
+    S.status = st.status; S.stats = st.stats; S.nodes = st.nodes;
+    renderStatus(); renderCards(); refreshPortOptions();
+    if (S.tab === 'nodes') renderNodes();
+    if (S.tab === 'stats') renderStats();
+  } catch (e) {}
+}
+
+// ---------- log
+function addLog(e) {
+  S.logs.push(e); if (S.logs.length > 1500) S.logs.shift();
+  const el = $('#log'), d = document.createElement('div');
+  d.innerHTML = `<span class="t">${fmtTime(e.ts)}</span> <span class="${e.line.startsWith('[MeshTap]') ? 'mt' : ''}">${esc(e.line)}</span>`;
+  el.appendChild(d); while (el.children.length > 1500) el.firstChild.remove();
+  if ($('#logScroll').checked) el.scrollTop = el.scrollHeight;
+}
+
+// ---------- live events
+function listen() {
+  const es = new EventSource('/api/events');
+  es.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'packet') addPacket(m.packet);
+    else if (m.type === 'status') { S.status = m.status; renderStatus(); }
+    else if (m.type === 'log') addLog(m.log);
+    else if (m.type === 'cleared') { S.packets = []; S.byK.clear(); renderFeed(); refresh(); }
+  };
+}
+
+// ---------- connect modal
+const HELP = {
+  serial: 'Plug the radio into this computer with a USB data cable. Close the Meshtastic web client or other apps using the port first.',
+  tcp: 'Your radio must have WiFi turned on and be on the same network. Enter its IP address (shown on its screen) or meshtastic.local.',
+  ble: 'Leave blank to use the first radio found, or type its Bluetooth name (e.g. Meshtastic_1a2b). Disconnect it from your phone first — a radio only talks to one Bluetooth device at a time.',
+  demo: 'Plays fake mesh traffic so you can explore the app without a radio.',
+};
+function setMode(m) {
+  S.mode = m;
+  document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  $('#fSerial').hidden = m !== 'serial';
+  $('#fAddr').hidden = !(m === 'tcp' || m === 'ble');
+  $('#addrLab').textContent = m === 'tcp' ? 'IP address or hostname' : 'Bluetooth name or address (optional)';
+  $('#addr').placeholder = m === 'tcp' ? '192.168.1.50' : 'Meshtastic_1a2b';
+  $('#modeHelp').textContent = HELP[m];
+}
+async function openConnect() {
+  $('#connModal').classList.add('on');
+  if (S.status.mode && S.status.mode !== 'demo') setMode(S.status.mode); else setMode(S.mode);
+  try {
+    const ports = await (await fetch('/api/ports')).json();
+    $('#serialSel').innerHTML = '<option value="">Auto-detect</option>' + ports.map(p => `<option value="${esc(p.device)}">${esc(p.label)}</option>`).join('');
+  } catch (e) {}
+}
+async function post(url, body) {
+  return fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
+}
+
+// ---------- wiring
+$('#connBtn').onclick = openConnect;
+document.querySelectorAll('#modeSeg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+$('#goBtn').onclick = async () => {
+  const address = S.mode === 'serial' ? $('#serialSel').value : $('#addr').value;
+  await post('/api/connect', {mode: S.mode, address});
+  $('#connModal').classList.remove('on');
+};
+$('#discBtn').onclick = async () => { await post('/api/disconnect'); $('#connModal').classList.remove('on'); };
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.modal').classList.remove('on'));
+document.querySelectorAll('.modal').forEach(m => m.onclick = e => { if (e.target === m) m.classList.remove('on'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal.on').forEach(m => m.classList.remove('on')); });
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  S.tab = t.dataset.tab;
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+  ['feed', 'nodes', 'stats', 'log'].forEach(id => $('#tab-' + id).hidden = id !== S.tab);
+  if (S.tab === 'nodes') renderNodes();
+  if (S.tab === 'stats') renderStats();
+});
+$('#feed').onclick = e => { const el = e.target.closest('.pkt'); if (el) { const p = S.byK.get(+el.dataset.k); if (p) showPacket(p); } };
+['#q', '#portSel', '#dmOnly'].forEach(s => $(s).addEventListener('input', renderFeed));
+$('#pauseBtn').onclick = () => {
+  S.paused = !S.paused; $('#pauseBtn').textContent = S.paused ? '▶ Resume' : '⏸ Pause';
+  if (!S.paused) renderFeed();
+};
+$('#clearBtn').onclick = async () => { if (confirm('Delete all captured traffic from this computer?')) await post('/api/clear'); };
+['#nq', '#heardOnly'].forEach(s => $(s).addEventListener('input', renderNodes));
+document.querySelectorAll('th[data-s]').forEach(th => th.onclick = () => {
+  const k = th.dataset.s; S.sort = {key: k, dir: S.sort.key === k ? -S.sort.dir : (k === 'name' || k === 'id' || k === 'hw' ? 1 : -1)}; renderNodes();
+});
+$('#logClear').onclick = () => { $('#log').innerHTML = ''; };
+window.addEventListener('resize', () => { if (S.tab === 'stats') drawRate(); });
+
+(async function init() {
+  await refresh();
+  try {
+    const pk = await (await fetch('/api/packets?limit=3000')).json();
+    S.packets = pk; S.byK = new Map(pk.map(p => [p.k, p]));
+  } catch (e) {}
+  renderFeed(); renderCards();
+  try { (await (await fetch('/api/logs')).json()).forEach(addLog); } catch (e) {}
+  listen();
+  setInterval(refresh, 2500);
+  if (!S.status.connected && !S.status.connecting) openConnect();
+})();
+</script>
+</body>
+</html>
