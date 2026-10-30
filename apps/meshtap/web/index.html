@@ -421,6 +421,11 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
       <div class="field" id="fOther" hidden><label>Port name</label><input id="otherPort" placeholder="COM7  or  /dev/ttyUSB0  or  /dev/serial0"></div>
     </div>
     <div class="field" id="fAddr" hidden><label id="addrLab">Address</label><input id="addr"></div>
+    <div id="fFind" hidden>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn" id="findBtn">🔍 Find radios on my network</button><span class="note" id="findMsg" style="margin:0"></span></div>
+      <div id="findList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+      <div id="recentList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+    </div>
     <div class="note" id="modeHelp"></div>
     <div class="err" id="connErr"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
@@ -447,7 +452,7 @@ if (!window.L) {
 }
 </script>
 <script>
-const PAGE_VERSION = '1.6.1';
+const PAGE_VERSION = '1.6.2';
 const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
            tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
 const $ = s => document.querySelector(s);
@@ -1195,6 +1200,12 @@ const RHINT = {
   'range_test.enabled': 'Send numbered test messages to measure range.',
 };
 const human = s => s.replace(/_/g, ' ').replace(/\b(mqtt|gps|psk|tx|rx|ipv4|ip|dns|ntp|led|oled|rtc|tak|pin|id|url|bt|ble|gpio|i2c|uart|lora)\b/gi, m => m.toUpperCase()).replace(/^./, c => c.toUpperCase());
+// Show a save result in #rMsg and keep it visible after the page reloads the radio's info.
+function radioResult(r, el) {
+  const html = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`;
+  if (r.ok) R.flash = html;
+  (el || $('#rMsg')).innerHTML = html;
+}
 async function loadRadio() {
   try { R.info = await (await fetch('/api/radio')).json(); } catch (e) { R.info = {error: 'MeshTap isn\'t answering.'}; }
   renderRadio();
@@ -1225,11 +1236,13 @@ function renderRadio() {
   };
   radioNav();
   const p = R.page;
-  if (p === 'owner') return renderOwner(body);
+  const showFlash = () => { const m = $('#rMsg'); if (R.flash && m) { m.innerHTML = R.flash; R.flash = ''; } };
+  if (p === 'owner') { renderOwner(body); return showFlash(); }
   if (p === 'channels') return renderChannels(body);
   if (p === 'clone') return renderClone(body);
   const [kind, sec] = p.split('.');
   renderSection(body, kind, sec);
+  showFlash();
 }
 function fieldInput(path, f, v) {
   const id = 'rf_' + path.replace(/\./g, '__'), hint = RHINT[(R.edit ? R.edit.sec : '') + '.' + path.split('.').pop()] || '';
@@ -1258,12 +1271,34 @@ function renderSection(body, kind, sec) {
   const schema = (R.info.schema[kind] || {})[sec], vals = (R.info[kind] || {})[sec];
   if (!schema || !vals) { body.innerHTML = '<div class="note">This radio doesn\'t report that section.</div>'; return; }
   R.edit = {kind, sec, orig: JSON.parse(JSON.stringify(vals))};
-  const extra = sec === 'security' ? `<div class="note">This radio's private key is never shown or copied by MeshTap${vals.private_key_set ? ' (it has one)' : ''}.</div>` : '';
+  let extra = sec === 'security' ? `<div class="note">This radio's private key is never shown or copied by MeshTap${vals.private_key_set ? ' (it has one)' : ''}.</div>` : '';
+  if (sec === 'network') {
+    const md = R.info.metadata || {}, noWifi = md.hasWifi === false || md.has_wifi === false;
+    extra = `<div class="panel" style="background:var(--panel2);margin-bottom:14px">
+      <h3 style="margin-top:0">📶 WiFi setup</h3>
+      ${noWifi ? '<div class="note" style="margin:0">This radio has no WiFi. Connect with USB or Bluetooth instead.</div>' : `
+      <div class="note" style="margin-top:0">Put this radio on your home WiFi so MeshTap (and phones on your network) can reach it without a cable. ${vals.wifi_enabled ? `It's set to join <b>${esc(vals.wifi_ssid || '?')}</b> now.` : ''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center">
+        <input id="wSsid" placeholder="WiFi network name" value="${esc(vals.wifi_ssid || '')}" style="background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px">
+        <input id="wPsk" type="password" placeholder="WiFi password" autocomplete="off" style="background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px">
+        <button class="btn primary" id="wJoin">Join WiFi</button></div>
+      <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" onclick="document.getElementById('wPsk').type=this.checked?'text':'password'"> show password</label>
+      <div class="note" id="wMsg">Bluetooth turns off while WiFi is on (that's how ESP32 radios work). Only 2.4 GHz WiFi works.</div>
+      <button class="btn" id="wFind" hidden>🔍 Find it on my network</button>`}</div>`;
+  }
   body.innerHTML = `<h3 style="margin-top:0">${esc(human(sec))} ${kind === 'modules' ? 'module' : 'settings'}</h3>${extra}
     <div class="rform" id="rForm">${schema.filter(f => f.name !== 'private_key').map(f => fieldInput(f.name, f, vals[f.name])).join('')}</div>
     <div class="rbar"><span class="note" id="rMsg" style="margin:0;flex:1"></span>
       <button class="btn" id="rReset">Undo changes</button><button class="btn primary" id="rSave" disabled>Save to radio</button></div>`;
   $('#rForm').addEventListener('input', markDirty); $('#rForm').addEventListener('change', markDirty);
+  if ($('#wJoin')) $('#wJoin').onclick = async () => {
+    if (!confirm(`Put the radio on WiFi "${$('#wSsid').value}"? It restarts, and Bluetooth turns off while WiFi is on.`)) return;
+    $('#wJoin').disabled = true; $('#wMsg').textContent = 'Saving to the radio…';
+    const r = await pingCall('/api/radio/wifi', {ssid: $('#wSsid').value, psk: $('#wPsk').value});
+    $('#wMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`; $('#wJoin').disabled = false;
+    if (r.ok) $('#wFind').hidden = false;
+  };
+  if ($('#wFind')) $('#wFind').onclick = () => { openConnect().then(() => { setMode('tcp'); $('#findBtn').click(); }); };
   $('#rReset').onclick = () => renderSection(body, kind, sec);
   $('#rSave').onclick = saveSection;
 }
@@ -1301,7 +1336,7 @@ async function saveSection() {
   if (risky && !confirm(`Save ${human(sec)} settings to the radio?\n\nWrong ${sec === 'lora' ? 'region or preset' : sec === 'network' || sec === 'bluetooth' ? 'connection settings' : 'values'} can make the radio unreachable. MeshTap saves a backup of the current settings first (Clone & backup tab).`)) return;
   $('#rSave').disabled = true; $('#rMsg').textContent = 'Saving…';
   const r = await pingCall('/api/radio/section', {kind, section: sec, values: collect()});
-  $('#rMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`;
+  radioResult(r);
   if (r.ok) setTimeout(loadRadio, 2500); else $('#rSave').disabled = false;
 }
 function renderOwner(body) {
@@ -1319,9 +1354,14 @@ function renderOwner(body) {
       <a class="btn" href="https://flasher.meshtastic.org/" target="_blank" rel="noopener">⬆ Update firmware (official flasher) ↗</a>
       <button class="btn danger" id="rBoot">⟳ Restart radio</button></div>
     <div class="note">To update firmware, close MeshTap first (the flasher needs the USB port), then use Chrome or Edge. MeshTap's Clone file lets you put your settings back afterwards.</div>`;
+  const dirty = () => { const ch = $('#oLong').value !== (o.longName || '') || $('#oShort').value !== (o.shortName || '') || $('#oLic').checked !== !!o.isLicensed;
+    $('#oSave').disabled = !ch; if (ch) $('#rMsg').textContent = 'Not saved yet'; };
+  ['#oLong', '#oShort', '#oLic'].forEach(sel => $(sel).addEventListener('input', dirty)); $('#oSave').disabled = true;
   $('#oSave').onclick = async () => {
+    $('#oSave').disabled = true; $('#oSave').textContent = 'Saving…'; $('#rMsg').textContent = 'Saving to the radio…';
     const r = await pingCall('/api/radio/owner', {longName: $('#oLong').value, shortName: $('#oShort').value, isLicensed: $('#oLic').checked});
-    $('#rMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`; if (r.ok) setTimeout(loadRadio, 1500);
+    $('#oSave').textContent = 'Save name'; radioResult(r);
+    if (r.ok) { await loadRadio(); refresh(); } else $('#oSave').disabled = false;
   };
   $('#rBoot').onclick = async () => { if (!confirm('Restart the radio now? MeshTap reconnects by itself.')) return; const r = await pingCall('/api/radio/reboot'); $('#rMsg').textContent = r.msg; };
 }
@@ -1577,7 +1617,7 @@ function listen() {
 const HELP = {
   serial: 'USB radios: plug in with a data cable and leave the baud at 115200. Radio wired to a Pi\'s GPIO pins (TX→pin 10, RX→pin 8, GND): pick /dev/serial0 and the baud set in the radio\'s Serial Module (mode PROTO). Close the Meshtastic app or web client first — only one program can use a port.',
   rawserial: 'For a radio whose Serial Module is set to TEXTMSG, NMEA or SIMPLE: shows each line it sends (messages as "name: text", GPS sentences). Pick the port and the Serial Module\'s baud rate. ★ marks ports that look like Meshtastic radios.',
-  tcp: 'Your radio must have WiFi turned on and be on the same network. Enter its IP address (shown on its screen) or meshtastic.local.',
+  tcp: 'Press Find radios — MeshTap looks for Meshtastic radios on your home network. Or type the IP shown on the radio\'s screen. Radio not on WiFi yet? Connect by USB, then Radio tab → Network → WiFi setup.',
   ble: 'Leave blank to use the first radio found, or type its Bluetooth name (e.g. Meshtastic_1a2b). Disconnect it from your phone first — a radio only talks to one Bluetooth device at a time.',
   demo: 'Plays fake mesh traffic so you can explore the app without a radio.',
 };
@@ -1589,6 +1629,12 @@ function setMode(m) {
   if (auto) auto.textContent = m === 'rawserial' ? 'Pick a port…' : 'Auto-detect';
   if (m === 'serial' && !$('#serialSel').value && $('#baudSel').value !== '115200') $('#baudSel').value = '115200';
   $('#fAddr').hidden = !(m === 'tcp' || m === 'ble');
+  $('#fFind').hidden = m !== 'tcp';
+  if (m === 'tcp') {
+    const rec = S.status.recent_tcp || [];
+    $('#recentList').innerHTML = rec.length ? '<span class="note" style="margin:0">Used before:</span>' + rec.map(a => `<button class="btn pill" data-addr="${esc(a)}" style="padding:3px 10px;font-size:12.5px">${esc(a)}</button>`).join('') : '';
+    if (!$('#addr').value && rec[0]) $('#addr').value = rec[0];
+  }
   $('#addrLab').textContent = m === 'tcp' ? 'IP address or hostname' : 'Bluetooth name or address (optional)';
   $('#addr').placeholder = m === 'tcp' ? '192.168.1.50' : 'Meshtastic_1a2b';
   $('#modeHelp').textContent = HELP[m];
@@ -1635,6 +1681,22 @@ $('#goBtn').onclick = async () => {
   await post('/api/connect', {mode: S.mode, address, baud});
   $('#connModal').classList.remove('on');
 };
+$('#findBtn').onclick = async () => {
+  const btn = $('#findBtn'); btn.disabled = true; $('#findMsg').textContent = 'Looking… (a few seconds)'; $('#findList').innerHTML = '';
+  let r; try { r = await (await fetch('/api/find_radios')).json(); } catch (e) { r = null; }
+  btn.disabled = false;
+  if (!r) { $('#findMsg').textContent = 'Search failed — is MeshTap still running?'; return; }
+  if (!r.radios.length) { $('#findMsg').innerHTML = `No radios found on ${esc(r.networks.join(', ') || 'your network')}. Is the radio's WiFi on, and on the same network as this computer?`; return; }
+  $('#findMsg').textContent = `Found ${r.radios.length} — click one to connect:`;
+  $('#findList').innerHTML = r.radios.map(x => `<button class="btn primary" data-connect="${esc(x.ip)}">📶 ${esc(x.host && x.host !== x.ip ? x.host.split('.')[0] + ' · ' : '')}${esc(x.ip)}</button>`).join('');
+};
+document.addEventListener('click', async e => {
+  const a = e.target.closest('[data-addr]'); if (a) { $('#addr').value = a.dataset.addr; return; }
+  const c = e.target.closest('[data-connect]'); if (!c) return;
+  $('#addr').value = c.dataset.connect;
+  await post('/api/connect', {mode: 'tcp', address: c.dataset.connect});
+  $('#connModal').classList.remove('on');
+});
 $('#discBtn').onclick = async () => { await post('/api/disconnect'); $('#connModal').classList.remove('on'); };
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.modal').classList.remove('on'));
 document.querySelectorAll('.modal').forEach(m => m.onclick = e => { if (e.target === m) m.classList.remove('on'); });

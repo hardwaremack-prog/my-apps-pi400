@@ -48,7 +48,7 @@ Click **Connect** in the top-right:
 - **USB / Serial** — plug the radio in with a *data* cable (baud 115200). Every serial port is listed, likely Meshtastic radios marked ★, or pick **Other port…** to type one in. Close the Meshtastic web/desktop client first (only one app can use the port).
 - **Wired to a Pi's GPIO pins** — radio TX → Pi pin 10 (RX), radio RX → Pi pin 8 (TX), GND → GND. Turn on the Pi's serial port (`sudo raspi-config` → Interface Options → Serial Port → login shell **No**, hardware **Yes**, reboot). Set the radio's Serial Module to mode **PROTO**, then in MeshTap pick `/dev/serial0` and the same baud rate.
 - **Serial text** — for a radio whose Serial Module is in **TEXTMSG**, **NMEA** or **SIMPLE** mode. MeshTap shows each line it sends: messages as "name: text" and GPS sentences.
-- **WiFi** — radio needs WiFi on; type its IP (shown on its screen) or `meshtastic.local`.
+- **WiFi** — press **🔍 Find radios on my network** and click your radio (or type its IP). Radio not on WiFi yet? Connect by USB once, then **Radio → Network → WiFi setup**: type your WiFi name and password, press **Join WiFi**, and find it. (ESP32 radios like Heltec V3, T-Beam, Station G2; Bluetooth is off while WiFi is on.)
 - **Bluetooth** — disconnect the radio from your phone first; a radio only pairs with one device at a time.
 - **Demo** — fake traffic, no radio needed.
 

@@ -30,7 +30,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.6.1"
+VERSION = "1.6.2"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
@@ -458,6 +458,7 @@ class Hub:
             "my_hop_limit": self.my_hop_limit(),
             "scan": self.scan_status(),
             "home": self.settings.get("home"),
+            "recent_tcp": self.settings.get("recent_tcp", []),
             "goals": self.settings.get("goals") or [],
             "bauds": BAUDS,
         }
@@ -1109,6 +1110,10 @@ class Hub:
             if port and mode == "serial":
                 self.desc = f"Serial {port}" + (f" @ {baud}" if baud != 115200 else "")
             self.add_log(f"[MeshTap] connected — {len(self.nodes)} nodes known, listening for traffic")
+            if mode == "tcp" and address:
+                recent = [a for a in self.settings.get("recent_tcp", []) if a != address]
+                self.settings["recent_tcp"] = [address] + recent[:4]
+                self._write_settings()
         except Exception as exc:
             self.connected, self.connecting = False, False
             self.error = str(exc) or exc.__class__.__name__
@@ -1234,6 +1239,14 @@ class Hub:
             return False, f"Couldn't rename the radio: {exc}"
         if self.my_id and self.my_id in self.nodes:
             self.nodes[self.my_id]["long"], self.nodes[self.my_id]["short"] = long_name, short_name
+        # the library keeps its own copy of our node record and doesn't update it on rename — patch it so the page shows the new name now
+        try:
+            me = iface.getMyNodeInfo() if iface else None
+            if me is not None:
+                u = me.setdefault("user", {})
+                u["longName"], u["shortName"], u["isLicensed"] = long_name, short_name, bool(licensed)
+        except Exception:
+            pass
         self.add_log(f"[MeshTap] radio renamed to {long_name} [{short_name}]")
         return True, f"Radio renamed to {long_name} [{short_name}]."
 
@@ -1275,6 +1288,28 @@ class Hub:
             return False, f"Couldn't apply the link: {exc}"
         self.add_log("[MeshTap] channels replaced from a channel link")
         return True, "Channels set from the link."
+
+    def join_wifi(self, ssid, psk):
+        """Put the radio on WiFi in one step (ESP32 radios). Bluetooth turns off while WiFi is on."""
+        node, iface = self._radio()
+        ssid = (ssid or "").strip()
+        if not ssid:
+            return False, "Type your WiFi network's name."
+        if len(psk or "") and len(psk) < 8:
+            return False, "WiFi passwords are at least 8 characters."
+        md = getattr(iface, "metadata", None) if iface else None
+        if md is not None and hasattr(md, "hasWifi") and not md.hasWifi:
+            return False, "This radio has no WiFi (only ESP32 boards like Heltec V3, T-Beam, Station G2 do). Use USB or Bluetooth."
+        self.auto_backup("before-wifi")
+        net = node.localConfig.network
+        net.wifi_enabled, net.wifi_ssid, net.wifi_psk = True, ssid, psk or ""
+        try:
+            node.writeConfig("network")
+        except Exception as exc:
+            return False, f"Couldn't save to the radio: {exc}"
+        self.add_log(f"[MeshTap] radio set to join WiFi \"{ssid}\"")
+        return True, (f"Saved. The radio restarts and joins \"{ssid}\" (about 30 seconds). Then press Find radios to connect over WiFi. "
+                      "Note: Bluetooth is off while WiFi is on.")
 
     def reboot_radio(self):
         node, iface = self._radio()
@@ -1803,6 +1838,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(404, {"error": "not found"})
             with open(path, "rb") as fh:
                 return self._send(200, fh.read(), "application/json", {"Content-Disposition": f'attachment; filename="{name}"'})
+        if url.path == "/api/find_radios":
+            return self._send(200, find_radios())
         if url.path == "/api/spider":
             return self._send(200, HUB.spider())
         if url.path == "/api/pings":
@@ -1877,6 +1914,8 @@ class Handler(BaseHTTPRequestHandler):
                     ok, msg = HUB.write_channel(body.get("channel") or {})
                 elif url.path == "/api/radio/channel_url":
                     ok, msg = HUB.set_channel_url(body.get("url"))
+                elif url.path == "/api/radio/wifi":
+                    ok, msg = HUB.join_wifi(body.get("ssid"), body.get("psk"))
                 elif url.path == "/api/radio/reboot":
                     ok, msg = HUB.reboot_radio()
                 elif url.path == "/api/radio/restore":
@@ -2012,6 +2051,61 @@ def bind_or_take_over(host, port, url, no_browser):
     else:
         print(f"\n  Port {port} is in use by another program. Start with a different one, e.g.:  --web-port 8743\n")
     return None
+
+
+def local_subnets():
+    """This computer's private IPv4 networks (as a.b.c prefixes) to look for radios on."""
+    import socket
+    ips = set()
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))   # no packet is sent; just picks the outgoing interface
+        ips.add(s.getsockname()[0])
+        s.close()
+    except OSError:
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ips.add(info[4][0])
+    except OSError:
+        pass
+    nets = []
+    for ip in ips:
+        a = ip.split(".")
+        if len(a) == 4 and (a[0] == "10" or (a[0] == "192" and a[1] == "168") or (a[0] == "172" and 16 <= int(a[1]) <= 31)):
+            nets.append(".".join(a[:3]))
+    return sorted(set(nets)), sorted(ips)
+
+
+def find_radios(port=4403, timeout=0.4):
+    """Look for Meshtastic radios on the local network: meshtastic.local, then every address on our /24s with port 4403 open."""
+    import socket
+    from concurrent.futures import ThreadPoolExecutor
+    found = {}
+    try:
+        ip = socket.gethostbyname("meshtastic.local")
+        found[ip] = {"ip": ip, "host": "meshtastic.local"}
+    except OSError:
+        pass
+    nets, mine = local_subnets()
+
+    def probe(ip):
+        try:
+            with socket.create_connection((ip, port), timeout=timeout):
+                return ip
+        except OSError:
+            return None
+    targets = [f"{n}.{i}" for n in nets for i in range(1, 255) if f"{n}.{i}" not in mine]
+    with ThreadPoolExecutor(max_workers=96) as pool:
+        for ip in pool.map(probe, targets):
+            if ip and ip not in found:
+                host = ""
+                try:
+                    host = socket.gethostbyaddr(ip)[0]
+                except OSError:
+                    pass
+                found[ip] = {"ip": ip, "host": host}
+    return {"radios": list(found.values()), "networks": [n + ".x" for n in nets]}
 
 
 def auto_serial():
