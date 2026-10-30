@@ -30,7 +30,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.3.1"
+VERSION = "1.4.0"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
@@ -362,6 +362,7 @@ class Hub:
             "ping_job": self.ping_job,
             "ping_waiting": next(iter(self.ping_pending.values()), None),
             "ping_min_interval": PING_MIN_INTERVAL,
+            "my_hop_limit": self.my_hop_limit(),
             "bauds": BAUDS,
         }
 
@@ -470,6 +471,12 @@ class Hub:
             self.add_log(f"[MeshTap] couldn't save settings: {exc}")
 
     # ---- real-time ping
+    def my_hop_limit(self):
+        try:
+            return int(self.iface.localNode.localConfig.lora.hop_limit) or None
+        except Exception:
+            return 3 if self.mode == "demo" else None
+
     def _dest_num(self, nid):
         if isinstance(nid, str) and nid.startswith("!"):
             return int(nid[1:], 16)
@@ -478,14 +485,16 @@ class Hub:
     def cancel_ping(self, reason="Cancelled"):
         """Stop waiting on the current ping (a late reply is still noted)."""
         n = 0
-        for ping in list(self.ping_pending.values()):
+        for key, ping in list(self.ping_pending.items()):
+            if isinstance(key, tuple):  # still being handed to the radio
+                continue
             ping.update(status="cancelled", detail=reason)
             self.ping_late[ping["id"]] = ping
             self._finish_ping(ping)
             n += 1
         return n
 
-    def send_ping(self, to, method="ack", replace=False):
+    def send_ping(self, to, method="ack", replace=False, hop_limit=None):
         """Send one ping and start timing. Returns (ok, message)."""
         if method not in PING_TIMEOUT:
             return False, "Unknown ping type"
@@ -506,7 +515,9 @@ class Hub:
             self.ping_seq += 1
             rec = {"n": self.ping_seq, "ts": time.time(), "to": to, "to_name": self.name_of(to), "method": method,
                    "status": "waiting", "rtt": None, "relayed_at": None, "hops": None, "snr": None, "rssi": None,
-                   "detail": "", "id": None}
+                   "detail": "", "id": None, "hop_limit": hop_limit}
+            rec["sent"] = rec["ts"]
+            self.ping_pending[("sending", self.ping_seq)] = rec   # hold the slot so a double-click can't send two
         try:
             if self.mode == "demo":
                 rec["id"] = random.randint(1, 2**31)
@@ -514,25 +525,29 @@ class Hub:
             else:
                 iface = self.iface
                 dest = self._dest_num(to)
+                hl = int(hop_limit) if hop_limit else None
                 if method == "ack":
-                    pkt = iface.sendData(b"MeshTap ping", destinationId=dest, portNum=256, wantAck=True)  # PRIVATE_APP
+                    pkt = iface.sendData(b"MeshTap ping", destinationId=dest, portNum=256, wantAck=True, hopLimit=hl)  # PRIVATE_APP
                 elif method == "text":
-                    pkt = iface.sendText("MeshTap ping \U0001F3D3", destinationId=dest, wantAck=True)
+                    pkt = iface.sendText("MeshTap ping \U0001F3D3", destinationId=dest, wantAck=True, hopLimit=hl)
                 else:
                     try:
                         from meshtastic.protobuf import mesh_pb2
                     except ImportError:
                         from meshtastic import mesh_pb2
-                    pkt = iface.sendData(mesh_pb2.RouteDiscovery(), destinationId=dest, portNum=70, wantResponse=True)
+                    pkt = iface.sendData(mesh_pb2.RouteDiscovery(), destinationId=dest, portNum=70, wantResponse=True, hopLimit=hl)
                 rec["id"] = getattr(pkt, "id", None)
                 if not rec["id"]:
                     raise RuntimeError("the radio didn't give the ping an ID")
         except Exception as exc:
+            with self.lock:
+                self.ping_pending.pop(("sending", rec["n"]), None)
             rec.update(status="error", detail=f"Couldn't send: {exc}")
             self._finish_ping(rec)
             return False, rec["detail"]
         rec["sent"] = time.time()
         with self.lock:
+            self.ping_pending.pop(("sending", rec["n"]), None)
             self.ping_pending[rec["id"]] = rec
         self.broadcast({"type": "ping", "ping": rec})
         return True, f"Ping sent to {rec['to_name']}"
@@ -608,7 +623,9 @@ class Hub:
         while True:
             time.sleep(1)
             now = time.time()
-            for ping in list(self.ping_pending.values()):
+            for key, ping in list(self.ping_pending.items()):
+                if isinstance(key, tuple):
+                    continue
                 if now - ping["sent"] > PING_TIMEOUT[ping["method"]]:
                     ping.update(status="timeout", detail=(
                         f"No answer in {PING_TIMEOUT[ping['method']]} s" +
@@ -617,17 +634,17 @@ class Hub:
             job = self.ping_job
             if job and self.connected and not self.ping_pending and now >= job["next"]:
                 job["next"] = now + job["interval"]
-                ok, msg = self.send_ping(job["to"], job["method"])
+                ok, msg = self.send_ping(job["to"], job["method"], hop_limit=job.get("hop_limit"))
                 if not ok:
                     self.add_log(f"[MeshTap] repeat ping: {msg}")
 
-    def start_ping_job(self, to, method, interval):
+    def start_ping_job(self, to, method, interval, hop_limit=None):
         if not to or to == "^all" or (self.my_id and to == self.my_id):
             return False, "Pick a node to ping."
         interval = max(PING_MIN_INTERVAL, int(interval or 60))
         if self.ping_pending and next(iter(self.ping_pending.values()))["to"] != to:
             self.cancel_ping(f"Cancelled — now pinging {self.name_of(to)}")
-        self.ping_job = {"to": to, "method": method, "interval": interval, "next": 0}
+        self.ping_job = {"to": to, "method": method, "interval": interval, "next": 0, "hop_limit": hop_limit}
         self.push_status()
         return True, f"Pinging {self.name_of(to)} every {interval} s"
 
@@ -1188,9 +1205,9 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/ping":
             to, method = body.get("to"), body.get("method", "ack")
             if body.get("repeat"):
-                ok, msg = HUB.start_ping_job(to, method, body.get("interval"))
+                ok, msg = HUB.start_ping_job(to, method, body.get("interval"), body.get("hop_limit") or None)
             else:
-                ok, msg = HUB.send_ping(to, method, replace=bool(body.get("replace")))
+                ok, msg = HUB.send_ping(to, method, replace=bool(body.get("replace")), hop_limit=body.get("hop_limit") or None)
             return self._send(200, {"ok": ok, "msg": msg})
         if url.path == "/api/ping/cancel":
             HUB.cancel_ping()

@@ -261,6 +261,8 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
             <option value="trace">Traceroute — shows the path both ways</option>
             <option value="text">Text ping — shows "MeshTap ping 🏓" on their screen</option>
           </select></div>
+        <div class="field"><label style="color:var(--dim);font-size:12px">HOP LIMIT <span id="pHopNote" style="text-transform:none"></span></label>
+          <select id="pHops"><option value="">Your radio's setting</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select></div>
         <label style="display:flex;gap:8px;align-items:center;color:var(--dim);margin:10px 0">
           <input type="checkbox" id="pRepeat"> Keep pinging every
           <input type="number" id="pInterval" value="60" min="30" step="5" style="width:80px"> s</label>
@@ -274,6 +276,7 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
       </div>
       <div>
         <div class="pstats" id="pStats"></div>
+        <div class="panel" id="pDiag" style="margin-bottom:12px"></div>
         <div class="panel" style="margin-bottom:12px"><h3>Round trip, newest on the right <span style="text-transform:none;letter-spacing:0;font-weight:400">· red = no answer</span></h3><canvas id="pingChart"></canvas></div>
         <div class="toolbar"><label><input type="checkbox" id="pOnlyThis" checked> Only this node</label><a class="btn" href="/api/pings.csv">⬇ Ping CSV</a></div>
         <div class="tablewrap"><table style="min-width:680px">
@@ -348,7 +351,7 @@ if (!window.L) {
 }
 </script>
 <script>
-const PAGE_VERSION = '1.3.1';
+const PAGE_VERSION = '1.4.0';
 const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
            tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
 const $ = s => document.querySelector(s);
@@ -476,8 +479,12 @@ const hasPos = n => n.lat != null && n.lon != null && Math.abs(n.lat) <= 90 && M
 function initMap() {
   if (M.map || !window.L) return;
   M.map = L.map('map', {zoomControl: true, worldCopyJump: true}).setView([39.5, -95], 4);
-  const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    {maxZoom: 20, subdomains: 'abcd', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'});
+  // Dark: Esri's free dark-gray canvas plus its label layer (CARTO now needs an API key)
+  const esriAttr = 'Tiles &copy; <a href="https://www.esri.com/">Esri</a>, HERE, Garmin, &copy; OpenStreetMap contributors';
+  const dark = L.layerGroup([
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom: 16, attribution: esriAttr}),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {maxZoom: 16, pane: 'shadowPane', opacity: .9}),
+  ]);
   const street = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'});
   const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -489,14 +496,18 @@ function initMap() {
   L.control.scale({imperial: true, metric: true}).addTo(M.map);
   M.map.on('baselayerchange', e => { try { localStorage.setItem('meshtap.layer', e.name); } catch (er) {} });
   let tileErrors = 0;
-  Object.values(layers).forEach(l => l.on('tileerror', () => { if (++tileErrors === 4) mapNote('No internet for map pictures — node positions still show.'); }));
+  const eachTile = (l, f) => l.eachLayer ? l.eachLayer(f) : f(l);
+  Object.values(layers).forEach(l => eachTile(l, t => t.on && t.on('tileerror', () => { if (++tileErrors === 4) mapNote('No internet for map pictures — node positions still show.'); })));
+  M.map.setMaxZoom(19);
+  M.map.on('zoomend', () => declutter());
   M.map.on('movestart', () => { M.userMoved = true; });
 }
 function mapNote(t) { const el = $('#mapNote'); el.textContent = t || ''; el.hidden = !t; }
-function pinIcon(n, fresh) {
+function pinIcon(n, fresh, off) {
+  off = off || [0, 0];
   const me = n.id === S.status.my_id, label = $('#mapLabels').checked ? `<div class="t">${esc(n.long || n.id)}</div>` : '';
   const short = esc((n.short || (n.long || n.id).replace(/^!/, '')).slice(0, 4));
-  return L.divIcon({className: '', iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -16],
+  return L.divIcon({className: '', iconSize: [34, 34], iconAnchor: [17 - off[0], 17 - off[1]], popupAnchor: [off[0], off[1] - 16],
     html: `<div class="pin${me ? ' me' : ''}${fresh ? ' fresh' : ''}" style="--c:${freshColor(n)}"><div class="b">${short}</div>${label}</div>`});
 }
 function popupHTML(n) {
@@ -537,7 +548,7 @@ function renderMap() {
       M.markers.set(n.id, mk);
     } else {
       if (moved) mk.setLatLng(ll);
-      mk.setIcon(pinIcon(n, moved && prev));
+      mk._fresh = moved && prev;
       if (mk.isPopupOpen()) mk.setPopupContent(popupHTML(n));
     }
     if (n.id === S.status.my_id) mk.setZIndexOffset(1000);
@@ -545,6 +556,7 @@ function renderMap() {
     M.lastPos.set(n.id, ll);
   }
   for (const [id, mk] of M.markers) if (!keep.has(id)) { mk.remove(); M.markers.delete(id); M.lastPos.delete(id); }
+  declutter();
   // direct links from my radio to nodes heard with 0 hops
   M.links.forEach(l => l.remove()); M.links = [];
   const me = S.nodes.find(x => x.id === S.status.my_id);
@@ -573,6 +585,36 @@ function renderMap() {
       <span class="mn">${esc(n.long || n.id)}${n.id === S.status.my_id ? ' <span class="dm">YOU</span>' : ''}</span><span class="ma">${ago(n.last)}</span></div>`).join('')
     + (noPos.length ? `<h3 style="margin-top:12px">No position shared</h3>` + noPos.map(n => `<div class="mitem nopos"><span class="mdot" style="background:${freshColor(n)}"></span>
       <span class="mn">${esc(n.long || n.id)}</span><span class="ma">${ago(n.last)}</span></div>`).join('') : '');
+}
+// Pins closer than ~36 px on screen fan out in a small circle so every name is readable;
+// a thin spoke points back to the real spot.
+function declutter() {
+  if (!M.map) return;
+  (M.spokes || []).forEach(l => l.remove()); M.spokes = [];
+  const items = [...M.markers.entries()].map(([id, mk]) => ({id, mk, p: M.map.latLngToLayerPoint(mk.getLatLng()), n: S.nodes.find(x => x.id === id)}))
+    .filter(it => it.n);
+  const used = new Set(), groups = [];
+  items.forEach((a, i) => {
+    if (used.has(i)) return;
+    const g = [a]; used.add(i);
+    const labels = $('#mapLabels').checked;
+    const hit = (x, b) => labels ? (Math.abs(x.p.x - b.p.x) < 96 && Math.abs(x.p.y - b.p.y) < 50) : x.p.distanceTo(b.p) < 36;
+    items.forEach((b, j) => { if (!used.has(j) && g.some(x => hit(x, b))) { g.push(b); used.add(j); } });
+    groups.push(g);
+  });
+  for (const g of groups) {
+    if (g.length === 1) { const it = g[0]; it.mk.setIcon(pinIcon(it.n, it.mk._fresh, [0, 0])); it.mk._fresh = false; continue; }
+    g.sort((a, b) => (a.n.long || a.id).localeCompare(b.n.long || b.id));
+    const r = Math.max($('#mapLabels').checked ? 44 : 30, g.length * 14), cx = g.reduce((s, it) => s + it.p.x, 0) / g.length, cy = g.reduce((s, it) => s + it.p.y, 0) / g.length;
+    g.forEach((it, k) => {
+      const ang = -Math.PI / 2 + k * 2 * Math.PI / g.length;
+      const off = [Math.round(cx + r * Math.cos(ang) - it.p.x), Math.round(cy + r * Math.sin(ang) - it.p.y)];
+      it.mk.setIcon(pinIcon(it.n, it.mk._fresh, off)); it.mk._fresh = false;
+      const tip = M.map.layerPointToLatLng(L.point(it.p.x + off[0], it.p.y + off[1]));
+      M.spokes.push(L.polyline([it.mk.getLatLng(), tip], {color: '#9aa8c2', weight: 1, opacity: .6, interactive: false}).addTo(M.map));
+    });
+    M.spokes.push(L.circleMarker(g[0].mk.getLatLng(), {radius: 3, color: '#9aa8c2', fillOpacity: 1, weight: 1, interactive: false}).addTo(M.map));
+  }
 }
 function fitAll() {
   const pts = [...M.markers.values()].map(m => m.getLatLng());
@@ -642,6 +684,34 @@ function renderPing() {
     <td>${p.hops ?? '—'}</td><td>${p.snr != null ? (+p.snr).toFixed(1) : '—'}</td><td class="det">${esc(p.detail || '')}</td></tr>`).join('')
     || `<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:24px">No pings yet</td></tr>`;
   drawPingChart(rows.filter(p => p.status !== 'waiting' && p.status !== 'cancelled').slice(-40));
+  renderDiag();
+}
+// Plain-English read of all pings so far: can they hear you, does it get all the way, where it stops.
+function renderDiag() {
+  const el = $('#pDiag'), all = S.pings.filter(p => !['waiting', 'error'].includes(p.status));
+  const hl = S.status.my_hop_limit;
+  $('#pHopNote').textContent = hl ? `(your radio: ${hl})` : '';
+  if (!all.length) { el.innerHTML = '<h3>Link check</h3><div class="note" style="margin:0">After a few pings this explains whether nodes can hear you and where messages stop.</div>'; return; }
+  const relayed = all.filter(p => p.relayed_at != null || p.status === 'ok'), ok = all.filter(p => p.status === 'ok');
+  const direct = S.nodes.filter(n => n.hops === 0 && n.id !== S.status.my_id && n.last && Date.now() / 1000 - n.last < 6 * 3600);
+  const byNode = {};
+  all.forEach(p => { const b = byNode[p.to] = byNode[p.to] || {name: p.to_name, sent: 0, ok: 0, rel: 0}; b.sent++; if (p.status === 'ok') b.ok++; if (p.relayed_at != null) b.rel++; });
+  const lines = [];
+  const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+  lines.push(`<div><b>${relayed.length}/${all.length}</b> pings were heard and passed on by a neighbor (${pct(relayed.length, all.length)}) · <b>${ok.length}/${all.length}</b> confirmed by the node (${pct(ok.length, all.length)}).</div>`);
+  if (direct.length) lines.push(`<div style="color:var(--dim)">Heard directly (0 hops): ${direct.map(n => `<b style="color:var(--text)">${esc(n.long || n.id)}</b>${n.snr != null ? ' ' + (+n.snr).toFixed(1) + ' dB' : ''}`).join(', ')}.</div>`);
+  let verdict, color;
+  const tested = Object.entries(byNode), directOk = direct.some(n => byNode[n.id] && byNode[n.id].ok);
+  const directTried = direct.filter(n => byNode[n.id]);
+  if (ok.length && ok.length === all.length) { verdict = 'Two-way links are working.'; color = 'var(--green)'; }
+  else if (!relayed.length) { verdict = 'No one is passing your pings on. Nearby nodes may hear you poorly — your antenna, its height or your transmit power is the first thing to check.'; color = 'var(--red)'; }
+  else if (!ok.length && directTried.length && !directOk) { verdict = `Your direct neighbor relays your pings but never confirms one addressed to it. That points to a one-way link — try a quiet ping to it a few more times, then raise the antenna.`; color = 'var(--red)'; }
+  else if (!ok.length && !directTried.length && direct.length) { verdict = `Nearby nodes do hear you (they relay every ping), so it isn't your antenna's first hop. Messages are lost further out, or the confirmations don't make it back. Next: <a href="#" data-pingfor="${esc(direct[0].id)}" style="color:var(--green)">quiet-ping ${esc(direct[0].long || direct[0].id)}</a> — if it confirms, your link works both ways. Then try a traceroute or a higher hop limit to a far node.`; color = 'var(--amber)'; }
+  else if (!ok.length) { verdict = 'Your pings get relayed, but no node has confirmed one yet. Messages may be dying further out — try a traceroute or a higher hop limit.'; color = 'var(--amber)'; }
+  else { verdict = 'Some nodes confirm and some don\'t — the failing ones are probably too many hops away or on a weak path. A traceroute shows where.'; color = 'var(--amber)'; }
+  lines.push(`<div style="margin-top:6px;border-left:3px solid ${color};padding-left:10px">${verdict}</div>`);
+  lines.push(`<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${tested.map(([id, b]) => `<span class="chip ${b.ok ? 'good' : b.rel ? 'ok' : 'bad'}">${esc(b.name)}: ${b.ok}/${b.sent} confirmed${b.rel && !b.ok ? ', relayed' : ''}</span>`).join('')}</div>`);
+  el.innerHTML = '<h3>Link check</h3>' + lines.join('');
 }
 function fmtMs(ms) { return ms == null ? '—' : ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(ms < 10000 ? 2 : 1) + ' s'; }
 function drawPingChart(list) {
@@ -682,7 +752,7 @@ $('#pGo').onclick = async () => {
   if (mode === 'busy') return;
   S.pingErr = ''; $('#pMsg').textContent = '';
   if (!$('#pTo').value) pingTargets();
-  const body = {to: $('#pTo').value, method: $('#pMethod').value};
+  const body = {to: $('#pTo').value, method: $('#pMethod').value, hop_limit: +$('#pHops').value || null};
   if (!body.to) { S.pingErr = 'Pick a node first.'; renderPing(); return; }
   if (mode === 'replace') body.replace = true;
   if ($('#pRepeat').checked && (!S.status.ping_job || mode === 'retarget')) { body.repeat = true; body.interval = Math.max(30, +$('#pInterval').value || 60); }
