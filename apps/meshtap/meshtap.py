@@ -30,7 +30,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
@@ -615,10 +615,19 @@ class Hub:
             snr_to = [s / 4 for s in tr.get("snrTowards") or [] if s != -128]
             snr_back = [s / 4 for s in tr.get("snrBack") or [] if s != -128]
             me = self.my_id or "you"
-            out = " → ".join(self.name_of(x) for x in [me] + route + [ping["to"]])
-            detail = "Out: " + out
-            if back:
-                detail += "  ·  Back: " + " → ".join(self.name_of(x) for x in [ping["to"]] + back + [me])
+            def path(nodes, snrs):  # "A →(+7.0 dB) B": the dB is how well each node heard the one before it
+                s = self.name_of(nodes[0])
+                for i, n in enumerate(nodes[1:]):
+                    s += f" →({snrs[i]:+.1f} dB) " if i < len(snrs) else " → "
+                    s += self.name_of(n)
+                return s
+            detail = "Out: " + path([me] + route + [ping["to"]], snr_to)
+            if back or snr_back:
+                detail += "  ·  Back: " + path([ping["to"]] + back + [me], snr_back)
+            if not route and snr_to and snr_back:
+                detail += (f"  ·  {ping['to_name']} hears you at {snr_to[0]:+.1f} dB, you hear it at {snr_back[0]:+.1f} dB"
+                           + (" — a healthy two-way link" if min(snr_to[0], snr_back[0]) > -5 else
+                              " — weak; your antenna or its height may be the limit" if snr_to[0] < snr_back[0] - 5 else ""))
             ping.update(status="ok", rtt=round((now - ping["sent"]) * 1000), hops=len(route), snr=rec.get("snr"),
                         rssi=rec.get("rssi"), detail=detail, route=route, route_back=back,
                         snr_towards=snr_to, snr_back=snr_back)
