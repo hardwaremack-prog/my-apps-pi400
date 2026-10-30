@@ -9,9 +9,10 @@ MeshTap connects to your radio (USB, WiFi or Bluetooth), captures every packet i
 ## What you get
 - **Live traffic** — every packet as it arrives: who sent it, who it's for, what it is (text, position, telemetry, node info, routing/ACKs, traceroute, neighbor reports, encrypted…), plus SNR, RSSI and hop count. Click any packet to see the full decoded contents.
 - **Nodes** — every node heard, with packet counts, last heard, signal, hops, battery, hardware and a map link.
+- **Map** — every node that shares a position on one live map (dark, street or satellite), colored by how recently it was heard, with solid lines to nodes your radio hears directly and dashed lines to ones reached through relays. Click a node for signal, battery, distance and its packets. Map pictures need internet; positions come from your mesh.
 - **Breakdown** — packets per minute for the last hour, traffic by type, top talkers, signal quality and how far packets travelled.
 - **Device log** — MeshTap events plus the radio's own debug lines.
-- **Search & filters**, "to me only", pause, and **export to CSV / JSON**.
+- **Search & filters**, "to me only", "hide my radio", pause, and **export to CSV / JSON**.
 - Everything is saved to `~/.meshtap/meshtap.db` (Windows: `C:\Users\<you>\.meshtap\`) so history survives restarts.
 
 ## Windows

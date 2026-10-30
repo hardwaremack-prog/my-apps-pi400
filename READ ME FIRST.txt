@@ -226,7 +226,8 @@ MESHTAP (Meshtastic traffic viewer)
   Plug in your Meshtastic radio and see everything going through it,
   live: every packet (texts, positions, telemetry, node info, ACKs,
   traceroutes, encrypted ones), who sent it, signal (SNR/RSSI) and how
-  many hops it took. A Nodes tab lists every radio heard with battery,
+  many hops it took. A Map tab shows every node that shares its position,
+  and a Nodes tab lists every radio heard with battery,
   hardware and a map link, and Breakdown shows traffic over time.
   Everything is saved, and you can export to CSV or JSON.
   Start it with the MeshTap icon on the Desktop (added by Set Up My

@@ -30,7 +30,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
@@ -403,6 +403,9 @@ class Hub:
                 n[key] = rec[key]
         if rec.get("via_mqtt"):
             n["mqtt"] = True
+        fname = rec.get("from_name")
+        if fname and fname != frm and not n.get("long"):  # restore names from saved history
+            n["long"] = fname
         dec = (rec.get("raw") or {}).get("decoded") or {}
         if rec["port"] == "NODEINFO_APP":
             u = dec.get("user") or {}
@@ -422,8 +425,11 @@ class Hub:
             pos = dec.get("position") or {}
             lat = pos.get("latitude", pos.get("latitudeI", 0) / 1e7 if "latitudeI" in pos else None)
             lon = pos.get("longitude", pos.get("longitudeI", 0) / 1e7 if "longitudeI" in pos else None)
-            if lat is not None and lon is not None:
+            if lat is not None and lon is not None and not (lat == 0 and lon == 0):
                 n["lat"], n["lon"] = lat, lon
+                n["pos_ts"] = rec["ts"]
+                if pos.get("altitude") is not None:
+                    n["alt"] = pos["altitude"]
         return n
 
     def seed_nodes(self, iface):
@@ -450,8 +456,11 @@ class Hub:
                 if "batteryLevel" in dm and n.get("battery") is None:
                     n["battery"] = dm["batteryLevel"]
                 pos = info.get("position") or {}
-                if pos.get("latitude") is not None and n.get("lat") is None:
+                if pos.get("latitude") is not None and n.get("lat") is None and (pos.get("latitude") or pos.get("longitude")):
                     n["lat"], n["lon"] = pos.get("latitude"), pos.get("longitude")
+                    n["pos_ts"] = pos.get("time") or info.get("lastHeard")
+                    if pos.get("altitude") is not None:
+                        n["alt"] = pos["altitude"]
                 n["known"] = True
             try:
                 my = iface.getMyNodeInfo() or {}
@@ -706,6 +715,9 @@ DEMO_NODES = [
     (0xD00DFEED, "Solar Relay 2", "SOL2", "RAK4631"),
     (0x1234ABCD, "Weather Mast", "WX", "HELTEC_WSL_V3"),
 ]
+DEMO_HOME = {0x9E7C1A20: (42.3314, -83.0458), 0x4A11F0C3: (42.3602, -83.0710), 0x0B2D77E4: (42.3889, -82.9934),
+             0x77AA0912: (42.3192, -83.1012), 0x3C5E8B01: (42.2981, -82.9611), 0xD00DFEED: (42.4103, -83.1290),
+             0x1234ABCD: (42.3468, -82.9235)}
 DEMO_TEXTS = [
     "Anyone copy?", "Checking in from the ridge", "Heading home now", "Signal is great today",
     "Battery at 40%, swapping soon", "Test 1 2 3", "Good morning mesh!", "Who's on the north side?",
@@ -718,6 +730,8 @@ def demo_loop(hub, stop):
     for num, long_, short, hw in DEMO_NODES:
         n = hub.nodes.setdefault(node_id(num), {"id": node_id(num), "packets": 0, "ports": {}})
         n.update({"long": long_, "short": short, "hw": hw, "known": True})
+        if num in (me[0], 0x0B2D77E4, 0x1234ABCD):  # fixed stations already have a position
+            n["lat"], n["lon"], n["alt"], n["pos_ts"] = DEMO_HOME[num][0], DEMO_HOME[num][1], 200, time.time()
     weights = [("TEXT_MESSAGE_APP", 3), ("POSITION_APP", 5), ("TELEMETRY_APP", 6), ("NODEINFO_APP", 2),
                ("ROUTING_APP", 3), ("TRACEROUTE_APP", 1), ("NEIGHBORINFO_APP", 1), ("ENCRYPTED", 2)]
     ports = [p for p, w in weights for _ in range(w)]
@@ -737,8 +751,10 @@ def demo_loop(hub, stop):
             if random.random() < 0.3:
                 pkt["to"], pkt["toId"] = me[0], node_id(me[0])
         elif port == "POSITION_APP":
-            dec["position"] = {"latitude": 42.33 + random.uniform(-0.08, 0.08),
-                               "longitude": -83.05 + random.uniform(-0.08, 0.08),
+            hlat, hlon = DEMO_HOME[num]
+            drift = 0.01 if num in (0x4A11F0C3, 0x3C5E8B01) else 0.0004  # the truck and the hiker move around
+            dec["position"] = {"latitude": hlat + random.uniform(-drift, drift),
+                               "longitude": hlon + random.uniform(-drift, drift),
                                "altitude": random.randint(170, 260)}
         elif port == "TELEMETRY_APP":
             if num == 0x1234ABCD:
@@ -806,6 +822,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._file("index.html", "text/html; charset=utf-8")
         if url.path == "/icon.svg":
             return self._file("icon.svg", "image/svg+xml")
+        if url.path.startswith("/vendor/"):
+            rel = os.path.normpath(url.path.lstrip("/"))
+            if rel.startswith("vendor" + os.sep) and ".." not in rel.split(os.sep):
+                ext = os.path.splitext(rel)[1]
+                ctype = {".js": "application/javascript", ".css": "text/css", ".png": "image/png"}.get(ext, "application/octet-stream")
+                return self._file(rel, ctype)
+            return self._send(404, {"error": "not found"})
         if url.path == "/meshtap.js":  # lets launcher pages find a running MeshTap
             port = self.server.server_address[1]
             return self._send(200, f"(window.__meshtap=window.__meshtap||[]).push({port});", "application/javascript")

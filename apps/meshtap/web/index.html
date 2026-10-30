@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MeshTap</title>
 <link rel="icon" href="/icon.svg">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <style>
 :root{
   --bg:#0a0f1a;--panel:#111a2b;--panel2:#16213a;--line:#22304d;--text:#e6edf7;--dim:#8b9bb8;
@@ -97,6 +98,39 @@ canvas{width:100%;height:180px;display:block}
 pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.45 ui-monospace,Consolas,monospace;overflow:auto;max-height:45vh;margin:0}
 .err{color:var(--red);font-size:13px;margin-top:8px}
 .foot{color:var(--dim);font-size:12px;margin-top:16px;text-align:center}
+/* map */
+.mapwrap{position:relative;display:grid;grid-template-columns:1fr 280px;gap:12px}
+#map{height:68vh;min-height:380px;border-radius:12px;border:1px solid var(--line);background:#0d1524;z-index:0}
+.maplist{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;height:68vh;min-height:380px;overflow:auto}
+.maplist h3{margin:2px 4px 8px;font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+.mitem{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:13px}
+.mitem:hover{background:var(--panel2)}
+.mitem .mdot{width:10px;height:10px;border-radius:50%;flex:none}
+.mitem .mn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mitem .ma{color:var(--dim);font-size:12px;white-space:nowrap}
+.mitem.nopos{opacity:.55;cursor:default}
+.pin{display:flex;flex-direction:column;align-items:center;pointer-events:auto}
+.pin .b{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 10px system-ui;color:#06101e;
+  background:var(--c);border:2px solid #0a0f1a;box-shadow:0 0 0 2px var(--c),0 4px 12px rgba(0,0,0,.5);letter-spacing:.2px}
+.pin.me .b{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--c),0 4px 14px rgba(0,0,0,.6)}
+.pin.fresh .b{animation:ping 1.4s ease-out}
+@keyframes ping{0%{box-shadow:0 0 0 2px var(--c),0 0 0 2px var(--c)}100%{box-shadow:0 0 0 2px var(--c),0 0 0 22px transparent}}
+.pin .t{margin-top:3px;font:600 11px system-ui;color:#fff;text-shadow:0 1px 3px #000,0 0 6px #000;white-space:nowrap}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--text);border:1px solid var(--line)}
+.leaflet-popup-content{margin:12px 14px;font:13px/1.5 system-ui}
+.leaflet-popup-content b{font-size:14px}
+.leaflet-popup-content .pk{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;margin-top:6px}
+.leaflet-popup-content .pk span:nth-child(odd){color:var(--dim)}
+.leaflet-container a.leaflet-popup-close-button{color:var(--dim)}
+.leaflet-control-layers,.leaflet-bar a{background:var(--panel)!important;color:var(--text)!important;border-color:var(--line)!important}
+.leaflet-control-attribution{background:rgba(10,15,26,.75)!important;color:var(--dim)!important}
+.leaflet-control-attribution a{color:var(--blue)!important}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--dim);font-size:12px;margin-top:8px;align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.legend .ln{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:5px;vertical-align:3px}
+.mapnote{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);z-index:500;background:var(--panel);border:1px solid var(--line);
+  border-radius:999px;padding:6px 14px;font-size:13px;color:var(--dim);pointer-events:none}
+@media (max-width:900px){.mapwrap{grid-template-columns:1fr}.maplist{height:auto;max-height:40vh;min-height:0}}
 @media (max-width:640px){
   header{padding:8px 10px}.conn{margin-left:0;width:100%}
   main{padding:10px}
@@ -131,6 +165,7 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
   <div class="tabs">
     <button class="tab on" data-tab="feed">📡 Live traffic</button>
     <button class="tab" data-tab="nodes">🛰 Nodes</button>
+    <button class="tab" data-tab="map">🗺 Map</button>
     <button class="tab" data-tab="stats">📊 Breakdown</button>
     <button class="tab" data-tab="log">🧾 Device log</button>
   </div>
@@ -140,6 +175,7 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
       <input id="q" placeholder="Search names, IDs, messages…">
       <select id="portSel"><option value="">All types</option></select>
       <label><input type="checkbox" id="dmOnly"> To me only</label>
+      <label title="Your radio reports its own battery every minute; hide those"><input type="checkbox" id="hideMine"> Hide my radio</label>
       <button class="btn" id="pauseBtn">⏸ Pause</button>
       <span class="newbadge" id="newBadge"></span>
       <a class="btn" href="/api/export.csv">⬇ CSV</a>
@@ -158,6 +194,29 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
       </tr></thead>
       <tbody id="nodeRows"></tbody>
     </table></div>
+  </section>
+
+  <section id="tab-map" hidden>
+    <div class="toolbar">
+      <button class="btn" id="fitBtn">⤢ Fit all</button>
+      <label><input type="checkbox" id="mapOld" checked> Show nodes not heard lately</label>
+      <label><input type="checkbox" id="mapLinks" checked> Links to my radio</label>
+      <label><input type="checkbox" id="mapLabels" checked> Names</label>
+      <label><input type="checkbox" id="mapFollow"> Follow new positions</label>
+    </div>
+    <div class="mapwrap">
+      <div style="position:relative"><div id="map"></div><div class="mapnote" id="mapNote" hidden></div></div>
+      <div class="maplist"><h3 id="mapCount">Nodes</h3><div id="mapItems"></div></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--green)"></i>heard &lt; 15 min</span>
+      <span><i style="background:var(--amber)"></i>&lt; 2 hours</span>
+      <span><i style="background:#7d8ba5"></i>older</span>
+      <span><i style="background:var(--blue);box-shadow:0 0 0 2px #fff"></i>your radio</span>
+      <span><span class="ln" style="background:var(--green)"></span>heard directly (color = signal)</span>
+      <span><span class="ln" style="background:repeating-linear-gradient(90deg,#9aa8c2 0 4px,transparent 4px 9px)"></span>through relays</span>
+      <span>· Map pictures need internet; positions come from your mesh.</span>
+    </div>
   </section>
 
   <section id="tab-stats" hidden>
@@ -216,6 +275,7 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
   </div>
 </div>
 
+<script src="/vendor/leaflet/leaflet.js"></script>
 <script>
 const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
            tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
@@ -248,6 +308,7 @@ function matches(p) {
   const port = $('#portSel').value;
   if (port && p.port !== port) return false;
   if ($('#dmOnly').checked && (!S.status.my_id || p.to !== S.status.my_id)) return false;
+  if ($('#hideMine').checked && (p.dir === 'out' || (S.status.my_id && p.from === S.status.my_id))) return false;
   const q = $('#q').value.trim().toLowerCase();
   if (q) {
     const hay = [p.from, p.to, nodeName(p.from, p.from_name), nodeName(p.to, p.to_name), p.summary, portName(p.port)].join(' ').toLowerCase();
@@ -326,8 +387,122 @@ function renderNodes() {
     <td><span class="chip ${rssiClass(n.rssi)}">${n.rssi != null ? n.rssi : '—'}</span></td>
     <td>${n.hops ?? '—'}</td><td>${n.battery != null ? (n.battery > 100 ? '🔌 powered' : n.battery + '%') : '—'}</td>
     <td>${esc(n.hw || '—')}</td>
-    <td>${n.lat != null ? `<a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${n.lat}&mlon=${n.lon}#map=14/${n.lat}/${n.lon}">map</a>` : '—'}</td></tr>`).join('')
+    <td>${hasPos(n) ? `<a href="#" data-mapfor="${esc(n.id)}">show</a>` : '—'}</td></tr>`).join('')
     || `<tr><td colspan="10" style="text-align:center;color:var(--dim);padding:30px">No nodes yet</td></tr>`;
+}
+
+// ---------- map
+const M = {map: null, markers: new Map(), links: [], fitted: false, lastPos: new Map(), focus: null};
+function freshColor(n) {
+  if (n.id === S.status.my_id) return 'var(--blue)';
+  const age = n.last ? Date.now() / 1000 - n.last : 1e9;
+  return age < 900 ? 'var(--green)' : age < 7200 ? 'var(--amber)' : '#7d8ba5';
+}
+function cssVar(c) { return c.startsWith('var(') ? getComputedStyle(document.documentElement).getPropertyValue(c.slice(4, -1)).trim() : c; }
+function snrColor(v) { return v == null ? '#7d8ba5' : v >= 0 ? cssVar('var(--green)') : v >= -10 ? cssVar('var(--amber)') : cssVar('var(--red)'); }
+const hasPos = n => n.lat != null && n.lon != null && Math.abs(n.lat) <= 90 && Math.abs(n.lon) <= 180 && !(n.lat === 0 && n.lon === 0);
+function initMap() {
+  if (M.map || !window.L) return;
+  M.map = L.map('map', {zoomControl: true, worldCopyJump: true}).setView([39.5, -95], 4);
+  const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    {maxZoom: 20, subdomains: 'abcd', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'});
+  const street = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'});
+  const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'});
+  const layers = {'Dark': dark, 'Street': street, 'Satellite': sat};
+  let pick = 'Dark'; try { pick = localStorage.getItem('meshtap.layer') || 'Dark'; } catch (e) {}
+  (layers[pick] || dark).addTo(M.map);
+  L.control.layers(layers, null, {position: 'topright'}).addTo(M.map);
+  L.control.scale({imperial: true, metric: true}).addTo(M.map);
+  M.map.on('baselayerchange', e => { try { localStorage.setItem('meshtap.layer', e.name); } catch (er) {} });
+  let tileErrors = 0;
+  Object.values(layers).forEach(l => l.on('tileerror', () => { if (++tileErrors === 4) mapNote('No internet for map pictures — node positions still show.'); }));
+  M.map.on('movestart', () => { M.userMoved = true; });
+}
+function mapNote(t) { const el = $('#mapNote'); el.textContent = t || ''; el.hidden = !t; }
+function pinIcon(n, fresh) {
+  const me = n.id === S.status.my_id, label = $('#mapLabels').checked ? `<div class="t">${esc(n.long || n.id)}</div>` : '';
+  const short = esc((n.short || (n.long || n.id).replace(/^!/, '')).slice(0, 4));
+  return L.divIcon({className: '', iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -16],
+    html: `<div class="pin${me ? ' me' : ''}${fresh ? ' fresh' : ''}" style="--c:${freshColor(n)}"><div class="b">${short}</div>${label}</div>`});
+}
+function popupHTML(n) {
+  const rows = [['ID', n.id], ['Last heard', ago(n.last)], ['Position from', ago(n.pos_ts)],
+    ['SNR', n.snr != null ? (+n.snr).toFixed(1) + ' dB' : '—'], ['RSSI', n.rssi != null ? n.rssi + ' dBm' : '—'],
+    ['Hops away', n.hops ?? '—'], ['Battery', n.battery != null ? (n.battery > 100 ? 'powered' : n.battery + '%') : '—'],
+    ['Altitude', n.alt != null ? n.alt + ' m' : '—'], ['Hardware', n.hw || '—'], ['Packets', n.packets || 0],
+    ['Lat / lon', (+n.lat).toFixed(5) + ', ' + (+n.lon).toFixed(5)]];
+  const me = S.nodes.find(x => x.id === S.status.my_id);
+  if (me && hasPos(me) && me.id !== n.id) rows.splice(3, 0, ['Distance', fmtDist(dist(me, n))]);
+  return `<b>${esc(n.long || n.id)}</b>${n.id === S.status.my_id ? ' <span class="dm">YOU</span>' : ''}
+    <div class="pk">${rows.map(([k, v]) => `<span>${k}</span><span>${esc(v)}</span>`).join('')}</div>
+    <div style="margin-top:8px"><a href="#" data-feedfor="${esc(n.id)}" style="color:var(--blue)">Show its packets →</a></div>`;
+}
+function dist(a, b) {
+  const R = 6371e3, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function fmtDist(m) { const mi = m / 1609.34; return mi < 0.2 ? Math.round(m * 3.281) + ' ft' : mi.toFixed(mi < 10 ? 2 : 1) + ' mi (' + (m / 1000).toFixed(1) + ' km)'; }
+function renderMap() {
+  initMap();
+  if (!M.map) { mapNote('Map library failed to load.'); return; }
+  setTimeout(() => M.map.invalidateSize(), 0);
+  const showOld = $('#mapOld').checked, now = Date.now() / 1000;
+  const placed = S.nodes.filter(n => hasPos(n) && (showOld || n.id === S.status.my_id || (n.last && now - n.last < 7200)));
+  const keep = new Set();
+  for (const n of placed) {
+    keep.add(n.id);
+    const ll = [n.lat, n.lon], prev = M.lastPos.get(n.id), moved = !prev || prev[0] !== ll[0] || prev[1] !== ll[1];
+    let mk = M.markers.get(n.id);
+    if (!mk) {
+      mk = L.marker(ll, {icon: pinIcon(n, false), riseOnHover: true}).addTo(M.map).bindPopup('');
+      mk.on('popupopen', () => mk.setPopupContent(popupHTML(S.nodes.find(x => x.id === n.id) || n)));
+      M.markers.set(n.id, mk);
+    } else {
+      if (moved) mk.setLatLng(ll);
+      mk.setIcon(pinIcon(n, moved && prev));
+      if (mk.isPopupOpen()) mk.setPopupContent(popupHTML(n));
+    }
+    if (n.id === S.status.my_id) mk.setZIndexOffset(1000);
+    if (moved && prev && $('#mapFollow').checked) M.map.panTo(ll);
+    M.lastPos.set(n.id, ll);
+  }
+  for (const [id, mk] of M.markers) if (!keep.has(id)) { mk.remove(); M.markers.delete(id); M.lastPos.delete(id); }
+  // direct links from my radio to nodes heard with 0 hops
+  M.links.forEach(l => l.remove()); M.links = [];
+  const me = S.nodes.find(x => x.id === S.status.my_id);
+  if ($('#mapLinks').checked && me && hasPos(me)) {
+    for (const n of placed) {
+      if (n.id === me.id || n.hops == null || !n.last || now - n.last > 7200) continue;
+      const direct = n.hops === 0, d = fmtDist(dist(me, n));
+      M.links.push(L.polyline([[me.lat, me.lon], [n.lat, n.lon]], direct
+          ? {color: snrColor(n.snr), weight: 3, opacity: .8}
+          : {color: '#9aa8c2', weight: 1.5, opacity: .55, dashArray: '4 7'})
+        .addTo(M.map).bindTooltip(direct
+          ? `${esc(n.long || n.id)} · heard directly · SNR ${n.snr != null ? (+n.snr).toFixed(1) : '?'} · ${d}`
+          : `${esc(n.long || n.id)} · ${n.hops} hop${n.hops > 1 ? 's' : ''} through relays · ${d}`, {sticky: true}));
+    }
+  }
+  if (!M.fitted && placed.length) { fitAll(); M.fitted = true; }
+  M.noMePos = !!(S.status.my_id && !(me && hasPos(me)));
+  mapNote(placed.length ? (document.getElementById('mapNote').textContent.startsWith('No internet') ? $('#mapNote').textContent : '') :
+    (S.nodes.length ? 'No positions yet — nodes show up here once they share GPS.' : 'Connect to your radio to see nodes on the map.'));
+  // side list
+  const withPos = S.nodes.filter(hasPos).sort((a, b) => (b.last || 0) - (a.last || 0));
+  const noPos = S.nodes.filter(n => !hasPos(n) && n.packets).sort((a, b) => (b.last || 0) - (a.last || 0));
+  $('#mapCount').textContent = `${withPos.length} on map · ${noPos.length} without GPS`;
+  const tip = M.noMePos && withPos.length ? `<div class="note" style="margin:0 4px 10px">Your radio hasn't shared a position, so links can't be drawn. Give it GPS or a fixed position in the Meshtastic app (Position → Fixed position).</div>` : '';
+  $('#mapItems').innerHTML = tip + withPos.map(n => `<div class="mitem" data-id="${esc(n.id)}"><span class="mdot" style="background:${freshColor(n)}"></span>
+      <span class="mn">${esc(n.long || n.id)}${n.id === S.status.my_id ? ' <span class="dm">YOU</span>' : ''}</span><span class="ma">${ago(n.last)}</span></div>`).join('')
+    + (noPos.length ? `<h3 style="margin-top:12px">No position shared</h3>` + noPos.map(n => `<div class="mitem nopos"><span class="mdot" style="background:${freshColor(n)}"></span>
+      <span class="mn">${esc(n.long || n.id)}</span><span class="ma">${ago(n.last)}</span></div>`).join('') : '');
+}
+function fitAll() {
+  const pts = [...M.markers.values()].map(m => m.getLatLng());
+  if (!pts.length) return;
+  if (pts.length === 1) M.map.setView(pts[0], 13); else M.map.fitBounds(L.latLngBounds(pts).pad(0.2), {maxZoom: 15});
 }
 
 // ---------- breakdown
@@ -401,6 +576,7 @@ async function refresh() {
     renderStatus(); renderCards(); refreshPortOptions();
     if (S.tab === 'nodes') renderNodes();
     if (S.tab === 'stats') renderStats();
+    if (S.tab === 'map') renderMap();
   } catch (e) {}
 }
 
@@ -494,12 +670,16 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') document.que
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   S.tab = t.dataset.tab;
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
-  ['feed', 'nodes', 'stats', 'log'].forEach(id => $('#tab-' + id).hidden = id !== S.tab);
+  ['feed', 'nodes', 'map', 'stats', 'log'].forEach(id => $('#tab-' + id).hidden = id !== S.tab);
+  try { localStorage.setItem('meshtap.tab', S.tab); } catch (e) {}
   if (S.tab === 'nodes') renderNodes();
+  if (S.tab === 'map') renderMap();
   if (S.tab === 'stats') renderStats();
 });
 $('#feed').onclick = e => { const el = e.target.closest('.pkt'); if (el) { const p = S.byK.get(+el.dataset.k); if (p) showPacket(p); } };
-['#q', '#portSel', '#dmOnly'].forEach(s => $(s).addEventListener('input', renderFeed));
+['#q', '#portSel', '#dmOnly', '#hideMine'].forEach(s => $(s).addEventListener('input', renderFeed));
+try { $('#hideMine').checked = localStorage.getItem('meshtap.hideMine') === '1'; } catch (e) {}
+$('#hideMine').addEventListener('change', () => { try { localStorage.setItem('meshtap.hideMine', $('#hideMine').checked ? '1' : '0'); } catch (e) {} });
 $('#pauseBtn').onclick = () => {
   S.paused = !S.paused; $('#pauseBtn').textContent = S.paused ? '▶ Resume' : '⏸ Pause';
   if (!S.paused) renderFeed();
@@ -508,6 +688,24 @@ $('#clearBtn').onclick = async () => { if (confirm('Delete all captured traffic 
 ['#nq', '#heardOnly'].forEach(s => $(s).addEventListener('input', renderNodes));
 document.querySelectorAll('th[data-s]').forEach(th => th.onclick = () => {
   const k = th.dataset.s; S.sort = {key: k, dir: S.sort.key === k ? -S.sort.dir : (k === 'name' || k === 'id' || k === 'hw' ? 1 : -1)}; renderNodes();
+});
+$('#fitBtn').onclick = () => fitAll();
+['#mapOld', '#mapLinks', '#mapLabels'].forEach(sel => $(sel).addEventListener('change', () => { M.markers.forEach(m => m.remove()); M.markers.clear(); M.lastPos.clear(); renderMap(); }));
+$('#mapItems').onclick = e => {
+  const it = e.target.closest('.mitem[data-id]'); if (!it) return;
+  const mk = M.markers.get(it.dataset.id);
+  if (mk) { M.map.setView(mk.getLatLng(), Math.max(M.map.getZoom(), 14)); mk.openPopup(); }
+  else { $('#mapOld').checked = true; $('#mapOld').dispatchEvent(new Event('change')); }
+};
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-feedfor]'); if (!a) return;
+  e.preventDefault(); $('#q').value = a.dataset.feedfor; document.querySelector('.tab[data-tab=feed]').click(); renderFeed();
+});
+// show the node's position on the map from the Nodes table
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-mapfor]'); if (!a) return;
+  e.preventDefault(); document.querySelector('.tab[data-tab=map]').click();
+  setTimeout(() => { const mk = M.markers.get(a.dataset.mapfor); if (mk) { M.map.setView(mk.getLatLng(), 14); mk.openPopup(); } }, 60);
 });
 $('#logClear').onclick = () => { $('#log').innerHTML = ''; };
 window.addEventListener('resize', () => { if (S.tab === 'stats') drawRate(); });
@@ -522,6 +720,8 @@ window.addEventListener('resize', () => { if (S.tab === 'stats') drawRate(); });
   try { (await (await fetch('/api/logs')).json()).forEach(addLog); } catch (e) {}
   listen();
   setInterval(refresh, 2500);
+  let t0 = 'feed'; try { t0 = localStorage.getItem('meshtap.tab') || 'feed'; } catch (e) {}
+  if (t0 !== 'feed') document.querySelector(`.tab[data-tab="${t0}"]`)?.click();
   if (!S.status.connected && !S.status.connecting) openConnect();
 })();
 </script>
