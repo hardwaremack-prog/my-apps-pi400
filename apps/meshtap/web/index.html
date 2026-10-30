@@ -140,6 +140,24 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
 .sprow.beyond{opacity:.7}
 .spdet{font-size:13px}.spdet .kv{grid-template-columns:110px 1fr}
 @media (max-width:1000px){.spgrid{grid-template-columns:1fr}}
+/* radio */
+.rgrid{display:grid;grid-template-columns:220px 1fr;gap:12px}
+.rnav{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;align-self:start;position:sticky;top:70px;max-height:80vh;overflow:auto}
+.rnav h4{margin:10px 8px 4px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+.rnav button{display:block;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:7px 10px;cursor:pointer;color:var(--text)}
+.rnav button:hover{background:var(--panel2)}.rnav button.on{background:#14304a;color:var(--blue);font-weight:600}
+.rform{display:grid;grid-template-columns:minmax(180px,260px) 1fr;gap:10px 16px;align-items:start}
+.rform label.k{padding-top:7px;color:var(--text);font-size:13.5px}
+.rform .hint{color:var(--dim);font-size:12px;margin-top:3px}
+.rform input[type=text],.rform input[type=number],.rform input[type=password],.rform select,.rform textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.rform .dirty{border-color:var(--amber)!important;box-shadow:0 0 0 1px var(--amber)}
+.rform fieldset{grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.rform fieldset legend{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:0 6px}
+.rbar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;position:sticky;bottom:0;background:var(--panel);padding:10px 0 2px}
+.rinfo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.chrow{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.chrow.off{opacity:.6}
+@media (max-width:900px){.rgrid{grid-template-columns:1fr}.rnav{position:static}.rform{grid-template-columns:1fr}.rform label.k{padding-top:0}}
 /* map */
 .mapwrap{position:relative;display:grid;grid-template-columns:1fr 280px;gap:12px}
 #map{height:68vh;min-height:380px;border-radius:12px;border:1px solid var(--line);background:#0d1524;z-index:0}
@@ -216,6 +234,7 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
     <button class="tab" data-tab="map">🗺 Map</button>
     <button class="tab" data-tab="ping">🏓 Ping</button>
     <button class="tab" data-tab="spider">🕸 Spider</button>
+    <button class="tab" data-tab="radio">📻 Radio</button>
     <button class="tab" data-tab="stats">📊 Breakdown</button>
     <button class="tab" data-tab="log">🧾 Device log</button>
   </div>
@@ -355,6 +374,14 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
     </div>
   </section>
 
+  <section id="tab-radio" hidden>
+    <div id="rTop"></div>
+    <div class="rgrid">
+      <nav class="rnav" id="rNav"></nav>
+      <div class="panel" id="rBody"><div class="note">Loading your radio's settings…</div></div>
+    </div>
+  </section>
+
   <section id="tab-stats" hidden>
     <div class="panel" style="margin-bottom:12px"><h3>Packets per minute (last hour)</h3><canvas id="rateChart"></canvas></div>
     <div class="grid2">
@@ -420,7 +447,7 @@ if (!window.L) {
 }
 </script>
 <script>
-const PAGE_VERSION = '1.5.1';
+const PAGE_VERSION = '1.6.0';
 const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
            tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
 const $ = s => document.querySelector(s);
@@ -1137,6 +1164,253 @@ $('#spGo').onclick = async () => {
 $('#spStop').onclick = async () => { await pingCall('/api/scan/stop'); await refresh(); loadSpider(); };
 ['#spRecent', '#spAllLinks'].forEach(sel => $(sel).addEventListener('change', renderSpider));
 
+// ---------- radio settings
+const R = {info: null, page: 'owner', edit: null, restore: null};
+const RHINT = {
+  'lora.region': 'Must match your country (US = 915 MHz). Wrong region = illegal and no one hears you.',
+  'lora.modem_preset': 'Speed vs range. Everyone on a mesh must use the same preset — LONG_FAST is the default.',
+  'lora.hop_limit': 'How many times your messages may be relayed (1–7). Higher reaches farther but uses more airtime.',
+  'lora.tx_power': 'Transmit power in dBm. 0 = the radio\'s legal maximum.',
+  'lora.use_preset': 'Leave on unless you know why you\'re setting bandwidth/spread factor by hand.',
+  'lora.ok_to_mqtt': 'Lets your packets be forwarded to the internet (MQTT) by others.',
+  'lora.ignore_mqtt': 'Ignore packets that came through the internet instead of over the air.',
+  'device.role': 'CLIENT for most radios. ROUTER/REPEATER only for well-placed fixed nodes — it changes how the mesh relays.',
+  'device.rebroadcast_mode': 'Which packets this radio relays. ALL is normal.',
+  'device.node_info_broadcast_secs': 'How often your name and key are sent (seconds). Far nodes need this to talk to you.',
+  'position.fixed_position': 'Use a set location instead of GPS — good for a base station.',
+  'position.position_broadcast_secs': 'How often your position is sent (seconds).',
+  'position.gps_mode': 'Turn the GPS on, off, or mark it not present.',
+  'network.wifi_enabled': 'Join WiFi so apps can connect over your network (ESP32 radios).',
+  'network.wifi_psk': 'Your WiFi password.',
+  'bluetooth.enabled': 'Bluetooth for the phone app. Turning WiFi on usually turns Bluetooth off.',
+  'bluetooth.fixed_pin': 'PIN used when mode is FIXED_PIN.',
+  'power.is_power_saving': 'Sleep more to save battery. Not for routers.',
+  'display.screen_on_secs': 'How long the screen stays on (seconds).',
+  'security.public_key': 'This radio\'s identity — other radios use it to send it private messages.',
+  'security.admin_key': 'Public keys allowed to change this radio remotely.',
+  'mqtt.enabled': 'Bridge your mesh to the internet through an MQTT server.',
+  'neighbor_info.enabled': 'Share who this radio hears directly — helps the Spider tab draw links.',
+  'telemetry.device_update_interval': 'How often battery/voltage telemetry is sent (seconds).',
+  'store_forward.enabled': 'Hold messages for radios that were offline (needs PSRAM, ESP32).',
+  'range_test.enabled': 'Send numbered test messages to measure range.',
+};
+const human = s => s.replace(/_/g, ' ').replace(/\b(mqtt|gps|psk|tx|rx|ipv4|ip|dns|ntp|led|oled|rtc|tak|pin|id|url|bt|ble|gpio|i2c|uart|lora)\b/gi, m => m.toUpperCase()).replace(/^./, c => c.toUpperCase());
+async function loadRadio() {
+  try { R.info = await (await fetch('/api/radio')).json(); } catch (e) { R.info = {error: 'MeshTap isn\'t answering.'}; }
+  renderRadio();
+}
+function radioNav() {
+  const cfg = Object.keys((R.info.schema || {}).config || {}), mods = Object.keys((R.info.schema || {}).modules || {});
+  const b = (id, label) => `<button data-rp="${id}" class="${R.page === id ? 'on' : ''}">${label}</button>`;
+  $('#rNav').innerHTML = b('owner', '🪪 Name & info') + b('channels', '📡 Channels') + b('clone', '🧬 Clone & backup')
+    + '<h4>Settings</h4>' + cfg.map(c => b('config.' + c, human(c))).join('')
+    + '<h4>Modules</h4>' + mods.map(c => b('modules.' + c, human(c))).join('');
+}
+function renderRadio() {
+  const i = R.info, top = $('#rTop'), body = $('#rBody');
+  if (!i || i.error) {
+    top.innerHTML = ''; $('#rNav').innerHTML = '';
+    body.innerHTML = `<div class="note">${esc((i && i.error) || 'Loading…')}</div>${S.status.version !== PAGE_VERSION ? '<div class="note">If you just updated, restart MeshTap.</div>' : ''}`; return;
+  }
+  const md = i.metadata || {}, lora = (i.config || {}).lora || {}, dev = (i.config || {}).device || {};
+  const card = (k, v) => `<div class="card" style="padding:8px 12px"><div class="k">${k}</div><div class="v" style="font-size:16px">${esc(v ?? '—')}</div></div>`;
+  top.innerHTML = `<div class="rinfo">${card('Radio', (i.owner.longName || '?') + ' [' + (i.owner.shortName || '') + ']')}${card('Hardware', md.hw_model || i.owner.hwModel)}
+    ${card('Firmware', md.firmware_version)}${card('Role', dev.role)}${card('Region · preset', (lora.region || '?') + ' · ' + (lora.modem_preset || '?'))}${card('Hop limit', lora.hop_limit)}</div>`;
+  radioNav();
+  const p = R.page;
+  if (p === 'owner') return renderOwner(body);
+  if (p === 'channels') return renderChannels(body);
+  if (p === 'clone') return renderClone(body);
+  const [kind, sec] = p.split('.');
+  renderSection(body, kind, sec);
+}
+function fieldInput(path, f, v) {
+  const id = 'rf_' + path.replace(/\./g, '__'), hint = RHINT[(R.edit ? R.edit.sec : '') + '.' + path.split('.').pop()] || '';
+  const lab = `<label class="k" for="${id}">${esc(human(f.name))}${hint ? `<div class="hint">${esc(hint)}</div>` : ''}</label>`;
+  let inp;
+  const secret = /psk|password|pin$/i.test(f.name);
+  if (f.kind === 'msg' && !f.repeated) {
+    return `<fieldset><legend>${esc(human(f.name))}</legend><div class="rform">${f.fields.map(g => fieldInput(path + '.' + g.name, g, (v || {})[g.name])).join('')}</div></fieldset>`;
+  } else if (f.repeated) {
+    const txt = Array.isArray(v) ? v.map(x => typeof x === 'object' ? JSON.stringify(x) : x).join(', ') : '';
+    inp = `<textarea id="${id}" data-path="${path}" data-kind="${f.kind}" data-rep="1" rows="2" ${f.kind === 'msg' ? 'readonly' : ''}>${esc(txt)}</textarea><div class="hint">Comma-separated</div>`;
+  } else if (f.kind === 'bool') {
+    inp = `<label style="display:flex;gap:8px;align-items:center;padding-top:6px"><input type="checkbox" id="${id}" data-path="${path}" data-kind="bool" ${v ? 'checked' : ''}> ${v ? 'On' : 'Off'}</label>`;
+  } else if (f.kind === 'enum') {
+    inp = `<select id="${id}" data-path="${path}" data-kind="enum">${f.enum.map(e => `<option ${e === v ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>`;
+  } else if (f.kind === 'int' || f.kind === 'float') {
+    inp = `<input type="number" id="${id}" data-path="${path}" data-kind="${f.kind}" value="${v ?? 0}" ${f.kind === 'float' ? 'step="any"' : 'step="1"'}>`;
+  } else {
+    const ro = path.endsWith('public_key');
+    inp = `<input type="${secret ? 'password' : 'text'}" id="${id}" data-path="${path}" data-kind="${f.kind}" value="${esc(v ?? '')}" ${ro ? 'readonly' : ''} autocomplete="off">`
+      + (secret ? `<label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" onclick="this.closest('div').querySelector('input').type=this.checked?'text':'password'"> show</label>` : '');
+  }
+  return lab + `<div>${inp}</div>`;
+}
+function renderSection(body, kind, sec) {
+  const schema = (R.info.schema[kind] || {})[sec], vals = (R.info[kind] || {})[sec];
+  if (!schema || !vals) { body.innerHTML = '<div class="note">This radio doesn\'t report that section.</div>'; return; }
+  R.edit = {kind, sec, orig: JSON.parse(JSON.stringify(vals))};
+  const extra = sec === 'security' ? `<div class="note">This radio's private key is never shown or copied by MeshTap${vals.private_key_set ? ' (it has one)' : ''}.</div>` : '';
+  body.innerHTML = `<h3 style="margin-top:0">${esc(human(sec))} ${kind === 'modules' ? 'module' : 'settings'}</h3>${extra}
+    <div class="rform" id="rForm">${schema.filter(f => f.name !== 'private_key').map(f => fieldInput(f.name, f, vals[f.name])).join('')}</div>
+    <div class="rbar"><span class="note" id="rMsg" style="margin:0;flex:1"></span>
+      <button class="btn" id="rReset">Undo changes</button><button class="btn primary" id="rSave" disabled>Save to radio</button></div>`;
+  $('#rForm').addEventListener('input', markDirty); $('#rForm').addEventListener('change', markDirty);
+  $('#rReset').onclick = () => renderSection(body, kind, sec);
+  $('#rSave').onclick = saveSection;
+}
+function getPath(o, path) { return path.split('.').reduce((a, k) => a == null ? undefined : a[k], o); }
+function setPath(o, path, v) { const ks = path.split('.'); let a = o; ks.slice(0, -1).forEach(k => { if (a[k] == null || typeof a[k] !== 'object') a[k] = {}; a = a[k]; }); a[ks[ks.length - 1]] = v; }
+function readInput(el) {
+  const k = el.dataset.kind;
+  if (el.dataset.rep) {
+    const parts = el.value.split(',').map(x => x.trim()).filter(Boolean);
+    return k === 'int' || k === 'float' ? parts.map(Number) : k === 'msg' ? getPath(R.edit.orig, el.dataset.path) : parts;
+  }
+  if (k === 'bool') return el.checked;
+  if (k === 'int') return Math.round(+el.value || 0);
+  if (k === 'float') return +el.value || 0;
+  return el.value;
+}
+function collect() {
+  const out = JSON.parse(JSON.stringify(R.edit.orig));
+  document.querySelectorAll('#rForm [data-path]').forEach(el => setPath(out, el.dataset.path, readInput(el)));
+  return out;
+}
+function markDirty() {
+  let n = 0;
+  document.querySelectorAll('#rForm [data-path]').forEach(el => {
+    const was = getPath(R.edit.orig, el.dataset.path), now = readInput(el);
+    const d = JSON.stringify(was ?? (el.dataset.kind === 'bool' ? false : el.dataset.rep ? [] : el.dataset.kind === 'str' || el.dataset.kind === 'bytes' ? '' : 0)) !== JSON.stringify(now);
+    el.classList.toggle('dirty', d); if (d) n++;
+    if (el.dataset.kind === 'bool' && el.parentElement.lastChild.nodeType === 3) el.parentElement.lastChild.textContent = ' ' + (el.checked ? 'On' : 'Off');
+  });
+  $('#rSave').disabled = !n; $('#rMsg').textContent = n ? `${n} change${n > 1 ? 's' : ''} not saved yet` : '';
+}
+async function saveSection() {
+  const {kind, sec} = R.edit;
+  const risky = (kind === 'config' && ['lora', 'device', 'security', 'network', 'bluetooth'].includes(sec));
+  if (risky && !confirm(`Save ${human(sec)} settings to the radio?\n\nWrong ${sec === 'lora' ? 'region or preset' : sec === 'network' || sec === 'bluetooth' ? 'connection settings' : 'values'} can make the radio unreachable. MeshTap saves a backup of the current settings first (Clone & backup tab).`)) return;
+  $('#rSave').disabled = true; $('#rMsg').textContent = 'Saving…';
+  const r = await pingCall('/api/radio/section', {kind, section: sec, values: collect()});
+  $('#rMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`;
+  if (r.ok) setTimeout(loadRadio, 2500); else $('#rSave').disabled = false;
+}
+function renderOwner(body) {
+  const o = R.info.owner, md = R.info.metadata || {};
+  body.innerHTML = `<h3 style="margin-top:0">Name & info</h3>
+    <div class="rform">
+      <label class="k">Long name<div class="hint">Shown to everyone on the mesh (up to 39 characters).</div></label><div><input type="text" id="oLong" maxlength="39" value="${esc(o.longName || '')}"></div>
+      <label class="k">Short name<div class="hint">Up to 4 characters, shown on small screens and the map.</div></label><div><input type="text" id="oShort" maxlength="4" value="${esc(o.shortName || '')}"></div>
+      <label class="k">Licensed (ham) operator<div class="hint">Turns off encryption so you can use higher power legally under ham rules. Leave off unless you hold a license.</div></label><div><label style="display:flex;gap:8px;align-items:center;padding-top:6px"><input type="checkbox" id="oLic" ${o.isLicensed ? 'checked' : ''}> Licensed</label></div>
+    </div>
+    <div class="rbar"><span class="note" id="rMsg" style="margin:0;flex:1"></span><button class="btn primary" id="oSave">Save name</button></div>
+    <h3>About this radio</h3>
+    <div class="kv">${Object.entries({ID: o.id || S.status.my_id, Hardware: md.hw_model || o.hwModel, Firmware: md.firmware_version, 'Has WiFi': md.hasWifi ?? md.has_wifi, 'Has Bluetooth': md.hasBluetooth ?? md.has_bluetooth, 'Device state version': md.device_state_version}).filter(([, v]) => v != null).map(([k, v]) => `<div>${k}</div><div>${esc(String(v))}</div>`).join('')}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <a class="btn" href="https://flasher.meshtastic.org/" target="_blank" rel="noopener">⬆ Update firmware (official flasher) ↗</a>
+      <button class="btn danger" id="rBoot">⟳ Restart radio</button></div>
+    <div class="note">To update firmware, close MeshTap first (the flasher needs the USB port), then use Chrome or Edge. MeshTap's Clone file lets you put your settings back afterwards.</div>`;
+  $('#oSave').onclick = async () => {
+    const r = await pingCall('/api/radio/owner', {longName: $('#oLong').value, shortName: $('#oShort').value, isLicensed: $('#oLic').checked});
+    $('#rMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`; if (r.ok) setTimeout(loadRadio, 1500);
+  };
+  $('#rBoot').onclick = async () => { if (!confirm('Restart the radio now? MeshTap reconnects by itself.')) return; const r = await pingCall('/api/radio/reboot'); $('#rMsg').textContent = r.msg; };
+}
+function b64Random(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); return btoa(String.fromCharCode(...a)); }
+function renderChannels(body) {
+  const chans = R.info.channels || [];
+  body.innerHTML = `<h3 style="margin-top:0">Channels</h3>
+    <div class="note" style="margin-top:0">Radios only understand each other on channels with the same name and key. Channel 0 is your primary channel.</div>
+    ${chans.map(c => { const st = c.settings || {}, ms = st.module_settings || {}, i = c.index ?? 0;
+      return `<div class="chrow${c.role === 'DISABLED' ? ' off' : ''}" data-ch="${i}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>Channel ${i}${i === 0 ? ' · primary' : ''}</b>
+        <select data-f="role" ${i === 0 ? 'disabled' : ''} style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 8px">${['PRIMARY', 'SECONDARY', 'DISABLED'].filter(r => i === 0 ? r === 'PRIMARY' : r !== 'PRIMARY').map(r => `<option ${r === c.role ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+        <div class="rform">
+          <label class="k">Name<div class="hint">Blank = the preset's name (e.g. LongFast).</div></label><div><input type="text" data-f="name" maxlength="11" value="${esc(st.name || '')}"></div>
+          <label class="k">Key (PSK, base64)<div class="hint">AQ== = the public default key. Share a private key only with people who should read it.</div></label>
+          <div><input type="password" data-f="psk" value="${esc(st.psk || '')}" autocomplete="off"><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <button class="btn" data-psk="AQ==" style="padding:3px 8px;font-size:12px">Default key</button><button class="btn" data-psk="rand" style="padding:3px 8px;font-size:12px">New random key</button>
+            <button class="btn" data-psk="" style="padding:3px 8px;font-size:12px">No encryption</button><button class="btn" data-pskshow style="padding:3px 8px;font-size:12px">Show</button></div></div>
+          <label class="k">Send to internet (uplink)</label><div><input type="checkbox" data-f="uplink_enabled" ${st.uplink_enabled ? 'checked' : ''}></div>
+          <label class="k">Receive from internet (downlink)</label><div><input type="checkbox" data-f="downlink_enabled" ${st.downlink_enabled ? 'checked' : ''}></div>
+          <label class="k">Position precision<div class="hint">0 = don't share position here, 32 = exact. ~13 ≈ within a mile.</div></label><div><input type="number" min="0" max="32" data-f="position_precision" value="${ms.position_precision ?? 0}"></div>
+        </div><div class="rbar" style="position:static"><span class="note" style="margin:0;flex:1" data-msg></span><button class="btn primary" data-chsave>Save channel ${i}</button></div></div>`; }).join('')}
+    <h3>Channel link</h3>
+    <div class="note" style="margin-top:0">Share this link (or its QR in the Meshtastic app) so another radio gets the same channels. Keep it private if your channels have private keys.</div>
+    <div style="display:flex;gap:6px"><input type="password" id="chUrl" readonly value="${esc(R.info.channel_url || '')}" style="flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px">
+      <button class="btn" id="chUrlShow">Show</button><button class="btn" id="chUrlCopy">Copy</button></div>
+    <div style="display:flex;gap:6px;margin-top:10px"><input type="text" id="chUrlNew" placeholder="Paste a channel link to use its channels" style="flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px"><button class="btn" id="chUrlSet">Apply link</button></div>
+    <div class="note" id="chMsg"></div>`;
+  body.querySelectorAll('[data-psk]').forEach(b => b.onclick = () => { const inp = b.closest('.chrow').querySelector('[data-f=psk]'); inp.value = b.dataset.psk === 'rand' ? b64Random(32) : b.dataset.psk; inp.classList.add('dirty'); });
+  body.querySelectorAll('[data-pskshow]').forEach(b => b.onclick = () => { const inp = b.closest('.chrow').querySelector('[data-f=psk]'); inp.type = inp.type === 'password' ? 'text' : 'password'; });
+  body.querySelectorAll('[data-chsave]').forEach(b => b.onclick = async () => {
+    const row = b.closest('.chrow'), i = +row.dataset.ch, orig = JSON.parse(JSON.stringify(chans.find(c => (c.index ?? 0) === i)));
+    const st = orig.settings = orig.settings || {}; const g = f => row.querySelector(`[data-f=${f}]`);
+    orig.index = i; orig.role = i === 0 ? 'PRIMARY' : g('role').value;
+    st.name = g('name').value.trim(); st.psk = g('psk').value.trim(); st.uplink_enabled = g('uplink_enabled').checked; st.downlink_enabled = g('downlink_enabled').checked;
+    st.module_settings = Object.assign(st.module_settings || {}, {position_precision: Math.max(0, Math.min(32, +g('position_precision').value || 0))});
+    if (!confirm(`Save channel ${i} to the radio? Radios that don't have the same name and key won't understand it.`)) return;
+    const r = await pingCall('/api/radio/channel', {channel: orig});
+    row.querySelector('[data-msg]').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`; if (r.ok) setTimeout(loadRadio, 2000);
+  });
+  $('#chUrlShow').onclick = () => { $('#chUrl').type = $('#chUrl').type === 'password' ? 'text' : 'password'; };
+  $('#chUrlCopy').onclick = () => { navigator.clipboard && navigator.clipboard.writeText($('#chUrl').value); $('#chMsg').textContent = 'Copied.'; };
+  $('#chUrlSet').onclick = async () => {
+    if (!confirm('Replace this radio\'s channels with the ones in that link? A backup is saved first.')) return;
+    const r = await pingCall('/api/radio/channel_url', {url: $('#chUrlNew').value}); $('#chMsg').textContent = (r.ok ? '✅ ' : '⚠️ ') + r.msg; if (r.ok) setTimeout(loadRadio, 2500);
+  };
+}
+function diffBackup(b) {
+  const out = [], i = R.info;
+  const cmp = (a, c) => JSON.stringify(a) !== JSON.stringify(c);
+  Object.keys(b.config || {}).forEach(s => { const x = {...b.config[s]}, y = {...((i.config || {})[s] || {})}; ['private_key', 'public_key', 'private_key_set'].forEach(k => { delete x[k]; delete y[k]; }); if (cmp(x, y)) out.push(['config', s]); });
+  Object.keys(b.modules || {}).forEach(s => { if (cmp(b.modules[s], (i.modules || {})[s])) out.push(['modules', s]); });
+  (b.channels || []).forEach(c => { const cur = (i.channels || []).find(x => (x.index ?? 0) === (c.index ?? 0)); if (cmp(c, cur)) out.push(['channels', 'channel ' + (c.index ?? 0)]); });
+  if (b.owner && (b.owner.longName !== i.owner.longName || b.owner.shortName !== i.owner.shortName)) out.push(['owner', 'name']);
+  return out;
+}
+function renderClone(body) {
+  const bk = R.info.backups || [];
+  body.innerHTML = `<h3 style="margin-top:0">Clone & backup</h3>
+    <div class="note" style="margin-top:0">A <b>clone file</b> holds this radio's whole setup — every setting, every module, all channels and its name — so you can copy it onto another radio or put it back after a firmware update or factory reset.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn primary" href="/api/radio/backup.json">⬇ Download clone file</a>
+      <a class="btn" href="/api/radio/fullbackup.json" onclick="return confirm('A FULL backup includes this radio\'s private key — its identity. Keep the file private, and only restore it to this same radio. Continue?')">⬇ Full backup (with private key)</a></div>
+    <h3>Copy a setup onto this radio</h3>
+    <div class="note" style="margin-top:0">Pick a clone file (from this or another radio). You'll see what would change before anything is written. MeshTap never copies another radio's private key, and saves a backup of this radio first.</div>
+    <input type="file" id="cFile" accept=".json,application/json">
+    <div id="cPrev"></div>
+    <h3>Automatic backups</h3>
+    <div class="note" style="margin-top:0">Saved on this computer before every change MeshTap makes to the radio (last 50).</div>
+    ${bk.length ? bk.slice(0, 15).map(f => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${esc(f.name)}</span><a href="/api/radio/backups/get?name=${encodeURIComponent(f.name)}" style="color:var(--blue)">download</a></div>`).join('') : '<div class="note">None yet.</div>'}
+    <h3>About firmware</h3>
+    <div class="note" style="margin-top:0">The clone file copies the <i>setup</i>, which is what makes two radios behave the same. The firmware itself is installed with the official flasher (Name & info → Update firmware); load the same firmware version on both radios, then apply the clone file.</div>`;
+  $('#cFile').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    let b; try { b = JSON.parse(await f.text()); } catch (er) { $('#cPrev').innerHTML = '<div class="err">That file isn\'t valid JSON.</div>'; return; }
+    if (!b.meshtap_backup) { $('#cPrev').innerHTML = '<div class="err">That isn\'t a MeshTap clone file.</div>'; return; }
+    R.restore = b; const d = diffBackup(b), groups = {config: [], modules: [], channels: [], owner: []}; d.forEach(([g, s]) => groups[g].push(s));
+    const box = (k, label, on) => `<label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0"><input type="checkbox" id="cp_${k}" ${on ? 'checked' : ''} ${groups[k].length ? '' : 'disabled'}> <span><b>${label}</b> <span style="color:var(--dim)">${groups[k].length ? groups[k].map(human).join(', ') : 'same as this radio'}</span></span></label>`;
+    $('#cPrev').innerHTML = `<div class="panel" style="margin-top:10px;background:var(--panel2)">
+      <div><b>${esc((b.owner || {}).longName || '?')}</b> · ${esc(b.hardware || '?')} · firmware ${esc(b.firmware || '?')} · saved ${esc(b.created || '?')}${b.kind === 'full' ? ' · <span style="color:var(--amber)">full backup</span>' : ''}</div>
+      ${b.firmware && (R.info.metadata || {}).firmware_version && b.firmware !== R.info.metadata.firmware_version ? `<div class="note" style="color:var(--amber)">Different firmware (this radio: ${esc(R.info.metadata.firmware_version)}). Most settings carry over; anything new or removed is skipped.</div>` : ''}
+      ${d.length ? `<div style="margin-top:8px">${box('config', 'Settings', true)}${box('modules', 'Modules', true)}${box('channels', 'Channels', true)}${box('owner', 'Name', false)}</div>
+        <div class="note">Leave <b>Name</b> off when cloning to a second radio — two radios with the same name are confusing on the mesh.</div>
+        <div class="rbar" style="position:static"><span class="note" id="cMsg" style="margin:0;flex:1"></span><button class="btn primary" id="cApply">Copy onto this radio</button></div>`
+        : '<div class="note">This radio already matches that file.</div>'}</div>`;
+    const ap = $('#cApply'); if (!ap) return;
+    ap.onclick = async () => {
+      const parts = {config: $('#cp_config').checked, modules: $('#cp_modules').checked, channels: $('#cp_channels').checked, owner: $('#cp_owner').checked};
+      if (!confirm('Copy the selected parts onto this radio? It will restart to apply them; MeshTap reconnects by itself.')) return;
+      ap.disabled = true; $('#cMsg').textContent = 'Writing to the radio…';
+      const r = await pingCall('/api/radio/restore', {backup: R.restore, parts});
+      $('#cMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`; ap.disabled = false; if (r.ok) setTimeout(loadRadio, 4000);
+    };
+  };
+}
+$('#rNav').addEventListener('click', e => { const b = e.target.closest('[data-rp]'); if (!b) return; R.page = b.dataset.rp; renderRadio(); });
+
 // ---------- breakdown
 function bars(el, items, colorFn) {
   const max = Math.max(1, ...items.map(i => i[1]));
@@ -1313,12 +1587,13 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') document.que
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   S.tab = t.dataset.tab;
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
-  ['feed', 'nodes', 'map', 'ping', 'spider', 'stats', 'log'].forEach(id => $('#tab-' + id).hidden = id !== S.tab);
+  ['feed', 'nodes', 'map', 'ping', 'spider', 'radio', 'stats', 'log'].forEach(id => $('#tab-' + id).hidden = id !== S.tab);
   try { localStorage.setItem('meshtap.tab', S.tab); } catch (e) {}
   if (S.tab === 'nodes') renderNodes();
   if (S.tab === 'map') renderMap();
   if (S.tab === 'ping') renderPing();
   if (S.tab === 'spider') loadSpider();
+  if (S.tab === 'radio') loadRadio();
   if (S.tab === 'stats') renderStats();
 });
 $('#feed').onclick = e => { const el = e.target.closest('.pkt'); if (el) { const p = S.byK.get(+el.dataset.k); if (p) showPacket(p); } };

@@ -30,12 +30,17 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.5.1"
+VERSION = "1.6.0"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
 DB_PATH = os.path.join(DATA_DIR, "meshtap.db")
 SETTINGS_PATH = os.path.join(DATA_DIR, "settings.json")
+BACKUP_DIR = os.path.join(DATA_DIR, "backups")
+CONFIG_SECTIONS = ["device", "position", "power", "network", "display", "lora", "bluetooth", "security"]
+MODULE_SECTIONS = ["mqtt", "serial", "external_notification", "store_forward", "range_test", "telemetry", "canned_message",
+                   "audio", "remote_hardware", "neighbor_info", "ambient_lighting", "detection_sensor", "paxcounter",
+                   "traffic_management"]
 PING_MIN_INTERVAL = 30          # seconds between repeated pings (be kind to shared airtime)
 PING_TIMEOUT = {"ack": 45, "text": 45, "trace": 60, "hello": 60}
 BROADCAST = 0xFFFFFFFF
@@ -270,6 +275,84 @@ ROUTING_ERRORS = {
 }
 
 
+# ------------------------------------------------------- radio settings
+def _pb():
+    try:
+        from meshtastic.protobuf import localonly_pb2, channel_pb2, config_pb2, mesh_pb2
+    except ImportError:  # very old library
+        from meshtastic import localonly_pb2, channel_pb2, config_pb2, mesh_pb2
+    from google.protobuf import json_format
+    return localonly_pb2, channel_pb2, config_pb2, mesh_pb2, json_format
+
+
+def pb_to_dict(msg):
+    _, _, _, _, jf = _pb()
+    try:
+        return jf.MessageToDict(msg, preserving_proto_field_name=True, always_print_fields_with_no_presence=True)
+    except TypeError:  # older protobuf
+        return jf.MessageToDict(msg, preserving_proto_field_name=True, including_default_value_fields=True)
+
+
+def pb_schema(desc, depth=0):
+    """Describe a protobuf message's fields so the page can build a settings form for it."""
+    from google.protobuf.descriptor import FieldDescriptor as F
+    out = []
+    for f in desc.fields:
+        t = f.type
+        rep_ = getattr(f, "is_repeated", None)
+        if rep_ is None:
+            rep_ = getattr(f, "label", None) == getattr(F, "LABEL_REPEATED", 3)
+        item = {"name": f.name, "repeated": bool(rep_)}
+        if t == F.TYPE_BOOL:
+            item["kind"] = "bool"
+        elif t == F.TYPE_STRING:
+            item["kind"] = "str"
+        elif t == F.TYPE_BYTES:
+            item["kind"] = "bytes"
+        elif t == F.TYPE_ENUM:
+            item["kind"], item["enum"] = "enum", [v.name for v in f.enum_type.values]
+        elif t in (F.TYPE_FLOAT, F.TYPE_DOUBLE):
+            item["kind"] = "float"
+        elif t == F.TYPE_MESSAGE:
+            if depth >= 2:
+                continue
+            item["kind"], item["fields"] = "msg", pb_schema(f.message_type, depth + 1)
+        else:
+            item["kind"] = "int"
+        out.append(item)
+    return out
+
+
+class DemoNode:
+    """Stand-in radio for demo mode so the Radio tab can be explored without hardware."""
+    def __init__(self):
+        lo, ch, cfg, _, _ = _pb()
+        self.localConfig = lo.LocalConfig()
+        self.localConfig.lora.region = cfg.Config.LoRaConfig.RegionCode.Value("US")
+        self.localConfig.lora.modem_preset = cfg.Config.LoRaConfig.ModemPreset.Value("LONG_FAST")
+        self.localConfig.lora.hop_limit = 3
+        self.localConfig.lora.use_preset = True
+        self.localConfig.lora.tx_enabled = True
+        self.localConfig.device.role = cfg.Config.DeviceConfig.Role.Value("CLIENT")
+        self.localConfig.bluetooth.enabled = True
+        self.localConfig.position.position_broadcast_secs = 900
+        self.moduleConfig = lo.LocalModuleConfig()
+        self.moduleConfig.telemetry.device_update_interval = 1800
+        self.channels = [ch.Channel(index=i, role=ch.Channel.Role.Value("PRIMARY" if i == 0 else "DISABLED")) for i in range(8)]
+        self.channels[0].settings.psk = b"\x01"
+        self.owner = {"longName": "Basecamp Router", "shortName": "BASE", "isLicensed": False}
+
+    def writeConfig(self, name): pass
+    def writeChannel(self, i, adminIndex=0): pass
+    def setOwner(self, long_name=None, short_name=None, is_licensed=False, **k):
+        self.owner.update({k2: v for k2, v in (("longName", long_name), ("shortName", short_name), ("isLicensed", is_licensed)) if v is not None})
+    def getURL(self, includeAll=True): return "https://meshtastic.org/e/#CgMSAQESBggBQANIAQ"
+    def setURL(self, url, addOnly=False): pass
+    def reboot(self, secs=10): pass
+    def beginSettingsTransaction(self): pass
+    def commitSettingsTransaction(self): pass
+
+
 # ----------------------------------------------------------------- the hub
 class Hub:
     def __init__(self):
@@ -497,7 +580,10 @@ class Hub:
 
     def my_hop_limit(self):
         if self.mode == "demo":
-            return getattr(self, "demo_hop_limit", 3)
+            try:
+                return self._radio()[0].localConfig.lora.hop_limit
+            except Exception:
+                return 3
         try:
             return int(self.iface.localNode.localConfig.lora.hop_limit) or None
         except Exception:
@@ -1053,6 +1139,237 @@ class Hub:
             self.add_log("[MeshTap] couldn't reconnect to the radio — press Connect to try again")
         threading.Thread(target=run, daemon=True).start()
 
+    # ---- radio settings (like the Meshtastic web client), backups and cloning
+    def _radio(self):
+        if self.mode == "demo":
+            self.demo_node = getattr(self, "demo_node", None) or DemoNode()
+            return self.demo_node, None
+        iface = self.iface
+        node = getattr(iface, "localNode", None) if iface else None
+        if not self.connected or node is None or getattr(node, "localConfig", None) is None:
+            raise RuntimeError("Connect to your radio first (USB, WiFi or Bluetooth).")
+        return node, iface
+
+    def _owner(self, node, iface):
+        if iface is None:
+            return dict(node.owner)
+        u = ((iface.getMyNodeInfo() or {}).get("user") or {})
+        return {"longName": u.get("longName"), "shortName": u.get("shortName"), "isLicensed": bool(u.get("isLicensed")),
+                "id": u.get("id"), "hwModel": u.get("hwModel")}
+
+    def radio_info(self):
+        node, iface = self._radio()
+        lo, ch, _, mesh, _ = _pb()
+        cfg = {s: pb_to_dict(getattr(node.localConfig, s)) for s in CONFIG_SECTIONS if hasattr(node.localConfig, s)}
+        sec = cfg.get("security") or {}
+        sec["private_key_set"] = bool(sec.pop("private_key", None))   # never sent to the page
+        mc = getattr(node, "moduleConfig", None)
+        mods = {s: pb_to_dict(getattr(mc, s)) for s in MODULE_SECTIONS if mc is not None and hasattr(mc, s)}
+        meta = {}
+        try:
+            md = getattr(iface, "metadata", None) if iface else None
+            meta = pb_to_dict(md) if md is not None else ({"firmware_version": "2.6.11.demo", "hw_model": "HELTEC_V3"} if iface is None else {})
+        except Exception:
+            pass
+        chans = [pb_to_dict(c) for c in (node.channels or [])]
+        try:
+            url = node.getURL()
+        except Exception:
+            url = ""
+        return {"owner": self._owner(node, iface), "metadata": meta, "config": {k: v for k, v in cfg.items() if k in CONFIG_SECTIONS},
+                "modules": {k: v for k, v in mods.items() if k in MODULE_SECTIONS}, "channels": chans, "channel_url": url,
+                "schema": {"config": {s: pb_schema(lo.LocalConfig.DESCRIPTOR.fields_by_name[s].message_type) for s in CONFIG_SECTIONS},
+                           "modules": {s: pb_schema(lo.LocalModuleConfig.DESCRIPTOR.fields_by_name[s].message_type)
+                                       for s in MODULE_SECTIONS if s in lo.LocalModuleConfig.DESCRIPTOR.fields_by_name},
+                           "channel": pb_schema(ch.Channel.DESCRIPTOR)},
+                "backups": self.list_backups()}
+
+    def _build_section(self, parent, section, values):
+        """A complete new copy of one settings section from the page's values (keys the radio's own private key)."""
+        _, _, _, _, jf = _pb()
+        cur = getattr(parent, section)
+        new = type(cur)()
+        vals = dict(values or {})
+        vals.pop("private_key_set", None)
+        jf.ParseDict(vals, new, ignore_unknown_fields=True)
+        if section == "security":  # a radio's identity stays its own
+            new.private_key = cur.private_key
+            new.public_key = cur.public_key
+        return cur, new
+
+    def write_section(self, kind, section, values):
+        node, iface = self._radio()
+        if kind == "config" and section in CONFIG_SECTIONS:
+            parent = node.localConfig
+        elif kind == "modules" and section in MODULE_SECTIONS and getattr(node, "moduleConfig", None) is not None:
+            parent = node.moduleConfig
+        else:
+            return False, f"Unknown settings section: {section}"
+        self.auto_backup(f"before-{section}")
+        try:
+            cur, new = self._build_section(parent, section, values)
+        except Exception as exc:
+            return False, f"Those values didn't fit: {exc}"
+        if cur.SerializeToString() == new.SerializeToString():
+            return True, "Nothing changed."
+        cur.CopyFrom(new)
+        try:
+            node.writeConfig(section)
+        except SystemExit:
+            return False, "The radio hasn't finished sending its settings yet — try again in a few seconds."
+        except Exception as exc:
+            return False, f"Couldn't save to the radio: {exc}"
+        self.add_log(f"[MeshTap] saved {section} settings to the radio")
+        return True, f"Saved {section.replace('_', ' ')} settings. Some changes make the radio restart; MeshTap reconnects by itself."
+
+    def write_owner(self, long_name, short_name, licensed=False):
+        node, iface = self._radio()
+        long_name, short_name = (long_name or "").strip()[:39], (short_name or "").strip()[:4]
+        if not long_name or not short_name:
+            return False, "Both names are needed (short name: up to 4 characters)."
+        self.auto_backup("before-owner")
+        try:
+            node.setOwner(long_name=long_name, short_name=short_name, is_licensed=bool(licensed))
+        except Exception as exc:
+            return False, f"Couldn't rename the radio: {exc}"
+        if self.my_id and self.my_id in self.nodes:
+            self.nodes[self.my_id]["long"], self.nodes[self.my_id]["short"] = long_name, short_name
+        self.add_log(f"[MeshTap] radio renamed to {long_name} [{short_name}]")
+        return True, f"Radio renamed to {long_name} [{short_name}]."
+
+    def write_channel(self, values):
+        node, iface = self._radio()
+        _, ch, _, _, jf = _pb()
+        try:
+            idx = int(values.get("index", -1))
+            assert 0 <= idx < len(node.channels)
+        except Exception:
+            return False, "Unknown channel."
+        new = ch.Channel()
+        try:
+            jf.ParseDict(values, new, ignore_unknown_fields=True)
+        except Exception as exc:
+            return False, f"Those values didn't fit: {exc}"
+        new.index = idx
+        if idx == 0 and new.role != ch.Channel.Role.Value("PRIMARY"):
+            return False, "Channel 0 must stay the primary channel."
+        self.auto_backup(f"before-channel-{idx}")
+        node.channels[idx].CopyFrom(new)
+        try:
+            node.writeChannel(idx)
+        except Exception as exc:
+            return False, f"Couldn't save the channel: {exc}"
+        self.add_log(f"[MeshTap] saved channel {idx} ({new.settings.name or 'default'})")
+        return True, f"Channel {idx} saved."
+
+    def set_channel_url(self, url):
+        node, iface = self._radio()
+        if "meshtastic.org/e/" not in (url or ""):
+            return False, "That doesn't look like a Meshtastic channel link (https://meshtastic.org/e/#…)."
+        self.auto_backup("before-channel-link")
+        try:
+            node.setURL(url.strip())
+        except SystemExit:
+            return False, "That channel link couldn't be read."
+        except Exception as exc:
+            return False, f"Couldn't apply the link: {exc}"
+        self.add_log("[MeshTap] channels replaced from a channel link")
+        return True, "Channels set from the link."
+
+    def reboot_radio(self):
+        node, iface = self._radio()
+        try:
+            node.reboot(3)
+        except Exception as exc:
+            return False, f"Couldn't restart the radio: {exc}"
+        self.add_log("[MeshTap] radio restart requested")
+        return True, "Restarting the radio — MeshTap reconnects by itself."
+
+    def make_backup(self, full=False):
+        """A clone file of this radio: owner, all settings, all channels. full=True also keeps its private key."""
+        node, iface = self._radio()
+        info = self.radio_info()
+        cfg = info["config"]
+        sec = cfg.get("security") or {}
+        sec.pop("private_key_set", None)
+        if full:
+            import base64
+            sec["private_key"] = base64.b64encode(node.localConfig.security.private_key).decode()
+        else:
+            sec.pop("public_key", None)
+        return {"meshtap_backup": 1, "kind": "full" if full else "clone", "created": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "app_version": VERSION, "firmware": (info["metadata"] or {}).get("firmware_version"),
+                "hardware": (info["metadata"] or {}).get("hw_model") or info["owner"].get("hwModel"),
+                "owner": {k: info["owner"].get(k) for k in ("longName", "shortName", "isLicensed")}, "node_id": info["owner"].get("id") or self.my_id,
+                "config": cfg, "modules": info["modules"], "channels": info["channels"], "channel_url": info["channel_url"]}
+
+    def auto_backup(self, why):
+        """Before any change, keep a copy of the radio's settings (last 50 kept)."""
+        try:
+            b = self.make_backup(full=False)
+            os.makedirs(BACKUP_DIR, exist_ok=True)
+            name = f"{time.strftime('%Y%m%d-%H%M%S')}-{(b['owner'].get('shortName') or 'radio')}-{why}.json"
+            name = "".join(c if c.isalnum() or c in "-_." else "_" for c in name)
+            with open(os.path.join(BACKUP_DIR, name), "w", encoding="utf-8") as fh:
+                json.dump(b, fh, indent=1)
+            files = sorted(f for f in os.listdir(BACKUP_DIR) if f.endswith(".json"))
+            for f in files[:-50]:
+                os.remove(os.path.join(BACKUP_DIR, f))
+        except Exception as exc:
+            self.add_log(f"[MeshTap] couldn't make the automatic backup: {exc}")
+
+    def list_backups(self):
+        try:
+            files = sorted((f for f in os.listdir(BACKUP_DIR) if f.endswith(".json")), reverse=True)
+        except OSError:
+            return []
+        return [{"name": f, "size": os.path.getsize(os.path.join(BACKUP_DIR, f))} for f in files[:50]]
+
+    def restore(self, b, parts):
+        """Apply a clone file to the connected radio. Never copies another radio's private key."""
+        node, iface = self._radio()
+        if not isinstance(b, dict) or not b.get("meshtap_backup"):
+            return False, "That isn't a MeshTap backup file."
+        parts = parts or {}
+        self.auto_backup("before-restore")
+        done = []
+        try:
+            node.beginSettingsTransaction()
+            if parts.get("config", True):
+                for s in CONFIG_SECTIONS:
+                    if s in (b.get("config") or {}):
+                        vals = dict(b["config"][s])
+                        if s == "security":
+                            vals.pop("private_key", None), vals.pop("public_key", None)
+                        cur, new = self._build_section(node.localConfig, s, vals)
+                        if cur.SerializeToString() != new.SerializeToString():
+                            cur.CopyFrom(new); node.writeConfig(s); done.append(s)
+            if parts.get("modules", True) and getattr(node, "moduleConfig", None) is not None:
+                for s in MODULE_SECTIONS:
+                    if s in (b.get("modules") or {}) and hasattr(node.moduleConfig, s):
+                        cur, new = self._build_section(node.moduleConfig, s, b["modules"][s])
+                        if cur.SerializeToString() != new.SerializeToString():
+                            cur.CopyFrom(new); node.writeConfig(s); done.append(s)
+            if parts.get("channels", True):
+                _, ch, _, _, jf = _pb()
+                for c in b.get("channels") or []:
+                    i = int(c.get("index", -1))
+                    if 0 <= i < len(node.channels):
+                        new = ch.Channel(); jf.ParseDict(c, new, ignore_unknown_fields=True); new.index = i
+                        if node.channels[i].SerializeToString() != new.SerializeToString():
+                            node.channels[i].CopyFrom(new); node.writeChannel(i); done.append(f"channel {i}")
+            node.commitSettingsTransaction()
+        except SystemExit:
+            return False, "The radio rejected part of the file (it may be from a very different firmware)."
+        except Exception as exc:
+            return False, f"Stopped partway: {exc}. An automatic backup of the radio was saved first."
+        if parts.get("owner") and b.get("owner", {}).get("longName"):
+            self.write_owner(b["owner"]["longName"], b["owner"].get("shortName"), b["owner"].get("isLicensed"))
+            done.append("name")
+        self.add_log(f"[MeshTap] cloned onto the radio: {', '.join(done) or 'nothing different'}")
+        return True, (f"Copied {len(done)} part{'s' if len(done) != 1 else ''}: {', '.join(done)}. The radio restarts to apply; MeshTap reconnects."
+                      if done else "This radio already matches that file.")
+
     def set_radio_hop_limit(self, value):
         """Write the LoRa hop limit to the radio (1–7). Most radios restart afterwards; we reconnect."""
         try:
@@ -1062,7 +1379,7 @@ class Hub:
         if not 1 <= value <= 7:
             return False, "Meshtastic allows a hop limit from 1 to 7."
         if self.mode == "demo":
-            self.demo_hop_limit = value
+            self._radio()[0].localConfig.lora.hop_limit = value
             return True, f"Demo radio hop limit set to {value}."
         iface = self.iface
         node = getattr(iface, "localNode", None) if iface else None
@@ -1416,6 +1733,27 @@ class Handler(BaseHTTPRequestHandler):
             limit = int((qs.get("limit") or ["1000"])[0])
             with HUB.lock:
                 return self._send(200, list(HUB.packets)[-limit:])
+        if url.path == "/api/radio":
+            try:
+                return self._send(200, HUB.radio_info())
+            except Exception as exc:
+                return self._send(200, {"error": str(exc)})
+        if url.path in ("/api/radio/backup.json", "/api/radio/fullbackup.json"):
+            try:
+                full = "full" in url.path
+                b = HUB.make_backup(full=full)
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+            name = f"{b['owner'].get('shortName') or 'radio'}-{'FULL-' if full else ''}clone-{time.strftime('%Y%m%d-%H%M')}.json"
+            return self._send(200, json.dumps(b, indent=1), "application/json",
+                              {"Content-Disposition": f'attachment; filename="{name}"'})
+        if url.path == "/api/radio/backups/get":
+            name = os.path.basename((qs.get("name") or [""])[0])
+            path = os.path.join(BACKUP_DIR, name)
+            if not name.endswith(".json") or not os.path.isfile(path):
+                return self._send(404, {"error": "not found"})
+            with open(path, "rb") as fh:
+                return self._send(200, fh.read(), "application/json", {"Content-Disposition": f'attachment; filename="{name}"'})
         if url.path == "/api/spider":
             return self._send(200, HUB.spider())
         if url.path == "/api/pings":
@@ -1478,7 +1816,30 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 ok, msg = HUB.send_ping(to, method, replace=bool(body.get("replace")), hop_limit=body.get("hop_limit") or None)
             return self._send(200, {"ok": ok, "msg": msg})
+        if url.path.startswith("/api/radio/") and url.path != "/api/radio/hop_limit":
+            if self.client_address[0] not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+                return self._send(403, {"ok": False, "msg": "Radio settings can only be changed from this computer."})
+            try:
+                if url.path == "/api/radio/section":
+                    ok, msg = HUB.write_section(body.get("kind"), body.get("section"), body.get("values"))
+                elif url.path == "/api/radio/owner":
+                    ok, msg = HUB.write_owner(body.get("longName"), body.get("shortName"), body.get("isLicensed"))
+                elif url.path == "/api/radio/channel":
+                    ok, msg = HUB.write_channel(body.get("channel") or {})
+                elif url.path == "/api/radio/channel_url":
+                    ok, msg = HUB.set_channel_url(body.get("url"))
+                elif url.path == "/api/radio/reboot":
+                    ok, msg = HUB.reboot_radio()
+                elif url.path == "/api/radio/restore":
+                    ok, msg = HUB.restore(body.get("backup"), body.get("parts"))
+                else:
+                    return self._send(404, {"ok": False, "msg": "not found"})
+            except Exception as exc:
+                ok, msg = False, str(exc)
+            return self._send(200, {"ok": ok, "msg": msg})
         if url.path == "/api/radio/hop_limit":
+            if self.client_address[0] not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+                return self._send(403, {"ok": False, "msg": "Radio settings can only be changed from this computer."})
             ok, msg = HUB.set_radio_hop_limit(body.get("value"))
             return self._send(200, {"ok": ok, "msg": msg})
         if url.path == "/api/settings":
