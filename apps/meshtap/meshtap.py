@@ -30,7 +30,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.6.0"
+VERSION = "1.6.1"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
@@ -351,6 +351,8 @@ class DemoNode:
     def reboot(self, secs=10): pass
     def beginSettingsTransaction(self): pass
     def commitSettingsTransaction(self): pass
+    def factoryReset(self, full=False):
+        self.__init__()
 
 
 # ----------------------------------------------------------------- the hub
@@ -372,9 +374,7 @@ class Hub:
         self.demo_stop = None
         self.seq = 0
         self._reset_counters()
-        self.settings = {"autosave": True, "home": None,
-                         "goals": [{"name": "Milan, MI", "lat": 42.0853, "lon": -83.6824},
-                                   {"name": "Jackson, MI", "lat": 42.2459, "lon": -84.4013}]}
+        self.settings = {"autosave": True, "home": None, "goals": []}
         try:
             with open(SETTINGS_PATH, encoding="utf-8") as fh:
                 self.settings.update(json.load(fh))
@@ -1303,6 +1303,40 @@ class Hub:
                 "owner": {k: info["owner"].get(k) for k in ("longName", "shortName", "isLicensed")}, "node_id": info["owner"].get("id") or self.my_id,
                 "config": cfg, "modules": info["modules"], "channels": info["channels"], "channel_url": info["channel_url"]}
 
+    def save_snapshot(self, label="", full=False):
+        """Save the radio's current config on this computer (and return it for download)."""
+        b = self.make_backup(full=full)
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+        tag = "".join(c if c.isalnum() or c in "-_" else "-" for c in (label or "saved").strip())[:40] or "saved"
+        name = f"{time.strftime('%Y%m%d-%H%M%S')}-{(b['owner'].get('shortName') or 'radio')}-{'FULL-' if full else ''}{tag}.json"
+        name = "".join(c if c.isalnum() or c in "-_." else "_" for c in name)
+        with open(os.path.join(BACKUP_DIR, name), "w", encoding="utf-8") as fh:
+            json.dump(b, fh, indent=1)
+        self.add_log(f"[MeshTap] saved the radio's config: {name}")
+        return name, b
+
+    def load_backup(self, name):
+        path = os.path.join(BACKUP_DIR, os.path.basename(name or ""))
+        if not path.endswith(".json") or not os.path.isfile(path):
+            raise RuntimeError("That saved config wasn't found.")
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def factory_reset(self, full=False):
+        """Reset the radio. A FULL backup (with its private key) is saved on this computer first."""
+        node, iface = self._radio()
+        try:
+            name, _ = self.save_snapshot("before-factory-reset", full=True)
+        except Exception as exc:
+            return False, f"Didn't reset: couldn't save a backup first ({exc})."
+        try:
+            node.factoryReset(full=bool(full))
+        except Exception as exc:
+            return False, f"Couldn't reset the radio: {exc}"
+        self.add_log(f"[MeshTap] factory reset ({'full wipe' if full else 'settings'}) sent; backup saved as {name}")
+        return True, (f"Reset sent. The radio restarts with factory settings{' and a new identity' if full else ''}; MeshTap reconnects by itself. "
+                      f"Your previous setup is saved as {name} — restore it any time from Clone & backup.")
+
     def auto_backup(self, why):
         """Before any change, keep a copy of the radio's settings (last 50 kept)."""
         try:
@@ -1312,7 +1346,7 @@ class Hub:
             name = "".join(c if c.isalnum() or c in "-_." else "_" for c in name)
             with open(os.path.join(BACKUP_DIR, name), "w", encoding="utf-8") as fh:
                 json.dump(b, fh, indent=1)
-            files = sorted(f for f in os.listdir(BACKUP_DIR) if f.endswith(".json"))
+            files = sorted(f for f in os.listdir(BACKUP_DIR) if f.endswith(".json") and "-before-" in f and "-FULL-" not in f)
             for f in files[:-50]:
                 os.remove(os.path.join(BACKUP_DIR, f))
         except Exception as exc:
@@ -1323,7 +1357,7 @@ class Hub:
             files = sorted((f for f in os.listdir(BACKUP_DIR) if f.endswith(".json")), reverse=True)
         except OSError:
             return []
-        return [{"name": f, "size": os.path.getsize(os.path.join(BACKUP_DIR, f))} for f in files[:50]]
+        return [{"name": f, "size": os.path.getsize(os.path.join(BACKUP_DIR, f)), "full": "-FULL-" in f} for f in files[:50]]
 
     def restore(self, b, parts):
         """Apply a clone file to the connected radio. Never copies another radio's private key."""
@@ -1335,13 +1369,23 @@ class Hub:
         done = []
         try:
             node.beginSettingsTransaction()
-            if parts.get("config", True):
+            ident = None
+            if parts.get("identity") and b.get("kind") == "full" and (b.get("config") or {}).get("security", {}).get("private_key"):
+                if b.get("node_id") and self.my_id and b["node_id"] != self.my_id:
+                    raise RuntimeError(f"that full backup is from {b['node_id']}, not this radio ({self.my_id}) — identity not copied")
+                import base64
+                ident = base64.b64decode(b["config"]["security"]["private_key"])
+            if parts.get("config", True) or ident:
                 for s in CONFIG_SECTIONS:
-                    if s in (b.get("config") or {}):
+                    if s in (b.get("config") or {}) and (parts.get("config", True) or s == "security"):
                         vals = dict(b["config"][s])
                         if s == "security":
                             vals.pop("private_key", None), vals.pop("public_key", None)
                         cur, new = self._build_section(node.localConfig, s, vals)
+                        if s == "security" and ident:
+                            new.private_key = ident
+                            new.public_key = b""   # the radio works its public key out from the private one
+                            done.append("identity")
                         if cur.SerializeToString() != new.SerializeToString():
                             cur.CopyFrom(new); node.writeConfig(s); done.append(s)
             if parts.get("modules", True) and getattr(node, "moduleConfig", None) is not None:
@@ -1747,6 +1791,11 @@ class Handler(BaseHTTPRequestHandler):
             name = f"{b['owner'].get('shortName') or 'radio'}-{'FULL-' if full else ''}clone-{time.strftime('%Y%m%d-%H%M')}.json"
             return self._send(200, json.dumps(b, indent=1), "application/json",
                               {"Content-Disposition": f'attachment; filename="{name}"'})
+        if url.path == "/api/radio/backups/peek":
+            try:
+                return self._send(200, HUB.load_backup((qs.get("name") or [""])[0]))
+            except Exception as exc:
+                return self._send(404, {"error": str(exc)})
         if url.path == "/api/radio/backups/get":
             name = os.path.basename((qs.get("name") or [""])[0])
             path = os.path.join(BACKUP_DIR, name)
@@ -1831,7 +1880,16 @@ class Handler(BaseHTTPRequestHandler):
                 elif url.path == "/api/radio/reboot":
                     ok, msg = HUB.reboot_radio()
                 elif url.path == "/api/radio/restore":
-                    ok, msg = HUB.restore(body.get("backup"), body.get("parts"))
+                    b = HUB.load_backup(body["saved"]) if body.get("saved") else body.get("backup")
+                    ok, msg = HUB.restore(b, body.get("parts"))
+                elif url.path == "/api/radio/save":
+                    name, _ = HUB.save_snapshot(body.get("label") or "", full=bool(body.get("full")))
+                    ok, msg = True, f"Saved as {name} (in your .meshtap\\backups folder)."
+                elif url.path == "/api/radio/factory_reset":
+                    if body.get("confirm") != "RESET":
+                        ok, msg = False, "Type RESET to confirm."
+                    else:
+                        ok, msg = HUB.factory_reset(full=bool(body.get("full")))
                 else:
                     return self._send(404, {"ok": False, "msg": "not found"})
             except Exception as exc:

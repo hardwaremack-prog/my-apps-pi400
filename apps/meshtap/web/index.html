@@ -355,7 +355,7 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
         <div class="panel" style="margin-bottom:12px"><h3>Your range</h3><div id="spRange"></div></div>
         <div class="panel" style="margin-bottom:12px"><h3>Goals</h3><div id="spGoals"></div>
           <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-            <input id="gName" placeholder="Place (e.g. Ann Arbor, MI)" style="flex:1 1 140px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px">
+            <input id="gName" placeholder="Place you want to reach" style="flex:1 1 140px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px">
             <input id="gLL" placeholder="lat, lon" style="flex:1 1 110px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px">
             <button class="btn" id="gAdd">＋ Add</button></div>
           <div class="note" style="margin:6px 0 0">Tip: right-click a spot in Google Maps to copy its lat, lon.</div></div>
@@ -447,7 +447,7 @@ if (!window.L) {
 }
 </script>
 <script>
-const PAGE_VERSION = '1.6.0';
+const PAGE_VERSION = '1.6.1';
 const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
            tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
 const $ = s => document.querySelector(s);
@@ -924,7 +924,7 @@ function renderSpider() {
     && (!recent || (n.last && now - n.last < 86400) || (n.confirmed && now - n.confirmed < 86400)));
   const byId = Object.fromEntries(d.nodes.map(n => [n.id, n]));
   const ringOf = {}; nodes.forEach(n => ringOf[n.id] = spRing(n));
-  const maxRing = 7, C = 500, R0 = 62, step = (C - 70 - R0) / (maxRing + 1);   // ring k radius = R0 + k*step; unknown = last
+  const maxRing = 7, C = 500, R0 = 92, step = (C - 70 - R0) / (maxRing + 1);   // ring k radius = R0 + k*step; unknown = last
   const rad = k => R0 + (k == null ? maxRing + 1 : k) * step;
   // neighbours from links, for placing nodes near whoever relays to them
   const adj = {};
@@ -1215,7 +1215,14 @@ function renderRadio() {
   const md = i.metadata || {}, lora = (i.config || {}).lora || {}, dev = (i.config || {}).device || {};
   const card = (k, v) => `<div class="card" style="padding:8px 12px"><div class="k">${k}</div><div class="v" style="font-size:16px">${esc(v ?? '—')}</div></div>`;
   top.innerHTML = `<div class="rinfo">${card('Radio', (i.owner.longName || '?') + ' [' + (i.owner.shortName || '') + ']')}${card('Hardware', md.hw_model || i.owner.hwModel)}
-    ${card('Firmware', md.firmware_version)}${card('Role', dev.role)}${card('Region · preset', (lora.region || '?') + ' · ' + (lora.modem_preset || '?'))}${card('Hop limit', lora.hop_limit)}</div>`;
+    ${card('Firmware', md.firmware_version)}${card('Role', dev.role)}${card('Region · preset', (lora.region || '?') + ' · ' + (lora.modem_preset || '?'))}${card('Hop limit', lora.hop_limit)}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin:-4px 0 12px;align-items:center"><span class="note" id="qsMsg" style="margin:0"></span>
+      <button class="btn primary" id="qSave">💾 Save current config</button></div>`;
+  $('#qSave').onclick = async () => {
+    $('#qSave').disabled = true; const r = await pingCall('/api/radio/save', {label: 'saved'});
+    $('#qsMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`; $('#qSave').disabled = false;
+    if (r.ok) { const k = await (await fetch('/api/radio')).json(); R.info.backups = k.backups; if (R.page === 'clone') renderRadio(); }
+  };
   radioNav();
   const p = R.page;
   if (p === 'owner') return renderOwner(body);
@@ -1377,37 +1384,85 @@ function renderClone(body) {
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <a class="btn primary" href="/api/radio/backup.json">⬇ Download clone file</a>
       <a class="btn" href="/api/radio/fullbackup.json" onclick="return confirm('A FULL backup includes this radio\'s private key — its identity. Keep the file private, and only restore it to this same radio. Continue?')">⬇ Full backup (with private key)</a></div>
+    <h3>Save current config</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input id="sLabel" placeholder="Name this save (e.g. before antenna test)" style="flex:1 1 240px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px">
+      <label class="note" style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="sFull"> include private key</label>
+      <button class="btn primary" id="sSave">💾 Save</button></div>
+    <div class="note" id="sMsg">Kept in your .meshtap\\backups folder on this computer. Restore it below any time.</div>
     <h3>Copy a setup onto this radio</h3>
     <div class="note" style="margin-top:0">Pick a clone file (from this or another radio). You'll see what would change before anything is written. MeshTap never copies another radio's private key, and saves a backup of this radio first.</div>
     <input type="file" id="cFile" accept=".json,application/json">
     <div id="cPrev"></div>
-    <h3>Automatic backups</h3>
-    <div class="note" style="margin-top:0">Saved on this computer before every change MeshTap makes to the radio (last 50).</div>
-    ${bk.length ? bk.slice(0, 15).map(f => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${esc(f.name)}</span><a href="/api/radio/backups/get?name=${encodeURIComponent(f.name)}" style="color:var(--blue)">download</a></div>`).join('') : '<div class="note">None yet.</div>'}
+    <h3>Saved configs</h3>
+    <div class="note" style="margin-top:0">Your saves, plus the automatic ones MeshTap makes before every change (last 50 automatic kept).</div>
+    ${bk.length ? bk.slice(0, 30).map(f => `<div style="display:flex;gap:12px;align-items:center;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)">
+      <span style="flex:1;word-break:break-all">${f.name.includes('-before-') ? '🕘' : '💾'} ${esc(f.name.replace(/\.json$/, ''))}${f.full ? ' <span class="chip ok">with key</span>' : ''}</span>
+      <a href="#" data-restore="${esc(f.name)}" style="color:var(--green)">restore…</a><a href="/api/radio/backups/get?name=${encodeURIComponent(f.name)}" style="color:var(--blue)">download</a></div>`).join('') : '<div class="note">None yet.</div>'}
+    <h3 style="color:var(--red)">Factory reset</h3>
+    <div class="panel" style="border-color:#5a2630;background:#1a1016">
+      <div class="note" style="margin-top:0"><b>Reset settings</b> puts every setting and channel back to factory defaults; the radio keeps its identity. <b>Full wipe</b> also erases its identity and saved nodes, so it comes back as a brand-new radio. Either way, MeshTap first saves a <b>full backup</b> (with the private key) on this computer so you can put everything back.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="resetWord" placeholder="Type RESET" style="width:130px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px">
+        <button class="btn danger" data-reset="settings">↺ Reset settings to factory</button>
+        <button class="btn danger" data-reset="full" style="border-color:#7a2d36">⚠ Full wipe</button></div>
+      <div class="note" id="resetMsg"></div></div>
     <h3>About firmware</h3>
     <div class="note" style="margin-top:0">The clone file copies the <i>setup</i>, which is what makes two radios behave the same. The firmware itself is installed with the official flasher (Name & info → Update firmware); load the same firmware version on both radios, then apply the clone file.</div>`;
   $('#cFile').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     let b; try { b = JSON.parse(await f.text()); } catch (er) { $('#cPrev').innerHTML = '<div class="err">That file isn\'t valid JSON.</div>'; return; }
-    if (!b.meshtap_backup) { $('#cPrev').innerHTML = '<div class="err">That isn\'t a MeshTap clone file.</div>'; return; }
-    R.restore = b; const d = diffBackup(b), groups = {config: [], modules: [], channels: [], owner: []}; d.forEach(([g, s]) => groups[g].push(s));
+    previewRestore(b, null);
+  };
+  body.querySelectorAll('[data-restore]').forEach(a => a.onclick = async e => {
+    e.preventDefault(); const b = await (await fetch('/api/radio/backups/peek?name=' + encodeURIComponent(a.dataset.restore))).json();
+    previewRestore(b, a.dataset.restore); $('#cPrev').scrollIntoView({behavior: 'smooth', block: 'center'});
+  });
+  $('#sSave').onclick = async () => {
+    const r = await pingCall('/api/radio/save', {label: $('#sLabel').value || 'saved', full: $('#sFull').checked});
+    R.flash = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`; $('#sMsg').innerHTML = R.flash;
+    if (r.ok) { const k = await (await fetch('/api/radio')).json(); R.info.backups = k.backups; renderRadio(); }
+  };
+  wireReset(body);
+  if (R.flash) { $('#sMsg').innerHTML = R.flash; R.flash = ''; }
+}
+function previewRestore(b, saved) {
+  {
+    if (!b || !b.meshtap_backup) { $('#cPrev').innerHTML = '<div class="err">That isn\'t a MeshTap clone file.</div>'; return; }
+    R.restore = b; R.restoreSaved = saved; const d = diffBackup(b), groups = {config: [], modules: [], channels: [], owner: []}; d.forEach(([g, s]) => groups[g].push(s));
+    const sameRadio = b.node_id && b.node_id === (R.info.owner.id || S.status.my_id);
+    const canIdent = b.kind === 'full' && sameRadio;
     const box = (k, label, on) => `<label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0"><input type="checkbox" id="cp_${k}" ${on ? 'checked' : ''} ${groups[k].length ? '' : 'disabled'}> <span><b>${label}</b> <span style="color:var(--dim)">${groups[k].length ? groups[k].map(human).join(', ') : 'same as this radio'}</span></span></label>`;
     $('#cPrev').innerHTML = `<div class="panel" style="margin-top:10px;background:var(--panel2)">
       <div><b>${esc((b.owner || {}).longName || '?')}</b> · ${esc(b.hardware || '?')} · firmware ${esc(b.firmware || '?')} · saved ${esc(b.created || '?')}${b.kind === 'full' ? ' · <span style="color:var(--amber)">full backup</span>' : ''}</div>
       ${b.firmware && (R.info.metadata || {}).firmware_version && b.firmware !== R.info.metadata.firmware_version ? `<div class="note" style="color:var(--amber)">Different firmware (this radio: ${esc(R.info.metadata.firmware_version)}). Most settings carry over; anything new or removed is skipped.</div>` : ''}
-      ${d.length ? `<div style="margin-top:8px">${box('config', 'Settings', true)}${box('modules', 'Modules', true)}${box('channels', 'Channels', true)}${box('owner', 'Name', false)}</div>
+      ${d.length || canIdent ? `<div style="margin-top:8px">${box('config', 'Settings', true)}${box('modules', 'Modules', true)}${box('channels', 'Channels', true)}${box('owner', 'Name', sameRadio)}
+        ${canIdent ? `<label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0"><input type="checkbox" id="cp_identity"> <span><b>Identity (private key)</b> <span style="color:var(--dim)">Only needed after a full wipe, so other radios recognize this one again.</span></span></label>` : ''}</div>
         <div class="note">Leave <b>Name</b> off when cloning to a second radio — two radios with the same name are confusing on the mesh.</div>
         <div class="rbar" style="position:static"><span class="note" id="cMsg" style="margin:0;flex:1"></span><button class="btn primary" id="cApply">Copy onto this radio</button></div>`
         : '<div class="note">This radio already matches that file.</div>'}</div>`;
     const ap = $('#cApply'); if (!ap) return;
     ap.onclick = async () => {
-      const parts = {config: $('#cp_config').checked, modules: $('#cp_modules').checked, channels: $('#cp_channels').checked, owner: $('#cp_owner').checked};
+      const parts = {config: $('#cp_config').checked, modules: $('#cp_modules').checked, channels: $('#cp_channels').checked, owner: $('#cp_owner').checked,
+        identity: !!($('#cp_identity') && $('#cp_identity').checked)};
       if (!confirm('Copy the selected parts onto this radio? It will restart to apply them; MeshTap reconnects by itself.')) return;
       ap.disabled = true; $('#cMsg').textContent = 'Writing to the radio…';
-      const r = await pingCall('/api/radio/restore', {backup: R.restore, parts});
+      const r = await pingCall('/api/radio/restore', R.restoreSaved ? {saved: R.restoreSaved, parts} : {backup: R.restore, parts});
       $('#cMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`; ap.disabled = false; if (r.ok) setTimeout(loadRadio, 4000);
     };
-  };
+  }
+}
+function wireReset(body) {
+  body.querySelectorAll('[data-reset]').forEach(b => b.onclick = async () => {
+    const full = b.dataset.reset === 'full', word = $('#resetWord').value.trim().toUpperCase();
+    if (word !== 'RESET') { $('#resetMsg').innerHTML = '<span style="color:var(--red)">Type RESET in the box first.</span>'; $('#resetWord').focus(); return; }
+    if (!confirm(full ? 'FULL WIPE: erase everything on the radio, including its identity (it gets a new key, and other radios must learn it again). A full backup is saved on this computer first. Continue?'
+                      : 'Reset all settings and channels to factory defaults? The radio keeps its identity. A full backup is saved on this computer first. Continue?')) return;
+    b.disabled = true; $('#resetMsg').textContent = 'Saving a backup, then resetting…';
+    const r = await pingCall('/api/radio/factory_reset', {confirm: 'RESET', full});
+    $('#resetMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`; b.disabled = false; $('#resetWord').value = '';
+    if (r.ok) setTimeout(loadRadio, 8000);
+  });
 }
 $('#rNav').addEventListener('click', e => { const b = e.target.closest('[data-rp]'); if (!b) return; R.page = b.dataset.rp; renderRadio(); });
 
