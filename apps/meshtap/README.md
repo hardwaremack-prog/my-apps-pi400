@@ -26,9 +26,11 @@ MeshTap connects to your radio (USB, WiFi or Bluetooth), captures every packet i
 | **Live traffic** — every packet as it arrives<br>![Live traffic](docs/screenshots/live-traffic.png) | **Packet detail** — the full decoded packet<br>![Packet detail](docs/screenshots/packet-detail.png) |
 | **Nodes** — everyone heard, signal, battery, hops<br>![Nodes](docs/screenshots/nodes.png) | **Map** — nodes, links to your radio, your goals<br>![Map](docs/screenshots/map.png) |
 | **Ping** — round trips, success rate, Link check<br>![Ping](docs/screenshots/ping.png) | **Spider** — reach out to 7 hops, range and goals<br>![Spider](docs/screenshots/spider.png) |
-| **Radio → Settings** — every section, with hints<br>![Radio settings](docs/screenshots/radio-settings.png) | **Radio → Channels** — keys, uplink, channel link<br>![Radio channels](docs/screenshots/radio-channels.png) |
+| **Radio → Name & info** — rename, firmware, save current config<br>![Radio info](docs/screenshots/radio-info.png) | **Radio → Settings** — every section, with hints<br>![Radio settings](docs/screenshots/radio-settings.png) |
+| **Radio → Network** — one-step WiFi setup<br>![WiFi setup](docs/screenshots/radio-wifi.png) | **Radio → Channels** — keys, uplink, channel link<br>![Radio channels](docs/screenshots/radio-channels.png) |
 | **Radio → Clone & backup** — save, restore, clone, factory reset<br>![Clone and backup](docs/screenshots/radio-clone.png) | **Breakdown** — traffic over time, by type, by node<br>![Breakdown](docs/screenshots/breakdown.png) |
-| **Device log** — MeshTap events and radio debug lines<br>![Device log](docs/screenshots/device-log.png) | **Connect** — USB/serial, WiFi, Bluetooth, serial text, demo<br>![Connect](docs/screenshots/connect.png) |
+| **Connect** — USB/serial, WiFi, Bluetooth, serial text, demo<br>![Connect](docs/screenshots/connect.png) | **Connect → WiFi** — find radios on your network, click to connect<br>![Find radios](docs/screenshots/connect-wifi.png) |
+| **Device log** — MeshTap events and radio debug lines<br>![Device log](docs/screenshots/device-log.png) | |
 
 <p align="center"><b>On a phone</b> (run with <code>--lan</code>)<br><img src="docs/screenshots/phone.png" width="300" alt="MeshTap on a phone"></p>
 
