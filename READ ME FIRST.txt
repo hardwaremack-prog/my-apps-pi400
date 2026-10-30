@@ -229,7 +229,11 @@ MESHTAP (Meshtastic traffic viewer)
   many hops it took. A Map tab shows every node that shares its position,
   and a Nodes tab lists every radio heard with battery,
   hardware and a map link, and Breakdown shows traffic over time.
-  Everything is saved, and you can export to CSV or JSON.
+  The Ping tab proves messages get through: pick a node and MeshTap
+  times how long until it confirms delivery (or runs a traceroute),
+  with a live success rate. The Auto-save switch (top right) turns
+  saving on or off; when off, "Save now" keeps what you've caught.
+  You can export everything to CSV or JSON.
   Start it with the MeshTap icon on the Desktop (added by Set Up My
   Apps.sh) or from the Pi menu under Internet. The first run downloads
   the Meshtastic library, so it needs internet once. Connects by USB,

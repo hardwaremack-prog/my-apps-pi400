@@ -19,7 +19,7 @@ header{position:sticky;top:0;z-index:5;background:rgba(10,15,26,.94);backdrop-fi
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:.3px}
 .brand img{width:30px;height:30px}
 .brand small{font-weight:500;color:var(--dim);font-size:12px}
-.conn{display:flex;align-items:center;gap:8px;margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px}
+.conn{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(94,234,148,.6)}
 .dot.on{background:var(--green);animation:pulse 2s infinite}
 .dot.wait{background:var(--amber)}
@@ -98,6 +98,30 @@ canvas{width:100%;height:180px;display:block}
 pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.45 ui-monospace,Consolas,monospace;overflow:auto;max-height:45vh;margin:0}
 .err{color:var(--red);font-size:13px;margin-top:8px}
 .foot{color:var(--dim);font-size:12px;margin-top:16px;text-align:center}
+/* autosave switch */
+.save{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px;cursor:pointer;user-select:none}
+.save .sw{width:34px;height:20px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);position:relative;transition:.2s}
+.save .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:.2s}
+.save.on .sw{background:#174d31;border-color:var(--green)}
+.save.on .sw::after{left:16px;background:var(--green)}
+.save .btn{padding:3px 10px;font-size:12px}
+.conn{margin-left:0}
+.hdrright{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+/* ping */
+.pinggrid{display:grid;grid-template-columns:340px 1fr;gap:12px}
+.pinggrid .panel .field{margin:8px 0}
+.pinggrid select,.pinggrid input[type=number]{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.live{border-radius:12px;padding:14px;margin-top:10px;background:var(--panel2);border:1px solid var(--line);min-height:92px}
+.live .big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.live.waiting{border-color:var(--amber)}.live.ok{border-color:var(--green)}.live.fail,.live.timeout,.live.error{border-color:var(--red)}
+.live .bar2{height:6px;background:var(--panel);border-radius:4px;overflow:hidden;margin-top:10px}
+.live .bar2 i{display:block;height:100%;background:var(--amber);width:0;transition:width 1s linear}
+.pstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:10px}
+.pstats .card .v{font-size:20px}
+.res{font-weight:700}.res.ok{color:var(--green)}.res.fail,.res.timeout,.res.error{color:var(--red)}.res.waiting{color:var(--amber)}
+td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
+#pingChart{height:150px}
+@media (max-width:900px){.pinggrid{grid-template-columns:1fr}}
 /* map */
 .mapwrap{position:relative;display:grid;grid-template-columns:1fr 280px;gap:12px}
 #map{height:68vh;min-height:380px;border-radius:12px;border:1px solid var(--line);background:#0d1524;z-index:0}
@@ -145,10 +169,16 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
 <body>
 <header>
   <div class="brand"><img src="/icon.svg" alt=""><div>MeshTap <small id="ver"></small></div></div>
+  <div class="hdrright">
+  <div class="save on" id="saveSw" title="Auto-save: write every packet to disk as it arrives">
+    <span>💾 Auto-save</span><span class="sw"></span>
+    <button class="btn" id="saveNow" hidden>Save now</button>
+  </div>
   <div class="conn">
     <span class="dot" id="dot"></span>
     <span id="connText">Not connected</span>
     <button class="btn pill" id="connBtn">Connect</button>
+  </div>
   </div>
 </header>
 
@@ -166,6 +196,7 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
     <button class="tab on" data-tab="feed">📡 Live traffic</button>
     <button class="tab" data-tab="nodes">🛰 Nodes</button>
     <button class="tab" data-tab="map">🗺 Map</button>
+    <button class="tab" data-tab="ping">🏓 Ping</button>
     <button class="tab" data-tab="stats">📊 Breakdown</button>
     <button class="tab" data-tab="log">🧾 Device log</button>
   </div>
@@ -190,7 +221,7 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
     <div class="tablewrap"><table>
       <thead><tr>
         <th data-s="name">Name</th><th data-s="id">ID</th><th data-s="packets">Packets</th><th data-s="last">Last heard</th>
-        <th data-s="snr">SNR</th><th data-s="rssi">RSSI</th><th data-s="hops">Hops</th><th data-s="battery">Battery</th><th data-s="hw">Hardware</th><th>Map</th>
+        <th data-s="snr">SNR</th><th data-s="rssi">RSSI</th><th data-s="hops">Hops</th><th data-s="battery">Battery</th><th data-s="hw">Hardware</th><th>Actions</th>
       </tr></thead>
       <tbody id="nodeRows"></tbody>
     </table></div>
@@ -216,6 +247,39 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
       <span><span class="ln" style="background:var(--green)"></span>heard directly (color = signal)</span>
       <span><span class="ln" style="background:repeating-linear-gradient(90deg,#9aa8c2 0 4px,transparent 4px 9px)"></span>through relays</span>
       <span>· Map pictures need internet; positions come from your mesh.</span>
+    </div>
+  </section>
+
+  <section id="tab-ping" hidden>
+    <div class="pinggrid">
+      <div class="panel">
+        <h3>Ping a node</h3>
+        <div class="field"><label class="k" style="color:var(--dim);font-size:12px">NODE</label><select id="pTo"></select></div>
+        <div class="field"><label style="color:var(--dim);font-size:12px">TYPE</label>
+          <select id="pMethod">
+            <option value="ack">Quiet ping — waits for the delivery ACK</option>
+            <option value="trace">Traceroute — shows the path both ways</option>
+            <option value="text">Text ping — shows "MeshTap ping 🏓" on their screen</option>
+          </select></div>
+        <label style="display:flex;gap:8px;align-items:center;color:var(--dim);margin:10px 0">
+          <input type="checkbox" id="pRepeat"> Keep pinging every
+          <input type="number" id="pInterval" value="60" min="30" step="5" style="width:80px"> s</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn primary" id="pGo" style="flex:1">🏓 Ping now</button>
+          <button class="btn danger" id="pStop" hidden>■ Stop</button>
+        </div>
+        <div class="err" id="pMsg"></div>
+        <div class="live" id="pLive"><div style="color:var(--dim)">Pick a node and press Ping. MeshTap times how long until the node confirms it got the message.</div></div>
+        <p class="note">One ping at a time, at most every 30 seconds when repeating, so the shared channel stays clear. Quiet pings are invisible to the other person.</p>
+      </div>
+      <div>
+        <div class="pstats" id="pStats"></div>
+        <div class="panel" style="margin-bottom:12px"><h3>Round trip, newest on the right <span style="text-transform:none;letter-spacing:0;font-weight:400">· red = no answer</span></h3><canvas id="pingChart"></canvas></div>
+        <div class="toolbar"><label><input type="checkbox" id="pOnlyThis" checked> Only this node</label><a class="btn" href="/api/pings.csv">⬇ Ping CSV</a></div>
+        <div class="tablewrap"><table style="min-width:680px">
+          <thead><tr><th>Time</th><th>Node</th><th>Type</th><th>Result</th><th>Round trip</th><th>Hops</th><th>SNR</th><th>Details</th></tr></thead>
+          <tbody id="pRows"></tbody></table></div>
+      </div>
     </div>
   </section>
 
@@ -387,7 +451,7 @@ function renderNodes() {
     <td><span class="chip ${rssiClass(n.rssi)}">${n.rssi != null ? n.rssi : '—'}</span></td>
     <td>${n.hops ?? '—'}</td><td>${n.battery != null ? (n.battery > 100 ? '🔌 powered' : n.battery + '%') : '—'}</td>
     <td>${esc(n.hw || '—')}</td>
-    <td>${hasPos(n) ? `<a href="#" data-mapfor="${esc(n.id)}">show</a>` : '—'}</td></tr>`).join('')
+    <td>${hasPos(n) ? `<a href="#" data-mapfor="${esc(n.id)}">map</a>` : '—'}${n.id !== S.status.my_id && /^!/.test(n.id) ? ` · <a href="#" data-pingfor="${esc(n.id)}" style="color:var(--green)">ping</a>` : ''}</td></tr>`).join('')
     || `<tr><td colspan="10" style="text-align:center;color:var(--dim);padding:30px">No nodes yet</td></tr>`;
 }
 
@@ -437,7 +501,8 @@ function popupHTML(n) {
   if (me && hasPos(me) && me.id !== n.id) rows.splice(3, 0, ['Distance', fmtDist(dist(me, n))]);
   return `<b>${esc(n.long || n.id)}</b>${n.id === S.status.my_id ? ' <span class="dm">YOU</span>' : ''}
     <div class="pk">${rows.map(([k, v]) => `<span>${k}</span><span>${esc(v)}</span>`).join('')}</div>
-    <div style="margin-top:8px"><a href="#" data-feedfor="${esc(n.id)}" style="color:var(--blue)">Show its packets →</a></div>`;
+    <div style="margin-top:8px;display:flex;gap:14px"><a href="#" data-feedfor="${esc(n.id)}" style="color:var(--blue)">Show its packets →</a>
+    ${n.id !== S.status.my_id ? `<a href="#" data-pingfor="${esc(n.id)}" style="color:var(--green)">🏓 Ping</a>` : ''}</div>`;
 }
 function dist(a, b) {
   const R = 6371e3, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
@@ -505,6 +570,112 @@ function fitAll() {
   if (pts.length === 1) M.map.setView(pts[0], 13); else M.map.fitBounds(L.latLngBounds(pts).pad(0.2), {maxZoom: 15});
 }
 
+// ---------- ping
+S.pings = [];
+const PMETH = {ack: 'Quiet', trace: 'Traceroute', text: 'Text'};
+const PRES = {ok: '✅ Delivered', fail: '❌ Failed', timeout: '⏱ No answer', error: '⚠️ Error', waiting: '… Waiting'};
+function pingTargets() {
+  const sel = $('#pTo'), cur = sel.value || (S.status.ping_job && S.status.ping_job.to) || '';
+  const list = S.nodes.filter(n => n.id !== S.status.my_id && n.id !== '^all' && /^!/.test(n.id))
+    .sort((a, b) => (b.last || 0) - (a.last || 0));
+  const html = list.map(n => `<option value="${esc(n.id)}">${esc(n.long || n.id)}${n.hops != null ? ' · ' + (n.hops === 0 ? 'direct' : n.hops + ' hop' + (n.hops > 1 ? 's' : '')) : ''}${n.last ? ' · ' + ago(n.last) : ''}</option>`).join('')
+    || '<option value="">No nodes heard yet</option>';
+  if (sel.dataset.sig !== html) { sel.innerHTML = html; sel.dataset.sig = html; if (cur && list.some(n => n.id === cur)) sel.value = cur; }
+}
+function renderPing() {
+  pingTargets();
+  const st = S.status, job = st.ping_job, w = st.ping_waiting;
+  $('#pStop').hidden = !job; $('#pGo').textContent = job ? '🏓 Ping once more' : '🏓 Ping now';
+  if (job) { $('#pRepeat').checked = true; }
+  const live = $('#pLive');
+  const last = S.pings.filter(p => p.status !== 'waiting').slice(-1)[0];
+  if (w) {
+    const el = Math.max(0, Date.now() / 1000 - (w.sent || w.ts)), max = {ack: 45, text: 45, trace: 60}[w.method] || 45;
+    live.className = 'live waiting';
+    live.innerHTML = `<div style="color:var(--dim)">${esc(PMETH[w.method])} ping to <b style="color:var(--text)">${esc(w.to_name)}</b></div>
+      <div class="big">${el.toFixed(0)} s</div><div style="color:var(--dim);font-size:13px">${esc(w.detail || 'Sent — waiting for the reply…')}</div>
+      <div class="bar2"><i style="width:${Math.min(100, el / max * 100)}%"></i></div>`;
+  } else if (last) {
+    live.className = 'live ' + last.status;
+    live.innerHTML = `<div style="color:var(--dim)">${esc(PMETH[last.method])} ping to <b style="color:var(--text)">${esc(last.to_name)}</b> · ${ago(last.done || last.ts)}</div>
+      <div class="big res ${last.status}">${last.status === 'ok' ? fmtMs(last.rtt) : esc(PRES[last.status])}</div>
+      <div style="color:var(--dim);font-size:13px">${esc(last.detail || '')}</div>
+      ${job ? `<div class="note" style="margin:6px 0 0">Next ping in ${Math.max(0, Math.round((job.next || 0) - Date.now() / 1000)) || '…'} s</div>` : ''}`;
+  }
+  const target = $('#pTo').value, only = $('#pOnlyThis').checked;
+  const rows = S.pings.filter(p => !only || p.to === target);
+  const done = rows.filter(p => p.status !== 'waiting'), ok = done.filter(p => p.status === 'ok'), rtts = ok.map(p => p.rtt).filter(x => x != null);
+  const avg = rtts.length ? rtts.reduce((a, b) => a + b, 0) / rtts.length : null;
+  const last10 = done.slice(-10), ok10 = last10.filter(p => p.status === 'ok').length;
+  const card = (k, v, s) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || ''}</div></div>`;
+  $('#pStats').innerHTML = card('Sent', done.length, only ? 'to this node' : 'all nodes')
+    + card('Success', done.length ? Math.round(ok.length / done.length * 100) + '%' : '—', last10.length ? `last 10: ${ok10}/${last10.length}` : '')
+    + card('Average', avg != null ? fmtMs(avg) : '—', 'round trip')
+    + card('Best / worst', rtts.length ? fmtMs(Math.min(...rtts)) : '—', rtts.length ? 'worst ' + fmtMs(Math.max(...rtts)) : '')
+    + card('Last signal', ok.length && ok[ok.length - 1].snr != null ? (+ok[ok.length - 1].snr).toFixed(1) + ' dB' : '—', ok.length && ok[ok.length - 1].hops != null ? ok[ok.length - 1].hops + ' hop(s) back' : '');
+  $('#pRows').innerHTML = rows.slice(-200).reverse().map(p => `<tr>
+    <td>${fmtTime(p.ts)}</td><td>${esc(p.to_name)}</td><td>${esc(PMETH[p.method] || p.method)}</td>
+    <td class="res ${p.status}">${esc(PRES[p.status] || p.status)}</td>
+    <td>${p.status === 'ok' ? fmtMs(p.rtt) : '—'}${p.relayed_at ? `<div style="color:var(--dim);font-size:11px">relayed ${fmtMs(p.relayed_at)}</div>` : ''}</td>
+    <td>${p.hops ?? '—'}</td><td>${p.snr != null ? (+p.snr).toFixed(1) : '—'}</td><td class="det">${esc(p.detail || '')}</td></tr>`).join('')
+    || `<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:24px">No pings yet</td></tr>`;
+  drawPingChart(rows.filter(p => p.status !== 'waiting').slice(-40));
+}
+function fmtMs(ms) { return ms == null ? '—' : ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(ms < 10000 ? 2 : 1) + ' s'; }
+function drawPingChart(list) {
+  const c = $('#pingChart'), dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  if (!w) return;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  const css = getComputedStyle(document.documentElement), dim = css.getPropertyValue('--dim');
+  const max = Math.max(2000, ...list.filter(p => p.rtt != null && p.status === 'ok').map(p => p.rtt)) * 1.1;
+  const pad = 40, slots = 40, bw = (w - pad) / slots;
+  g.fillStyle = dim; g.font = '11px system-ui'; g.fillText(fmtMs(max), 0, 11); g.fillText('0', 0, h - 4);
+  g.strokeStyle = 'rgba(139,155,184,.15)'; g.beginPath(); g.moveTo(pad, h / 2); g.lineTo(w, h / 2); g.stroke();
+  list.forEach((p, i) => {
+    const x = pad + (slots - list.length + i) * bw + 2;
+    if (p.status === 'ok') {
+      const bh = Math.max(3, p.rtt / max * (h - 14));
+      g.fillStyle = css.getPropertyValue(p.rtt < 5000 ? '--green' : p.rtt < 15000 ? '--amber' : '--red'); g.fillRect(x, h - bh - 2, Math.max(2, bw - 4), bh);
+    } else {
+      g.fillStyle = css.getPropertyValue('--red'); g.font = 'bold 13px system-ui'; g.fillText('✕', x + Math.max(0, bw / 2 - 6), h - 6);
+    }
+  });
+  if (!list.length) { g.fillStyle = dim; g.font = '13px system-ui'; g.fillText('Results will chart here.', pad + 10, h / 2 + 4); }
+}
+function addPing(pg) {
+  const i = S.pings.findIndex(x => x.n === pg.n && x.ts === pg.ts);
+  if (i >= 0) S.pings[i] = pg; else S.pings.push(pg);
+  if (S.pings.length > 500) S.pings.shift();
+  if (S.tab === 'ping') renderPing();
+}
+$('#pGo').onclick = async () => {
+  $('#pMsg').textContent = '';
+  const body = {to: $('#pTo').value, method: $('#pMethod').value};
+  if ($('#pRepeat').checked && !S.status.ping_job) { body.repeat = true; body.interval = Math.max(30, +$('#pInterval').value || 60); }
+  const r = await (await post('/api/ping', body)).json();
+  if (!r.ok) $('#pMsg').textContent = r.msg;
+  refresh();
+};
+$('#pStop').onclick = async () => { await post('/api/ping/stop'); $('#pRepeat').checked = false; refresh(); };
+['#pTo', '#pOnlyThis'].forEach(sel => $(sel).addEventListener('change', renderPing));
+setInterval(() => { if (S.tab === 'ping' && (S.status.ping_waiting || S.status.ping_job)) renderPing(); }, 1000);
+
+// ---------- auto-save
+function renderSave() {
+  const on = S.status.autosave !== false, n = S.status.unsaved || 0;
+  $('#saveSw').classList.toggle('on', on);
+  $('#saveSw').title = on ? 'Auto-save is on: every packet is written to disk as it arrives. Click to turn off.'
+                          : 'Auto-save is off: traffic shows live but isn\'t kept. Click to turn on (saves what was caught).';
+  $('#saveNow').hidden = on || !n; $('#saveNow').textContent = `Save ${n} now`;
+}
+$('#saveSw').onclick = async e => {
+  if (e.target.id === 'saveNow') return;
+  const on = !(S.status.autosave !== false); S.status.autosave = on; renderSave();
+  await post('/api/autosave', {on}); refresh();
+};
+$('#saveNow').onclick = async e => { e.stopPropagation(); await post('/api/save'); refresh(); };
+
 // ---------- breakdown
 function bars(el, items, colorFn) {
   const max = Math.max(1, ...items.map(i => i[1]));
@@ -551,11 +722,12 @@ function renderStatus() {
   $('#connBtn').textContent = st.connected ? 'Change' : 'Connect';
   $('#connErr').textContent = st.error || (!st.have_lib ? 'Meshtastic library not installed — only Demo will work. Run the start script to install it.' : '');
   $('#ver').textContent = 'v' + (st.version || '');
+  renderSave();
 }
 function renderCards() {
   const st = S.stats;
   $('#cTotal').textContent = (st.total || 0).toLocaleString();
-  $('#cSaved').textContent = (st.saved_total || 0).toLocaleString() + ' saved to disk';
+  $('#cSaved').textContent = (st.saved_total || 0).toLocaleString() + ' saved to disk' + (st.unsaved ? ` · ${st.unsaved.toLocaleString()} not saved` : '');
   const cutoff = Date.now() / 1000 - 300;
   let n = 0; for (let i = S.packets.length - 1; i >= 0 && S.packets[i].ts >= cutoff; i--) n++;
   $('#cRate').textContent = (n / 5).toFixed(1);
@@ -577,6 +749,7 @@ async function refresh() {
     if (S.tab === 'nodes') renderNodes();
     if (S.tab === 'stats') renderStats();
     if (S.tab === 'map') renderMap();
+    if (S.tab === 'ping') renderPing();
   } catch (e) {}
 }
 
@@ -597,6 +770,8 @@ function listen() {
     if (m.type === 'packet') addPacket(m.packet);
     else if (m.type === 'status') { S.status = m.status; renderStatus(); }
     else if (m.type === 'log') addLog(m.log);
+    else if (m.type === 'ping') addPing(m.ping);
+    else if (m.type === 'saved') refresh();
     else if (m.type === 'cleared') { S.packets = []; S.byK.clear(); renderFeed(); refresh(); }
   };
 }
@@ -670,7 +845,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') document.que
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   S.tab = t.dataset.tab;
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
-  ['feed', 'nodes', 'map', 'stats', 'log'].forEach(id => $('#tab-' + id).hidden = id !== S.tab);
+  ['feed', 'nodes', 'map', 'ping', 'stats', 'log'].forEach(id => $('#tab-' + id).hidden = id !== S.tab);
   try { localStorage.setItem('meshtap.tab', S.tab); } catch (e) {}
   if (S.tab === 'nodes') renderNodes();
   if (S.tab === 'map') renderMap();
@@ -701,6 +876,11 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-feedfor]'); if (!a) return;
   e.preventDefault(); $('#q').value = a.dataset.feedfor; document.querySelector('.tab[data-tab=feed]').click(); renderFeed();
 });
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-pingfor]'); if (!a) return;
+  e.preventDefault(); document.querySelector('.tab[data-tab=ping]').click();
+  pingTargets(); $('#pTo').value = a.dataset.pingfor; renderPing();
+});
 // show the node's position on the map from the Nodes table
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-mapfor]'); if (!a) return;
@@ -718,6 +898,7 @@ window.addEventListener('resize', () => { if (S.tab === 'stats') drawRate(); });
   } catch (e) {}
   renderFeed(); renderCards();
   try { (await (await fetch('/api/logs')).json()).forEach(addLog); } catch (e) {}
+  try { S.pings = await (await fetch('/api/pings')).json(); } catch (e) {}
   listen();
   setInterval(refresh, 2500);
   let t0 = 'feed'; try { t0 = localStorage.getItem('meshtap.tab') || 'feed'; } catch (e) {}

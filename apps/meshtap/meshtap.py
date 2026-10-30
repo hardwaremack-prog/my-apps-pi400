@@ -30,11 +30,14 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
 DB_PATH = os.path.join(DATA_DIR, "meshtap.db")
+SETTINGS_PATH = os.path.join(DATA_DIR, "settings.json")
+PING_MIN_INTERVAL = 30          # seconds between repeated pings (be kind to shared airtime)
+PING_TIMEOUT = {"ack": 45, "text": 45, "trace": 60}
 BROADCAST = 0xFFFFFFFF
 BAUDS = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600]
 GPIO_UARTS = [("/dev/serial0", "Pi GPIO pins 8/10 (TX/RX) — serial0"), ("/dev/ttyAMA0", "Pi GPIO UART ttyAMA0"),
@@ -249,6 +252,24 @@ def summarize(port, dec):
         return f"{port} (couldn't summarize: {exc})"
 
 
+ROUTING_ERRORS = {
+    "NO_ROUTE": "No route — no neighbor could reach it",
+    "GOT_NAK": "Refused (NAK) by the destination",
+    "TIMEOUT": "Timed out inside the mesh",
+    "NO_INTERFACE": "Your radio has no interface to send it on",
+    "MAX_RETRANSMIT": "Sent 3 times, no one confirmed it (out of range?)",
+    "NO_CHANNEL": "The destination doesn't share this channel",
+    "TOO_LARGE": "Packet too large",
+    "NO_RESPONSE": "Arrived, but the node didn't answer (traceroute off or rate-limited)",
+    "DUTY_CYCLE_LIMIT": "Your radio hit its duty-cycle limit — wait and try again",
+    "BAD_REQUEST": "The node rejected the request",
+    "NOT_AUTHORIZED": "Not authorized",
+    "PKI_FAILED": "Encryption key exchange failed",
+    "PKI_UNKNOWN_PUBKEY": "The node doesn't know your key yet — wait for it to hear your node info",
+    "RATE_LIMIT_EXCEEDED": "Rate-limited by the mesh — wait a bit and try again",
+}
+
+
 # ----------------------------------------------------------------- the hub
 class Hub:
     def __init__(self):
@@ -268,9 +289,27 @@ class Hub:
         self.demo_stop = None
         self.seq = 0
         self._reset_counters()
+        self.settings = {"autosave": True}
+        try:
+            with open(SETTINGS_PATH, encoding="utf-8") as fh:
+                self.settings.update(json.load(fh))
+        except (OSError, ValueError):
+            pass
+        self.unsaved = []              # packets caught while auto-save was off
+        self.pings = collections.deque(maxlen=500)
+        self.ping_pending = {}         # packet id -> ping record
+        self.ping_job = None           # repeating ping settings
+        self.ping_seq = 0
         self.db = sqlite3.connect(DB_PATH, check_same_thread=False)
         self.db.execute("CREATE TABLE IF NOT EXISTS packets (ts REAL, port TEXT, data TEXT)")
+        self.db.execute("CREATE TABLE IF NOT EXISTS pings (ts REAL, data TEXT)")
         self.db.commit()
+        for (data,) in self.db.execute("SELECT data FROM pings ORDER BY rowid DESC LIMIT 300").fetchall()[::-1]:
+            try:
+                self.pings.append(json.loads(data))
+            except ValueError:
+                pass
+        threading.Thread(target=self._ping_watchdog, daemon=True).start()
         self._load_history()
 
     def _reset_counters(self):
@@ -317,6 +356,11 @@ class Hub:
             "lib_error": MESH_ERR,
             "version": VERSION,
             "baud": getattr(self, "baud", 115200),
+            "autosave": self.settings.get("autosave", True),
+            "unsaved": len(self.unsaved),
+            "ping_job": self.ping_job,
+            "ping_waiting": next(iter(self.ping_pending.values()), None),
+            "ping_min_interval": PING_MIN_INTERVAL,
             "bauds": BAUDS,
         }
 
@@ -359,7 +403,11 @@ class Hub:
             "via_mqtt": bool(p.get("viaMqtt")),
             "want_ack": bool(p.get("wantAck")),
             "dir": "out" if self.my_id and frm == self.my_id else "in",
-            "summary": summary or summarize(port, dec),
+            "summary": summary or (
+                "📡 Relayed by a neighbor (your radio heard it passed on)"
+                if port == "ROUTING_APP" and self.my_id and frm == self.my_id
+                and (dec.get("routing") or {}).get("errorReason", "NONE") in ("NONE", 0)
+                else summarize(port, dec)),
             "raw": p,
         }
         with self.lock:
@@ -369,16 +417,198 @@ class Hub:
             self.seq += 1
             rec["k"] = self.seq
             self.packets.append(rec)
-            try:
-                self.db.execute(
-                    "INSERT INTO packets VALUES (?,?,?)",
-                    (rec["ts"], port, json.dumps(rec, default=str)),
-                )
-                self.db.commit()
-                self.saved_total += 1
-            except sqlite3.Error as exc:
-                self.add_log(f"[MeshTap] database write failed: {exc}")
+            if self.settings.get("autosave", True):
+                self._save_rows([rec])
+            else:
+                rec["unsaved"] = True
+                self.unsaved.append(rec)
+                if len(self.unsaved) > 20000:  # don't grow forever while unsaved
+                    self.unsaved = self.unsaved[-20000:]
         self.broadcast({"type": "packet", "packet": rec, "node": node})
+        self._check_ping_reply(rec, dec)
+
+    def _save_rows(self, recs):
+        try:
+            self.db.executemany("INSERT INTO packets VALUES (?,?,?)",
+                                [(r["ts"], r["port"], json.dumps({k: v for k, v in r.items() if k != "unsaved"}, default=str))
+                                 for r in recs])
+            self.db.commit()
+            self.saved_total += len(recs)
+            return True
+        except sqlite3.Error as exc:
+            self.add_log(f"[MeshTap] database write failed: {exc}")
+            return False
+
+    def set_autosave(self, on):
+        with self.lock:
+            self.settings["autosave"] = bool(on)
+            self._write_settings()
+            saved = 0
+            if on and self.unsaved:  # turning it back on keeps what was caught meanwhile
+                saved = self.save_now()
+        self.add_log(f"[MeshTap] auto-save {'on' if on else 'off'}" + (f" — saved {saved} waiting packets" if saved else ""))
+        self.push_status()
+
+    def save_now(self):
+        with self.lock:
+            rows, self.unsaved = self.unsaved, []
+            if rows and not self._save_rows(rows):
+                self.unsaved = rows + self.unsaved
+                return 0
+            for r in rows:
+                r.pop("unsaved", None)
+        if rows:
+            self.broadcast({"type": "saved", "count": len(rows)})
+        return len(rows)
+
+    def _write_settings(self):
+        try:
+            with open(SETTINGS_PATH, "w", encoding="utf-8") as fh:
+                json.dump(self.settings, fh, indent=1)
+        except OSError as exc:
+            self.add_log(f"[MeshTap] couldn't save settings: {exc}")
+
+    # ---- real-time ping
+    def _dest_num(self, nid):
+        if isinstance(nid, str) and nid.startswith("!"):
+            return int(nid[1:], 16)
+        return int(nid)
+
+    def send_ping(self, to, method="ack"):
+        """Send one ping and start timing. Returns (ok, message)."""
+        if method not in PING_TIMEOUT:
+            return False, "Unknown ping type"
+        if not self.connected:
+            return False, "Connect to your radio first."
+        if not to or to == "^all":
+            return False, "Pick a node to ping."
+        if self.my_id and to == self.my_id:
+            return False, "That's your own radio — pick another node."
+        with self.lock:
+            if self.ping_pending:
+                return False, "Still waiting on the last ping — one at a time keeps the channel clear."
+            self.ping_seq += 1
+            rec = {"n": self.ping_seq, "ts": time.time(), "to": to, "to_name": self.name_of(to), "method": method,
+                   "status": "waiting", "rtt": None, "relayed_at": None, "hops": None, "snr": None, "rssi": None,
+                   "detail": "", "id": None}
+        try:
+            if self.mode == "demo":
+                rec["id"] = random.randint(1, 2**31)
+                threading.Thread(target=demo_ping_reply, args=(self, rec), daemon=True).start()
+            else:
+                iface = self.iface
+                dest = self._dest_num(to)
+                if method == "ack":
+                    pkt = iface.sendData(b"MeshTap ping", destinationId=dest, portNum=256, wantAck=True)  # PRIVATE_APP
+                elif method == "text":
+                    pkt = iface.sendText("MeshTap ping \U0001F3D3", destinationId=dest, wantAck=True)
+                else:
+                    try:
+                        from meshtastic.protobuf import mesh_pb2
+                    except ImportError:
+                        from meshtastic import mesh_pb2
+                    pkt = iface.sendData(mesh_pb2.RouteDiscovery(), destinationId=dest, portNum=70, wantResponse=True)
+                rec["id"] = getattr(pkt, "id", None)
+                if not rec["id"]:
+                    raise RuntimeError("the radio didn't give the ping an ID")
+        except Exception as exc:
+            rec.update(status="error", detail=f"Couldn't send: {exc}")
+            self._finish_ping(rec)
+            return False, rec["detail"]
+        rec["sent"] = time.time()
+        with self.lock:
+            self.ping_pending[rec["id"]] = rec
+        self.broadcast({"type": "ping", "ping": rec})
+        return True, f"Ping sent to {rec['to_name']}"
+
+    def _check_ping_reply(self, rec, dec):
+        req = dec.get("requestId") if isinstance(dec, dict) else None
+        if not req or req not in self.ping_pending:
+            return
+        ping = self.ping_pending[req]
+        now = time.time()
+        if rec["port"] == "ROUTING_APP":
+            err = (dec.get("routing") or {}).get("errorReason", "NONE") or "NONE"
+            if err in ("NONE", 0):
+                if rec["from"] == ping["to"]:
+                    if ping["method"] == "trace":  # traceroute's own reply carries the route; keep waiting for it
+                        ping["detail"] = "Delivered; waiting for the route…"
+                        self.broadcast({"type": "ping", "ping": ping})
+                        return
+                    ping.update(status="ok", rtt=round((now - ping["sent"]) * 1000), hops=rec.get("hops"),
+                                snr=rec.get("snr"), rssi=rec.get("rssi"),
+                                detail=f"Delivered — {ping['to_name']} confirmed it" +
+                                       (", reply came back directly" if rec.get("hops") == 0 else
+                                        f", reply came back over {rec['hops']} hop{'s' if rec['hops'] != 1 else ''}" if rec.get("hops") is not None else ""))
+                    self._finish_ping(ping)
+                else:  # our own radio heard a neighbor pass it on (implicit ACK)
+                    if not ping["relayed_at"]:
+                        ping["relayed_at"] = round((now - ping["sent"]) * 1000)
+                        ping["detail"] = f"Relayed by a neighbor after {ping['relayed_at']} ms — waiting for {ping['to_name']}…"
+                        self.broadcast({"type": "ping", "ping": ping})
+            else:
+                ping.update(status="fail", rtt=round((now - ping["sent"]) * 1000), detail=ROUTING_ERRORS.get(err, str(err)))
+                self._finish_ping(ping)
+        elif rec["port"] == "TRACEROUTE_APP" and ping["method"] == "trace":
+            tr = dec.get("traceroute") or {}
+            route = [node_id(x) for x in tr.get("route") or []]
+            back = [node_id(x) for x in tr.get("routeBack") or []]
+            snr_to = [s / 4 for s in tr.get("snrTowards") or [] if s != -128]
+            snr_back = [s / 4 for s in tr.get("snrBack") or [] if s != -128]
+            me = self.my_id or "you"
+            out = " → ".join(self.name_of(x) for x in [me] + route + [ping["to"]])
+            detail = "Out: " + out
+            if back:
+                detail += "  ·  Back: " + " → ".join(self.name_of(x) for x in [ping["to"]] + back + [me])
+            ping.update(status="ok", rtt=round((now - ping["sent"]) * 1000), hops=len(route), snr=rec.get("snr"),
+                        rssi=rec.get("rssi"), detail=detail, route=route, route_back=back,
+                        snr_towards=snr_to, snr_back=snr_back)
+            self._finish_ping(ping)
+
+    def _finish_ping(self, ping):
+        with self.lock:
+            if ping.get("id") in self.ping_pending:
+                del self.ping_pending[ping["id"]]
+            ping["done"] = time.time()
+            self.pings.append(ping)
+            if self.settings.get("autosave", True):
+                try:
+                    self.db.execute("INSERT INTO pings VALUES (?,?)", (ping["ts"], json.dumps(ping, default=str)))
+                    self.db.commit()
+                except sqlite3.Error:
+                    pass
+        word = {"ok": "✅", "fail": "❌", "timeout": "⏱", "error": "⚠️"}.get(ping["status"], "")
+        self.add_log(f"[MeshTap] ping {ping['to_name']} ({ping['method']}): {word} {ping['status']}"
+                     + (f" {ping['rtt']} ms" if ping.get("rtt") is not None and ping["status"] == "ok" else "")
+                     + (f" — {ping['detail']}" if ping["status"] != "ok" else ""))
+        self.broadcast({"type": "ping", "ping": ping})
+
+    def _ping_watchdog(self):
+        while True:
+            time.sleep(1)
+            now = time.time()
+            for ping in list(self.ping_pending.values()):
+                if now - ping["sent"] > PING_TIMEOUT[ping["method"]]:
+                    ping.update(status="timeout", detail=(
+                        f"No answer in {PING_TIMEOUT[ping['method']]} s" +
+                        (" — a neighbor relayed it, but it never confirmed" if ping.get("relayed_at") else " — nobody relayed it")))
+                    self._finish_ping(ping)
+            job = self.ping_job
+            if job and self.connected and not self.ping_pending and now >= job["next"]:
+                job["next"] = now + job["interval"]
+                ok, msg = self.send_ping(job["to"], job["method"])
+                if not ok:
+                    self.add_log(f"[MeshTap] repeat ping: {msg}")
+
+    def start_ping_job(self, to, method, interval):
+        interval = max(PING_MIN_INTERVAL, int(interval or 60))
+        self.ping_job = {"to": to, "method": method, "interval": interval, "next": 0}
+        self.push_status()
+        return True, f"Pinging {self.name_of(to)} every {interval} s"
+
+    def stop_ping_job(self):
+        self.ping_job = None
+        self.push_status()
 
     def _account(self, rec):
         """Update counters + per-node stats. Returns the sender's node record."""
@@ -603,6 +833,10 @@ class Hub:
         self.on_packet(pkt, summary=summary)
 
     def disconnect(self):
+        self.ping_job = None
+        for ping in list(getattr(self, "ping_pending", {}).values()):
+            ping.update(status="error", detail="Disconnected before an answer came back")
+            self._finish_ping(ping)
         if getattr(self, "raw_stop", None):
             self.raw_stop.set()
             self.raw_stop = None
@@ -635,6 +869,9 @@ class Hub:
             self.nodes = {}
             self._reset_counters()
             self.db.execute("DELETE FROM packets")
+            self.db.execute("DELETE FROM pings")
+            self.pings.clear()
+            self.unsaved = []
             self.db.commit()
             self.saved_total = 0
             if self.iface:
@@ -653,6 +890,7 @@ class Hub:
                 "stats": {
                     "total": self.total,
                     "saved_total": self.saved_total,
+                    "unsaved": len(self.unsaved),
                     "encrypted": self.encrypted,
                     "texts": self.texts,
                     "ports": dict(self.port_counts),
@@ -722,6 +960,37 @@ DEMO_TEXTS = [
     "Anyone copy?", "Checking in from the ridge", "Heading home now", "Signal is great today",
     "Battery at 40%, swapping soon", "Test 1 2 3", "Good morning mesh!", "Who's on the north side?",
 ]
+
+
+def demo_ping_reply(hub, ping):
+    """Fake a reply for a demo ping, through the same code path as a real one."""
+    time.sleep(random.uniform(0.6, 1.8))
+    if hub.mode != "demo":
+        return
+    me = int(hub.my_id[1:], 16)
+    dest = int(ping["to"][1:], 16)
+    roll = random.random()
+    if roll < 0.8:  # neighbor relays it, then it gets through
+        hub.on_packet({"from": me, "to": me, "fromId": hub.my_id, "toId": hub.my_id,
+                       "decoded": {"portnum": "ROUTING_APP", "routing": {"errorReason": "NONE"}, "requestId": ping["id"]}})
+    time.sleep(random.uniform(1.5, 9))
+    hops = random.randint(0, 3)
+    base = {"from": dest, "to": me, "fromId": ping["to"], "toId": hub.my_id, "rxSnr": round(random.uniform(-12, 9), 2),
+            "rxRssi": random.randint(-118, -62), "hopStart": 3, "hopLimit": 3 - hops}
+    if roll < 0.75:
+        if ping["method"] == "trace":
+            relays = random.sample([n[0] for n in DEMO_NODES[1:] if n[0] != dest], hops)
+            base["decoded"] = {"portnum": "TRACEROUTE_APP", "requestId": ping["id"],
+                               "traceroute": {"route": relays, "routeBack": relays[::-1],
+                                              "snrTowards": [random.randint(-40, 40) for _ in range(hops + 1)],
+                                              "snrBack": [random.randint(-40, 40) for _ in range(hops + 1)]}}
+        else:
+            base["decoded"] = {"portnum": "ROUTING_APP", "routing": {"errorReason": "NONE"}, "requestId": ping["id"]}
+        hub.on_packet(base)
+    elif roll < 0.88:
+        hub.on_packet({"from": me, "to": me, "fromId": hub.my_id, "toId": hub.my_id,
+                       "decoded": {"portnum": "ROUTING_APP", "routing": {"errorReason": "MAX_RETRANSMIT"}, "requestId": ping["id"]}})
+    # else: silence -> times out
 
 
 def demo_loop(hub, stop):
@@ -838,6 +1107,19 @@ class Handler(BaseHTTPRequestHandler):
             limit = int((qs.get("limit") or ["1000"])[0])
             with HUB.lock:
                 return self._send(200, list(HUB.packets)[-limit:])
+        if url.path == "/api/pings":
+            with HUB.lock:
+                return self._send(200, list(HUB.pings))
+        if url.path == "/api/pings.csv":
+            out = io.StringIO()
+            w = csv.writer(out)
+            w.writerow(["time", "to", "to_name", "type", "result", "round_trip_ms", "relayed_ms", "hops", "snr", "rssi", "detail"])
+            with HUB.lock:
+                for r in HUB.pings:
+                    w.writerow([time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(r["ts"])), r["to"], r["to_name"], r["method"],
+                                r["status"], r.get("rtt"), r.get("relayed_at"), r.get("hops"), r.get("snr"), r.get("rssi"), r.get("detail")])
+            return self._send(200, out.getvalue(), "text/csv; charset=utf-8",
+                              {"Content-Disposition": f'attachment; filename="meshtap-pings-{time.strftime("%Y%m%d-%H%M")}.csv"'})
         if url.path == "/api/logs":
             return self._send(200, list(HUB.logs))
         if url.path == "/api/ports":
@@ -865,6 +1147,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True})
         if url.path == "/api/disconnect":
             HUB.disconnect()
+            return self._send(200, {"ok": True})
+        if url.path == "/api/autosave":
+            HUB.set_autosave(bool(body.get("on")))
+            return self._send(200, {"ok": True})
+        if url.path == "/api/save":
+            n = HUB.save_now()
+            return self._send(200, {"ok": True, "saved": n})
+        if url.path == "/api/ping":
+            to, method = body.get("to"), body.get("method", "ack")
+            if body.get("repeat"):
+                ok, msg = HUB.start_ping_job(to, method, body.get("interval"))
+            else:
+                ok, msg = HUB.send_ping(to, method)
+            return self._send(200, {"ok": ok, "msg": msg})
+        if url.path == "/api/ping/stop":
+            HUB.stop_ping_job()
             return self._send(200, {"ok": True})
         if url.path == "/api/clear":
             HUB.clear()

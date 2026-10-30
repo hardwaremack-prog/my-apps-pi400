@@ -10,10 +10,11 @@ MeshTap connects to your radio (USB, WiFi or Bluetooth), captures every packet i
 - **Live traffic** — every packet as it arrives: who sent it, who it's for, what it is (text, position, telemetry, node info, routing/ACKs, traceroute, neighbor reports, encrypted…), plus SNR, RSSI and hop count. Click any packet to see the full decoded contents.
 - **Nodes** — every node heard, with packet counts, last heard, signal, hops, battery, hardware and a map link.
 - **Map** — every node that shares a position on one live map (dark, street or satellite), colored by how recently it was heard, with solid lines to nodes your radio hears directly and dashed lines to ones reached through relays. Click a node for signal, battery, distance and its packets. Map pictures need internet; positions come from your mesh.
+- **Ping** — prove messages really get through, in real time. Pick a node and send a **quiet ping** (waits for its delivery ACK), a **traceroute** (shows the path both ways with signal per hop) or a **text ping** (shows on their screen). You see *relayed by a neighbor* and then *delivered* with the round-trip time, or exactly why it failed. Repeat every 30 s or more for a live success rate and round-trip chart; export to CSV.
 - **Breakdown** — packets per minute for the last hour, traffic by type, top talkers, signal quality and how far packets travelled.
 - **Device log** — MeshTap events plus the radio's own debug lines.
 - **Search & filters**, "to me only", "hide my radio", pause, and **export to CSV / JSON**.
-- Everything is saved to `~/.meshtap/meshtap.db` (Windows: `C:\Users\<you>\.meshtap\`) so history survives restarts.
+- **Auto-save** switch (top right): on, every packet is saved as it arrives; off, traffic shows live but isn't kept, with a **Save now** button for what you've caught. Saved to `~/.meshtap/meshtap.db` (Windows: `C:\Users\<you>\.meshtap\`) so history survives restarts.
 
 ## Windows
 1. Install Python 3 from python.org (tick "Add to PATH").
