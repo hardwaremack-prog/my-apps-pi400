@@ -87,7 +87,9 @@ canvas{width:100%;height:180px;display:block}
 .field{margin:10px 0}
 .field label{display:block;color:var(--dim);font-size:12px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
 .field select,.field input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.seg{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.row2{display:grid;grid-template-columns:1fr 150px;gap:10px}
+.row2 .field{margin:10px 0 0}
 .seg button{padding:10px 6px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);cursor:pointer}
 .seg button.on{border-color:var(--green);color:var(--green);background:#123024}
 .kv{display:grid;grid-template-columns:130px 1fr;gap:4px 12px;font-size:13px;margin-bottom:12px}
@@ -101,6 +103,7 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
   .pkt{grid-template-columns:1fr}.pkt .meta{grid-row:auto;grid-column:1;justify-content:flex-start}
   .card .v{font-size:20px}
   .seg{grid-template-columns:repeat(2,1fr)}
+  .row2{grid-template-columns:1fr}
   .bar{grid-template-columns:90px 1fr 44px}
 }
 </style>
@@ -181,12 +184,20 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
   <div class="sheet">
     <h2>Connect to your radio <button class="btn" data-close>✕</button></h2>
     <div class="seg" id="modeSeg">
-      <button data-mode="serial" class="on">🔌 USB</button>
+      <button data-mode="serial" class="on">🔌 USB / Serial</button>
       <button data-mode="tcp">📶 WiFi</button>
       <button data-mode="ble">🔵 Bluetooth</button>
+      <button data-mode="rawserial">🧵 Serial text</button>
       <button data-mode="demo">🎲 Demo</button>
     </div>
-    <div class="field" id="fSerial"><label>Port</label><select id="serialSel"><option value="">Auto-detect</option></select></div>
+    <div id="fSerial">
+      <div class="row2">
+        <div class="field"><label>Port <a href="#" id="rescan" style="color:var(--blue);text-transform:none;letter-spacing:0;float:right">↻ rescan</a></label>
+          <select id="serialSel"><option value="">Auto-detect</option></select></div>
+        <div class="field"><label>Baud rate</label><select id="baudSel"></select></div>
+      </div>
+      <div class="field" id="fOther" hidden><label>Port name</label><input id="otherPort" placeholder="COM7  or  /dev/ttyUSB0  or  /dev/serial0"></div>
+    </div>
     <div class="field" id="fAddr" hidden><label id="addrLab">Address</label><input id="addr"></div>
     <div class="note" id="modeHelp"></div>
     <div class="err" id="connErr"></div>
@@ -215,7 +226,7 @@ const PORTS = {
   TELEMETRY_APP: ['Telemetry', '--teal'], ROUTING_APP: ['Routing', '--dim'], TRACEROUTE_APP: ['Traceroute', '--amber'],
   NEIGHBORINFO_APP: ['Neighbors', '--amber'], ENCRYPTED: ['Encrypted', '--red'], WAYPOINT_APP: ['Waypoint', '--pink'],
   ADMIN_APP: ['Admin', '--pink'], STORE_FORWARD_APP: ['Store & Fwd', '--violet'], RANGE_TEST_APP: ['Range test', '--teal'],
-  MAP_REPORT_APP: ['Map report', '--blue'], DETECTION_SENSOR_APP: ['Sensor', '--red'], PAXCOUNTER_APP: ['Paxcounter', '--teal'],
+  MAP_REPORT_APP: ['Map report', '--blue'], SERIAL_TEXT: ['Serial text', '--green'], SERIAL_NMEA: ['NMEA', '--blue'], DETECTION_SENSOR_APP: ['Sensor', '--red'], PAXCOUNTER_APP: ['Paxcounter', '--teal'],
 };
 const portName = p => (PORTS[p] || [p.replace(/_APP$/, '').replace(/_/g, ' ').toLowerCase()])[0];
 const portVar = p => `var(${(PORTS[p] || [0, '--dim'])[1]})`;
@@ -416,7 +427,8 @@ function listen() {
 
 // ---------- connect modal
 const HELP = {
-  serial: 'Plug the radio into this computer with a USB data cable. Close the Meshtastic web client or other apps using the port first.',
+  serial: 'USB radios: plug in with a data cable and leave the baud at 115200. Radio wired to a Pi\'s GPIO pins (TX→pin 10, RX→pin 8, GND): pick /dev/serial0 and the baud set in the radio\'s Serial Module (mode PROTO). Close the Meshtastic app or web client first — only one program can use a port.',
+  rawserial: 'For a radio whose Serial Module is set to TEXTMSG, NMEA or SIMPLE: shows each line it sends (messages as "name: text", GPS sentences). Pick the port and the Serial Module\'s baud rate. ★ marks ports that look like Meshtastic radios.',
   tcp: 'Your radio must have WiFi turned on and be on the same network. Enter its IP address (shown on its screen) or meshtastic.local.',
   ble: 'Leave blank to use the first radio found, or type its Bluetooth name (e.g. Meshtastic_1a2b). Disconnect it from your phone first — a radio only talks to one Bluetooth device at a time.',
   demo: 'Plays fake mesh traffic so you can explore the app without a radio.',
@@ -424,19 +436,37 @@ const HELP = {
 function setMode(m) {
   S.mode = m;
   document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
-  $('#fSerial').hidden = m !== 'serial';
+  $('#fSerial').hidden = !(m === 'serial' || m === 'rawserial');
+  const auto = $('#serialSel').querySelector('option[value=""]');
+  if (auto) auto.textContent = m === 'rawserial' ? 'Pick a port…' : 'Auto-detect';
+  if (m === 'serial' && !$('#serialSel').value && $('#baudSel').value !== '115200') $('#baudSel').value = '115200';
   $('#fAddr').hidden = !(m === 'tcp' || m === 'ble');
   $('#addrLab').textContent = m === 'tcp' ? 'IP address or hostname' : 'Bluetooth name or address (optional)';
   $('#addr').placeholder = m === 'tcp' ? '192.168.1.50' : 'Meshtastic_1a2b';
   $('#modeHelp').textContent = HELP[m];
 }
-async function openConnect() {
-  $('#connModal').classList.add('on');
-  if (S.status.mode && S.status.mode !== 'demo') setMode(S.status.mode); else setMode(S.mode);
+function fillBauds() {
+  const bauds = S.status.bauds || [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600], cur = String(S.status.baud || 115200);
+  $('#baudSel').innerHTML = bauds.map(b => `<option value="${b}">${b.toLocaleString()}${b === 115200 ? ' (USB)' : ''}</option>`).join('');
+  $('#baudSel').value = cur;
+}
+async function loadPorts() {
+  const keep = $('#serialSel').value;
   try {
     const ports = await (await fetch('/api/ports')).json();
-    $('#serialSel').innerHTML = '<option value="">Auto-detect</option>' + ports.map(p => `<option value="${esc(p.device)}">${esc(p.label)}</option>`).join('');
+    $('#serialSel').innerHTML = `<option value="">${S.mode === 'rawserial' ? 'Pick a port…' : 'Auto-detect'}</option>`
+      + ports.map(p => `<option value="${esc(p.device)}">${esc(p.label)}</option>`).join('')
+      + '<option value="__other">Other port… (type it in)</option>';
+    if ([...$('#serialSel').options].some(o => o.value === keep)) $('#serialSel').value = keep;
+    if (!ports.length) $('#connErr').textContent = 'No serial ports found. Check the cable, or type a port name with "Other port…".';
   } catch (e) {}
+  $('#fOther').hidden = $('#serialSel').value !== '__other';
+}
+async function openConnect() {
+  $('#connModal').classList.add('on');
+  fillBauds();
+  if (S.status.mode && S.status.mode !== 'demo') setMode(S.status.mode); else setMode(S.mode);
+  await loadPorts();
 }
 async function post(url, body) {
   return fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
@@ -445,9 +475,16 @@ async function post(url, body) {
 // ---------- wiring
 $('#connBtn').onclick = openConnect;
 document.querySelectorAll('#modeSeg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+$('#serialSel').onchange = () => { $('#fOther').hidden = $('#serialSel').value !== '__other'; if (!$('#fOther').hidden) $('#otherPort').focus(); };
+$('#rescan').onclick = e => { e.preventDefault(); loadPorts(); };
 $('#goBtn').onclick = async () => {
-  const address = S.mode === 'serial' ? $('#serialSel').value : $('#addr').value;
-  await post('/api/connect', {mode: S.mode, address});
+  let address = $('#addr').value, baud = 115200;
+  if (S.mode === 'serial' || S.mode === 'rawserial') {
+    address = $('#serialSel').value === '__other' ? $('#otherPort').value.trim() : $('#serialSel').value;
+    baud = +$('#baudSel').value || 115200;
+    if (S.mode === 'rawserial' && !address) { $('#connErr').textContent = 'Pick the port the radio is wired to.'; return; }
+  }
+  await post('/api/connect', {mode: S.mode, address, baud});
   $('#connModal').classList.remove('on');
 };
 $('#discBtn').onclick = async () => { await post('/api/disconnect'); $('#connModal').classList.remove('on'); };

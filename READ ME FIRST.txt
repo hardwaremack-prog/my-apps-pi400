@@ -235,6 +235,11 @@ MESHTAP (Meshtastic traffic viewer)
   WiFi or Bluetooth (disconnect the radio from your phone first).
   Log out and back in once after setup so USB radios work. Watch it
   from your phone at http://<pi-ip>:8742. Try Demo if no radio is handy.
+  Radio wired to the Pi's pins instead of USB? Connect radio TX to
+  pin 10, RX to pin 8 and GND to GND, turn on the serial port in
+  raspi-config (login shell No, hardware Yes), set the radio's Serial
+  Module to PROTO, then pick /dev/serial0 and its baud rate. For a
+  Serial Module in TEXTMSG or NMEA mode, use "Serial text".
 
 PODDECK (container control panel)
   A dashboard for Podman containers: see the Pi's CPU, memory and

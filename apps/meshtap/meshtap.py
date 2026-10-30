@@ -8,6 +8,8 @@ captures every packet the radio hands over, saves it to a local database
 
   python meshtap.py                 # auto-detect a USB radio
   python meshtap.py --serial COM5   # specific port (Windows)  /dev/ttyACM0 (Pi)
+  python meshtap.py --serial /dev/serial0 --baud 38400   # radio wired to Pi GPIO pins
+  python meshtap.py --serial-text COM7 --baud 9600        # Serial Module in TEXTMSG/NMEA mode
   python meshtap.py --tcp 192.168.1.50
   python meshtap.py --ble           # Bluetooth (pick device in the app)
   python meshtap.py --demo          # fake traffic, no radio needed
@@ -28,22 +30,100 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
 DB_PATH = os.path.join(DATA_DIR, "meshtap.db")
 BROADCAST = 0xFFFFFFFF
+BAUDS = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600]
+GPIO_UARTS = [("/dev/serial0", "Pi GPIO pins 8/10 (TX/RX) — serial0"), ("/dev/ttyAMA0", "Pi GPIO UART ttyAMA0"),
+              ("/dev/serial1", "Pi second UART — serial1"), ("/dev/ttyS0", "Pi mini UART ttyS0"),
+              ("/dev/ttyAMA10", "Pi 5 debug UART ttyAMA10")]
+
+
+def list_serial_ports():
+    """Every serial port we can see, with likely Meshtastic radios marked and starred first."""
+    out, seen = [], set()
+    try:
+        import meshtastic.util
+        likely = set(meshtastic.util.findPorts(True))
+    except Exception:
+        likely = set()
+    try:
+        from serial.tools import list_ports
+        for p in list_ports.comports():
+            real = os.path.realpath(p.device)
+            seen.update({p.device, real})
+            desc = p.description if p.description and p.description != "n/a" else "serial port"
+            out.append({"device": p.device, "label": f"{'★ ' if p.device in likely else ''}{p.device} — {desc}",
+                        "likely": p.device in likely})
+    except Exception:
+        pass
+    for dev, label in GPIO_UARTS:  # GPIO UARTs often don't show up in comports()
+        if os.path.exists(dev) and dev not in seen and os.path.realpath(dev) not in seen:
+            seen.update({dev, os.path.realpath(dev)})
+            out.append({"device": dev, "label": f"{dev} — {label}", "likely": False, "gpio": True})
+    out.sort(key=lambda d: not d["likely"])
+    return out
+
+
+def serial_hint(err, port):
+    """Turn common serial errors into plain English."""
+    e = str(err)
+    low = e.lower()
+    if "permission denied" in low or "access is denied" in low:
+        if os.name == "nt":
+            return f"{port} is busy. Close the Meshtastic app, web client or any other program using it, then try again."
+        return (f"No permission to open {port}. Run once:  sudo usermod -aG dialout $USER  then log out and back in. "
+                "(Or another program is using the port.)")
+    if "could not exclusively lock" in low or "resource busy" in low or "in use" in low:
+        return f"{port} is already in use by another program (Meshtastic app/web client, another MeshTap?). Close it and retry."
+    if "no such file" in low or "cannot find the file" in low or "filenotfounderror" in low:
+        if port.startswith("/dev/serial") or port.startswith("/dev/ttyAMA"):
+            return (f"{port} doesn't exist. Turn on the Pi's serial port: sudo raspi-config → Interface Options → "
+                    "Serial Port → login shell: No, hardware: Yes, then reboot.")
+        return f"{port} wasn't found. Check the cable (data, not charge-only) or pick another port."
+    if "timed out" in low or "timeout" in low:
+        return (f"The radio on {port} didn't answer. Check the baud rate matches the radio's Serial Module "
+                "(USB is always 115200) and that its mode is PROTO, or use Serial text mode for TEXTMSG/NMEA.")
+    return e
 
 try:
     import meshtastic  # noqa: F401
     import meshtastic.serial_interface
     import meshtastic.tcp_interface
+    import meshtastic.stream_interface
     from pubsub import pub
 
     HAVE_MESH = True
     MESH_ERR = ""
-except Exception as exc:  # library missing — demo mode still works
+
+    class BaudSerialInterface(meshtastic.serial_interface.SerialInterface):
+        """SerialInterface that opens the port at a chosen speed (the library always uses 115200).
+        Needed for radios wired to GPIO pins whose Serial Module runs at another baud rate."""
+
+        def __init__(self, devPath, baud=115200, **kw):
+            self.baud = int(baud or 115200)
+            super().__init__(devPath=devPath, **kw)
+
+        def connect(self):
+            if self.baud == 115200 or not hasattr(meshtastic.serial_interface.SerialInterface, "connect"):
+                return super().connect()
+            import serial as _serial
+            import sys as _sys
+            if _sys.platform != "win32":
+                try:
+                    with open(self.devPath, encoding="utf8") as f:
+                        self._set_hupcl_with_termios(f)
+                except Exception:
+                    pass
+                time.sleep(0.1)
+            self.stream = _serial.Serial(self.devPath, self.baud, exclusive=True, timeout=0.5, write_timeout=0)
+            self.stream.flush()
+            time.sleep(0.1)
+            meshtastic.stream_interface.StreamInterface.connect(self)
+except Exception as exc:  # library missing — demo and serial text modes still work
     HAVE_MESH = False
     MESH_ERR = str(exc)
 
@@ -236,6 +316,8 @@ class Hub:
             "have_lib": HAVE_MESH,
             "lib_error": MESH_ERR,
             "version": VERSION,
+            "baud": getattr(self, "baud", 115200),
+            "bauds": BAUDS,
         }
 
     def push_status(self):
@@ -250,7 +332,7 @@ class Hub:
         return nid
 
     # ---- packet handling
-    def on_packet(self, packet):
+    def on_packet(self, packet, summary=None):
         p = clean(packet)
         dec = p.get("decoded") or {}
         if dec:
@@ -277,7 +359,7 @@ class Hub:
             "via_mqtt": bool(p.get("viaMqtt")),
             "want_ack": bool(p.get("wantAck")),
             "dir": "out" if self.my_id and frm == self.my_id else "in",
-            "summary": summarize(port, dec),
+            "summary": summary or summarize(port, dec),
             "raw": p,
         }
         with self.lock:
@@ -386,15 +468,21 @@ class Hub:
         self.broadcast({"type": "log", "log": entry})
 
     # ---- connection management
-    def connect(self, mode, address=""):
+    def connect(self, mode, address="", baud=115200):
         self.disconnect()
-        self.mode, self.error, self.connecting = mode, "", True
-        self.desc = {"serial": "USB", "tcp": "WiFi", "ble": "Bluetooth", "demo": "Demo"}.get(mode, mode)
+        try:
+            baud = int(baud or 115200)
+        except (TypeError, ValueError):
+            baud = 115200
+        self.mode, self.error, self.connecting, self.baud = mode, "", True, baud
+        self.desc = {"serial": "Serial", "rawserial": "Serial text", "tcp": "WiFi", "ble": "Bluetooth", "demo": "Demo"}.get(mode, mode)
         self.desc += f" {address}" if address else (" (auto-detect)" if mode in ("serial", "ble") else "")
+        if mode in ("serial", "rawserial") and baud != 115200:
+            self.desc += f" @ {baud}"
         self.push_status()
-        threading.Thread(target=self._connect_worker, args=(mode, address), daemon=True).start()
+        threading.Thread(target=self._connect_worker, args=(mode, address, baud), daemon=True).start()
 
-    def _connect_worker(self, mode, address):
+    def _connect_worker(self, mode, address, baud=115200):
         try:
             if mode == "demo":
                 self.demo_stop = threading.Event()
@@ -403,11 +491,29 @@ class Hub:
                 self.add_log("[MeshTap] demo mode started — this is fake traffic")
                 self.push_status()
                 return
+            if mode == "rawserial":
+                self._start_raw_serial(address, baud)
+                return
             if not HAVE_MESH:
                 raise RuntimeError(f"The meshtastic Python library isn't installed ({MESH_ERR}). Run the start script again.")
             self.add_log(f"[MeshTap] connecting via {mode} {address or ''}...")
             if mode == "serial":
-                iface = meshtastic.serial_interface.SerialInterface(devPath=address or None)
+                if not address:
+                    found = auto_serial()
+                    if not found:
+                        raise RuntimeError("No Meshtastic radio found on USB. Plug it in (data cable, not charge-only), "
+                                           "or pick a port from the list — GPIO-wired radios must be picked by hand.")
+                    if len(found) > 1:
+                        raise RuntimeError(f"Several radios found ({', '.join(found)}). Pick one from the Port list.")
+                    address = found[0]
+                    self.desc = f"Serial {address}" + (f" @ {baud}" if baud != 115200 else "")
+                    self.push_status()
+                try:
+                    iface = BaudSerialInterface(devPath=address, baud=baud, timeout=int(os.environ.get("MESHTAP_TIMEOUT", "60")))
+                except Exception as exc:
+                    raise RuntimeError(serial_hint(exc, address)) from exc
+                if getattr(iface, "stream", None) is None and not getattr(iface, "isConnected", None):
+                    raise RuntimeError(f"Couldn't open {address}.")
             elif mode == "tcp":
                 if not address:
                     raise RuntimeError("Enter your radio's IP address or hostname (e.g. meshtastic.local).")
@@ -426,17 +532,77 @@ class Hub:
             self.desc = self.desc.replace("(auto-detect)", "").strip()
             port = getattr(iface, "devPath", None)
             if port and mode == "serial":
-                self.desc = f"USB {port}"
+                self.desc = f"Serial {port}" + (f" @ {baud}" if baud != 115200 else "")
             self.add_log(f"[MeshTap] connected — {len(self.nodes)} nodes known, listening for traffic")
         except Exception as exc:
             self.connected, self.connecting = False, False
             self.error = str(exc) or exc.__class__.__name__
-            if mode == "serial" and "None" in self.error:
-                self.error = "No Meshtastic radio found on USB. Plug it in (data cable, not charge-only) or pick a port."
             self.add_log(f"[MeshTap] connection failed: {self.error}")
         self.push_status()
 
+    # ---- serial text mode (Serial Module set to TEXTMSG / NMEA / SIMPLE)
+    def _start_raw_serial(self, port, baud):
+        try:
+            import serial
+        except Exception:
+            raise RuntimeError("pyserial isn't installed. Run the start script again.")
+        if not port:
+            raise RuntimeError("Pick the serial port the radio's Serial Module is wired to.")
+        try:
+            ser = serial.Serial(port, baud, timeout=0.5)
+        except Exception as exc:
+            raise RuntimeError(serial_hint(exc, port)) from exc
+        self.raw_stop = threading.Event()
+        self.raw_ser = ser
+        self.connected, self.connecting = True, False
+        self.add_log(f"[MeshTap] reading plain text from {port} at {baud} baud (Serial Module TEXTMSG/NMEA mode)")
+        self.push_status()
+        threading.Thread(target=self._raw_loop, args=(ser, self.raw_stop, port), daemon=True).start()
+
+    def _raw_loop(self, ser, stop, port):
+        buf = b""
+        while not stop.is_set():
+            try:
+                chunk = ser.read(256)
+            except Exception as exc:
+                if not stop.is_set():
+                    self.connected = False
+                    self.error = serial_hint(exc, port) or "Lost the serial port"
+                    self.add_log(f"[MeshTap] serial text: {self.error}")
+                    self.push_status()
+                return
+            if not chunk:
+                continue
+            buf += chunk
+            while b"\n" in buf or len(buf) > 4096:
+                line, _, buf = buf.partition(b"\n") if b"\n" in buf else (buf, b"", b"")
+                text = line.decode("utf-8", "replace").strip().strip("\x00")
+                if text:
+                    self.on_text_line(text)
+
+    def on_text_line(self, text):
+        """Show one line from a Serial Module as a packet in the feed."""
+        if text.startswith("$") and len(text) > 6 and text[1:6].isalpha():
+            port, summary, frm = "SERIAL_NMEA", f"🛰 {text}", "serial"
+        else:
+            port, summary, frm = "SERIAL_TEXT", f"💬 {text}", "serial"
+            if ": " in text[:40]:  # TEXTMSG mode prints "<short name>: <message>"
+                who, msg = text.split(": ", 1)
+                if who and len(who) <= 30:
+                    frm, summary = who.strip(), f"💬 {msg}"
+        pkt = {"fromId": frm, "toId": "^all", "decoded": {"portnum": port, "text": text}}
+        self.on_packet(pkt, summary=summary)
+
     def disconnect(self):
+        if getattr(self, "raw_stop", None):
+            self.raw_stop.set()
+            self.raw_stop = None
+        ser, self.raw_ser = getattr(self, "raw_ser", None), None
+        if ser:
+            try:
+                ser.close()
+            except Exception:
+                pass
         if self.demo_stop:
             self.demo_stop.set()
             self.demo_stop = None
@@ -652,14 +818,7 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/logs":
             return self._send(200, list(HUB.logs))
         if url.path == "/api/ports":
-            ports = []
-            try:
-                from serial.tools import list_ports
-                for p in list_ports.comports():
-                    ports.append({"device": p.device, "label": f"{p.device} — {p.description}"})
-            except Exception:
-                pass
-            return self._send(200, ports)
+            return self._send(200, list_serial_ports())
         if url.path == "/api/events":
             return self._events()
         if url.path == "/api/export.csv":
@@ -679,7 +838,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             body = {}
         if url.path == "/api/connect":
-            HUB.connect(body.get("mode", "serial"), (body.get("address") or "").strip())
+            HUB.connect(body.get("mode", "serial"), (body.get("address") or "").strip(), body.get("baud") or 115200)
             return self._send(200, {"ok": True})
         if url.path == "/api/disconnect":
             HUB.disconnect()
@@ -744,6 +903,8 @@ def main():
     global HUB
     ap = argparse.ArgumentParser(description="MeshTap — live Meshtastic traffic viewer")
     ap.add_argument("--serial", nargs="?", const="", metavar="PORT", help="USB/serial port (blank = auto)")
+    ap.add_argument("--serial-text", metavar="PORT", help="read a Serial Module in TEXTMSG/NMEA mode")
+    ap.add_argument("--baud", type=int, default=115200, help="serial speed (USB radios are always 115200)")
     ap.add_argument("--tcp", metavar="HOST", help="radio IP/hostname over WiFi")
     ap.add_argument("--ble", nargs="?", const="", metavar="NAME", help="Bluetooth name/address (blank = scan)")
     ap.add_argument("--demo", action="store_true", help="fake traffic, no radio needed")
@@ -759,12 +920,14 @@ def main():
         HUB.connect("tcp", args.tcp)
     elif args.ble is not None:
         HUB.connect("ble", args.ble)
+    elif args.serial_text:
+        HUB.connect("rawserial", args.serial_text, args.baud)
     elif args.serial is not None:
-        HUB.connect("serial", args.serial)
+        HUB.connect("serial", args.serial, args.baud)
     elif HAVE_MESH:
         found = auto_serial()
         if len(found) == 1:
-            HUB.connect("serial", found[0])
+            HUB.connect("serial", found[0], args.baud)
         else:
             HUB.add_log("[MeshTap] " + ("no USB radio found — use Connect to pick WiFi, Bluetooth or a port"
                                          if not found else f"several ports found ({', '.join(found)}) — pick one in Connect"))

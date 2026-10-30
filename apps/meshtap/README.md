@@ -27,7 +27,9 @@ Then double-click the **MeshTap** icon on the desktop. (Log out/in once after in
 
 ## Connecting
 Click **Connect** in the top-right:
-- **USB** — plug the radio in with a *data* cable. Close the Meshtastic web/desktop client first (only one app can use the port).
+- **USB / Serial** — plug the radio in with a *data* cable (baud 115200). Every serial port is listed, likely Meshtastic radios marked ★, or pick **Other port…** to type one in. Close the Meshtastic web/desktop client first (only one app can use the port).
+- **Wired to a Pi's GPIO pins** — radio TX → Pi pin 10 (RX), radio RX → Pi pin 8 (TX), GND → GND. Turn on the Pi's serial port (`sudo raspi-config` → Interface Options → Serial Port → login shell **No**, hardware **Yes**, reboot). Set the radio's Serial Module to mode **PROTO**, then in MeshTap pick `/dev/serial0` and the same baud rate.
+- **Serial text** — for a radio whose Serial Module is in **TEXTMSG**, **NMEA** or **SIMPLE** mode. MeshTap shows each line it sends: messages as "name: text" and GPS sentences.
 - **WiFi** — radio needs WiFi on; type its IP (shown on its screen) or `meshtastic.local`.
 - **Bluetooth** — disconnect the radio from your phone first; a radio only pairs with one device at a time.
 - **Demo** — fake traffic, no radio needed.
@@ -37,7 +39,10 @@ Run with `--lan` (e.g. `start-windows.bat --lan` or `./start-pi.sh --lan`) and o
 
 ## Command line options
 ```
---serial [PORT]  --tcp HOST  --ble [NAME]  --demo  --lan  --web-port 8742  --no-browser
+--serial [PORT]  --serial-text PORT  --baud 115200  --tcp HOST  --ble [NAME]  --demo  --lan  --web-port 8742  --no-browser
+
+e.g.  python meshtap.py --serial /dev/serial0 --baud 38400
+      python meshtap.py --serial-text COM7 --baud 9600
 ```
 
 ## Good to know

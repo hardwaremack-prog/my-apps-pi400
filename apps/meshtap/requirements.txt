@@ -1,1 +1,2 @@
 meshtastic>=2.3
+pyserial>=3.5
