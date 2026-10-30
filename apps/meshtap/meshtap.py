@@ -30,7 +30,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
@@ -496,6 +496,8 @@ class Hub:
         return user
 
     def my_hop_limit(self):
+        if self.mode == "demo":
+            return getattr(self, "demo_hop_limit", 3)
         try:
             return int(self.iface.localNode.localConfig.lora.hop_limit) or None
         except Exception:
@@ -952,8 +954,11 @@ class Hub:
         self.broadcast({"type": "log", "log": entry})
 
     # ---- connection management
-    def connect(self, mode, address="", baud=115200):
-        self.disconnect()
+    def connect(self, mode, address="", baud=115200, _auto=False):
+        self.disconnect(_auto=_auto)
+        if not _auto:
+            self.reconnect_gen = getattr(self, "reconnect_gen", 0) + 1   # a manual connect cancels any auto-reconnect
+        self.last_conn = (mode, address, baud)
         try:
             baud = int(baud or 115200)
         except (TypeError, ValueError):
@@ -1025,6 +1030,55 @@ class Hub:
         self.push_status()
 
     # ---- serial text mode (Serial Module set to TEXTMSG / NMEA / SIMPLE)
+    def auto_reconnect(self):
+        """The radio went away (unplugged, rebooted after a settings change...). Keep trying to get it back."""
+        conn = getattr(self, "last_conn", None)
+        if not conn or conn[0] not in ("serial", "tcp", "ble"):
+            return
+        gen = self.reconnect_gen = getattr(self, "reconnect_gen", 0) + 1
+        def run():
+            self.add_log("[MeshTap] radio dropped — reconnecting automatically…")
+            for attempt in range(40):            # about 3 minutes
+                time.sleep(4 if attempt else 3)
+                if self.reconnect_gen != gen:      # user connected/disconnected by hand
+                    return
+                self.connect(*conn, _auto=True)
+                for _ in range(40):
+                    time.sleep(0.5)
+                    if self.connected or (not self.connecting and self.error):
+                        break
+                if self.connected:
+                    self.add_log(f"[MeshTap] reconnected after {attempt + 1} tr{'y' if attempt == 0 else 'ies'}")
+                    return
+            self.add_log("[MeshTap] couldn't reconnect to the radio — press Connect to try again")
+        threading.Thread(target=run, daemon=True).start()
+
+    def set_radio_hop_limit(self, value):
+        """Write the LoRa hop limit to the radio (1–7). Most radios restart afterwards; we reconnect."""
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            return False, "Pick a number from 1 to 7."
+        if not 1 <= value <= 7:
+            return False, "Meshtastic allows a hop limit from 1 to 7."
+        if self.mode == "demo":
+            self.demo_hop_limit = value
+            return True, f"Demo radio hop limit set to {value}."
+        iface = self.iface
+        node = getattr(iface, "localNode", None) if iface else None
+        if not self.connected or node is None or getattr(node, "localConfig", None) is None:
+            return False, "Connect to your radio over USB, WiFi or Bluetooth first."
+        old = self.my_hop_limit()
+        try:
+            node.localConfig.lora.hop_limit = value
+            node.writeConfig("lora")
+        except SystemExit:
+            return False, "The radio hasn't sent its settings yet — wait a few seconds and try again."
+        except Exception as exc:
+            return False, f"Couldn't change it: {exc}"
+        self.add_log(f"[MeshTap] radio hop limit changed {old} → {value}; the radio may restart — MeshTap will reconnect")
+        return True, f"Hop limit set to {value} (was {old}). Your radio may restart for a moment; MeshTap reconnects by itself."
+
     def _start_raw_serial(self, port, baud):
         try:
             import serial
@@ -1077,7 +1131,9 @@ class Hub:
         pkt = {"fromId": frm, "toId": "^all", "decoded": {"portnum": port, "text": text}}
         self.on_packet(pkt, summary=summary)
 
-    def disconnect(self):
+    def disconnect(self, _auto=False):
+        if not _auto:
+            self.reconnect_gen = getattr(self, "reconnect_gen", 0) + 1   # user chose to disconnect: stop retrying
         self.ping_job = None
         if getattr(self, "scan", None) and not self.scan.get("finished"):
             self.scan["finished"] = time.time()
@@ -1161,9 +1217,10 @@ def _on_receive(packet, interface):
 def _on_lost(interface):
     if HUB and HUB.iface is interface:
         HUB.connected = False
-        HUB.error = "Lost connection to the radio"
+        HUB.error = "Lost connection to the radio — reconnecting…"
         HUB.add_log("[MeshTap] connection lost")
         HUB.push_status()
+        HUB.auto_reconnect()
 
 
 def _on_log(line, interface):
@@ -1420,6 +1477,9 @@ class Handler(BaseHTTPRequestHandler):
                 ok, msg = HUB.start_ping_job(to, method, body.get("interval"), body.get("hop_limit") or None)
             else:
                 ok, msg = HUB.send_ping(to, method, replace=bool(body.get("replace")), hop_limit=body.get("hop_limit") or None)
+            return self._send(200, {"ok": ok, "msg": msg})
+        if url.path == "/api/radio/hop_limit":
+            ok, msg = HUB.set_radio_hop_limit(body.get("value"))
             return self._send(200, {"ok": ok, "msg": msg})
         if url.path == "/api/settings":
             HUB.update_settings(body)

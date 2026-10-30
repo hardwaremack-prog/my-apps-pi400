@@ -326,6 +326,12 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
             <button class="btn danger" id="spStop" hidden>■ Stop</button>
           </div>
           <div id="spProg"></div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+            <span style="color:var(--dim);font-size:13px;flex:1">Your radio's hop limit: <b id="rhCur" style="color:var(--text)">?</b></span>
+            <select id="rhSel" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option selected>7</option></select>
+            <button class="btn" id="rhSet">Save to radio</button>
+          </div>
+          <div class="note" id="rhMsg" style="margin:6px 0 0">How many times your own messages may be relayed. 7 is the most Meshtastic allows; higher reaches farther but uses more of everyone's airtime.</div>
         </div>
         <div class="panel" style="margin-bottom:12px"><h3>Your range</h3><div id="spRange"></div></div>
         <div class="panel" style="margin-bottom:12px"><h3>Goals</h3><div id="spGoals"></div>
@@ -414,7 +420,7 @@ if (!window.L) {
 }
 </script>
 <script>
-const PAGE_VERSION = '1.5.0';
+const PAGE_VERSION = '1.5.1';
 const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
            tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
 const $ = s => document.querySelector(s);
@@ -1091,7 +1097,19 @@ function renderSpDet() {
       <button class="btn" data-sptrace="${esc(n.id)}">🧭 Traceroute (${$('#spHops').value} hops)</button>
       <a class="btn" href="#" data-pingfor="${esc(n.id)}">🏓 Ping tab</a></div>`;
 }
+function renderHop() {
+  const hl = S.status.my_hop_limit; $('#rhCur').textContent = hl || '?';
+}
+$('#rhSet').onclick = async () => {
+  const v = +$('#rhSel').value;
+  if (!confirm(`Change your radio's hop limit to ${v}? The radio may restart for a moment; MeshTap reconnects by itself.`)) return;
+  $('#rhSet').disabled = true; $('#rhMsg').textContent = 'Saving to the radio…';
+  const r = await pingCall('/api/radio/hop_limit', {value: v});
+  $('#rhMsg').innerHTML = r.ok ? `✅ ${esc(r.msg)}` : `<span style="color:var(--red)">⚠️ ${esc(r.msg)}</span>`;
+  $('#rhSet').disabled = false; setTimeout(() => { refresh(); }, 4000);
+};
 function renderScan(sc) {
+  renderHop();
   const busy = sc && !sc.finished;
   $('#spGo').hidden = !!busy; $('#spStop').hidden = !busy;
   const el = $('#spProg');
