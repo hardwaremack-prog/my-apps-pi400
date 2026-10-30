@@ -122,6 +122,24 @@ pre.json{background:#060a12;border:1px solid var(--line);border-radius:10px;padd
 td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
 #pingChart{height:150px}
 @media (max-width:900px){.pinggrid{grid-template-columns:1fr}}
+/* spider */
+.spgrid{display:grid;grid-template-columns:1fr 330px;gap:12px}
+.spwrap{background:radial-gradient(circle at center,#101a2e 0,#0a0f1a 70%);border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden}
+#spSvg{width:100%;height:auto;display:block;max-height:78vh}
+#spSvg .ring{fill:none;stroke:#22304d;stroke-width:1.2}
+#spSvg .ring.beyond{stroke-dasharray:4 6}
+#spSvg .rlab{fill:#62728f;font:600 13px system-ui;text-anchor:middle}
+#spSvg .lnk{stroke-linecap:round;opacity:.85}
+#spSvg .nd circle{stroke:#0a0f1a;stroke-width:2.5;cursor:pointer}
+#spSvg .nd text{fill:#e6edf7;font:600 12px system-ui;text-anchor:middle;paint-order:stroke;stroke:#0a0f1a;stroke-width:4px;pointer-events:none}
+#spSvg .nd.sel circle{stroke:#fff;stroke-width:3}
+#spSvg .nd.nopath circle{stroke-dasharray:3 3;stroke:#9aa8c2}
+.sprow{display:grid;grid-template-columns:62px 1fr 34px 34px 74px;gap:6px;align-items:center;font-size:12.5px;padding:3px 0;font-variant-numeric:tabular-nums}
+.sprow.h{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+.sprow .bar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden}.sprow .bar i{display:block;height:100%;background:var(--blue)}
+.sprow.beyond{opacity:.7}
+.spdet{font-size:13px}.spdet .kv{grid-template-columns:110px 1fr}
+@media (max-width:1000px){.spgrid{grid-template-columns:1fr}}
 /* map */
 .mapwrap{position:relative;display:grid;grid-template-columns:1fr 280px;gap:12px}
 #map{height:68vh;min-height:380px;border-radius:12px;border:1px solid var(--line);background:#0d1524;z-index:0}
@@ -197,6 +215,7 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
     <button class="tab" data-tab="nodes">🛰 Nodes</button>
     <button class="tab" data-tab="map">🗺 Map</button>
     <button class="tab" data-tab="ping">🏓 Ping</button>
+    <button class="tab" data-tab="spider">🕸 Spider</button>
     <button class="tab" data-tab="stats">📊 Breakdown</button>
     <button class="tab" data-tab="log">🧾 Device log</button>
   </div>
@@ -246,6 +265,7 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
       <span><i style="background:var(--blue);box-shadow:0 0 0 2px #fff"></i>your radio</span>
       <span><span class="ln" style="background:var(--green)"></span>heard directly (color = signal)</span>
       <span><span class="ln" style="background:repeating-linear-gradient(90deg,#9aa8c2 0 4px,transparent 4px 9px)"></span>through relays</span>
+      <span><i style="background:#ffd166"></i>your goals (set in the Spider tab)</span>
       <span>· Map pictures need internet; positions come from your mesh.</span>
     </div>
   </section>
@@ -284,6 +304,48 @@ td.det{white-space:normal;min-width:240px;color:var(--dim);font-size:12.5px}
           <thead><tr><th>Time</th><th>Node</th><th>Type</th><th>Result</th><th>Round trip</th><th>Hops</th><th>SNR</th><th>Details</th></tr></thead>
           <tbody id="pRows"></tbody></table></div>
       </div>
+    </div>
+  </section>
+
+  <section id="tab-spider" hidden>
+    <div class="toolbar">
+      <label><input type="checkbox" id="spRecent" checked> Only nodes heard in the last 24 h</label>
+      <label><input type="checkbox" id="spAllLinks" checked> Show all known links</label>
+      <span class="note" style="margin:0">Rings = hops away from your radio. Direction = real compass bearing when the node shares GPS (north up). Lines = radio links MeshTap has learned.</span>
+    </div>
+    <div class="spgrid">
+      <div class="spwrap"><svg id="spSvg" viewBox="0 0 1000 1000" role="img" aria-label="Mesh reach web"></svg></div>
+      <div>
+        <div class="panel" style="margin-bottom:12px">
+          <h3>Spider scan</h3>
+          <div class="note" style="margin-top:0">Sends a traceroute to every node heard, one at a time, so the web fills in with real paths and signal per hop. Nodes that answer are proven reachable both ways.</div>
+          <div style="display:flex;gap:8px;align-items:center;margin:8px 0">
+            <label style="color:var(--dim);font-size:13px">Max hops</label>
+            <select id="spHops" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px"><option>3</option><option>4</option><option>5</option><option>6</option><option selected>7</option></select>
+            <button class="btn primary" id="spGo" style="flex:1">🕸 Start scan</button>
+            <button class="btn danger" id="spStop" hidden>■ Stop</button>
+          </div>
+          <div id="spProg"></div>
+        </div>
+        <div class="panel" style="margin-bottom:12px"><h3>Your range</h3><div id="spRange"></div></div>
+        <div class="panel" style="margin-bottom:12px"><h3>Goals</h3><div id="spGoals"></div>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+            <input id="gName" placeholder="Place (e.g. Ann Arbor, MI)" style="flex:1 1 140px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px">
+            <input id="gLL" placeholder="lat, lon" style="flex:1 1 110px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px">
+            <button class="btn" id="gAdd">＋ Add</button></div>
+          <div class="note" style="margin:6px 0 0">Tip: right-click a spot in Google Maps to copy its lat, lon.</div></div>
+        <div class="panel" style="margin-bottom:12px"><h3>Reach by ring</h3><div id="spReach"></div></div>
+        <div class="panel spdet" id="spDet"><h3>Node</h3><div class="note" style="margin:0">Click a node in the web for its details.</div></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--green)"></i>confirmed — answered a ping or traceroute</span>
+      <span><i style="background:var(--blue)"></i>heard, not confirmed yet</span>
+      <span><i style="background:#7d8ba5"></i>not heard lately</span>
+      <span><span class="ln" style="background:var(--green)"></span>strong link</span>
+      <span><span class="ln" style="background:var(--amber)"></span>fair</span>
+      <span><span class="ln" style="background:var(--red)"></span>weak</span>
+      <span><span class="ln" style="background:repeating-linear-gradient(90deg,#9aa8c2 0 4px,transparent 4px 9px)"></span>from a neighbor report only</span>
     </div>
   </section>
 
@@ -352,7 +414,7 @@ if (!window.L) {
 }
 </script>
 <script>
-const PAGE_VERSION = '1.4.2';
+const PAGE_VERSION = '1.5.0';
 const S = {packets: [], byK: new Map(), nodes: [], status: {}, stats: {}, paused: false, pending: 0,
            tab: 'feed', mode: 'serial', sort: {key: 'last', dir: -1}, logs: []};
 const $ = s => document.querySelector(s);
@@ -560,7 +622,8 @@ function renderMap() {
   declutter();
   // direct links from my radio to nodes heard with 0 hops
   M.links.forEach(l => l.remove()); M.links = [];
-  const me = S.nodes.find(x => x.id === S.status.my_id);
+  const meNode = S.nodes.find(x => x.id === S.status.my_id), mpos = myPos();
+  const me = meNode && mpos ? {...meNode, lat: mpos.lat, lon: mpos.lon} : meNode;
   if ($('#mapLinks').checked && me && hasPos(me)) {
     for (const n of placed) {
       if (n.id === me.id || n.hops == null || !n.last || now - n.last > 7200) continue;
@@ -573,6 +636,18 @@ function renderMap() {
           : `${esc(n.long || n.id)} · ${n.hops} hop${n.hops > 1 ? 's' : ''} through relays · ${d}`, {sticky: true}));
     }
   }
+  // goals and home spot
+  if (M.goalLayer) M.goalLayer.remove();
+  M.goalLayer = L.layerGroup().addTo(M.map);
+  const mp = myPos();
+  if (mp && mp.src === 'home') L.marker([mp.lat, mp.lon], {icon: L.divIcon({className: '', iconSize: [34, 34], iconAnchor: [17, 17],
+      html: `<div class="pin me" style="--c:var(--blue)"><div class="t" style="position:absolute;bottom:40px">You (home spot)</div><div class="b">HOME</div></div>`}), zIndexOffset: 900}).addTo(M.goalLayer);
+  (S.status.goals || []).forEach(g => {
+    L.marker([g.lat, g.lon], {icon: L.divIcon({className: '', iconSize: [30, 30], iconAnchor: [15, 15],
+      html: `<div class="pin"><div class="b" style="background:#ffd166;color:#3a2a00;font-size:16px">★</div><div class="t">${esc(g.name)}</div></div>`})})
+      .bindTooltip(mp ? `${esc(g.name)} · ${fmtDist(dist(mp, g))} ${compass(bearing(mp, g))}` : esc(g.name)).addTo(M.goalLayer);
+    if (mp) L.polyline([[mp.lat, mp.lon], [g.lat, g.lon]], {color: '#ffd166', weight: 1.5, opacity: .6, dashArray: '2 8', interactive: false}).addTo(M.goalLayer);
+  });
   if (!M.fitted && placed.length) { fitAll(); M.fitted = true; }
   M.noMePos = !!(S.status.my_id && !(me && hasPos(me)));
   mapNote(placed.length ? (document.getElementById('mapNote').textContent.startsWith('No internet') ? $('#mapNote').textContent : '') :
@@ -797,6 +872,253 @@ $('#saveSw').onclick = async e => {
 };
 $('#saveNow').onclick = async e => { e.stopPropagation(); await post('/api/save'); refresh(); };
 
+// ---------- spider
+const SP = {data: null, sel: null, pos: {}};
+async function loadSpider() {
+  try { SP.data = await (await fetch('/api/spider')).json(); } catch (e) { SP.data = null; }
+  renderSpider();
+}
+function spRing(n) {
+  const c = [n.hops, n.path_hops, n.min_hops].filter(v => v != null && v < 99);
+  return c.length ? Math.min(...c) : null;
+}
+function linkSnr(L) { const v = Object.values(L.snr || {}).filter(x => x != null); return v.length ? Math.min(...v) : null; }
+function renderSpider() {
+  const svg = $('#spSvg'), d = SP.data;
+  if (!d) { svg.innerHTML = '<text x="500" y="500" class="rlab">Loading…</text>'; return; }
+  const me = d.me, now = Date.now() / 1000, recent = $('#spRecent').checked;
+  const nodes = d.nodes.filter(n => n.id !== me && (n.packets || n.confirmed || n.path_hops != null) && !n.mqtt
+    && (!recent || (n.last && now - n.last < 86400) || (n.confirmed && now - n.confirmed < 86400)));
+  const byId = Object.fromEntries(d.nodes.map(n => [n.id, n]));
+  const ringOf = {}; nodes.forEach(n => ringOf[n.id] = spRing(n));
+  const maxRing = 7, C = 500, R0 = 62, step = (C - 70 - R0) / (maxRing + 1);   // ring k radius = R0 + k*step; unknown = last
+  const rad = k => R0 + (k == null ? maxRing + 1 : k) * step;
+  // neighbours from links, for placing nodes near whoever relays to them
+  const adj = {};
+  d.links.forEach(L => { (adj[L.a] = adj[L.a] || []).push([L.b, L]); (adj[L.b] = adj[L.b] || []).push([L.a, L]); });
+  const ang = {};
+  const byRing = {};
+  nodes.forEach(n => { const k = ringOf[n.id]; (byRing[k == null ? 'u' : k] = byRing[k == null ? 'u' : k] || []).push(n); });
+  const order = [...Array(maxRing + 1).keys(), 'u'];
+  order.forEach(k => {
+    const list = byRing[k] || []; if (!list.length) return;
+    const r = rad(k === "u" ? null : k), minSep = Math.min(Math.PI / 2, 92 / r);
+    list.forEach(n => {
+      const parents = (adj[n.id] || []).map(([o, L]) => [o, L]).filter(([o]) => o === me ? k === 0 : (ang[o] != null && ringOf[o] != null && (k === 'u' || ringOf[o] < k)));
+      if (parents.length) {
+        parents.sort((x, y) => (linkSnr(y[1]) ?? -99) - (linkSnr(x[1]) ?? -99));
+        n._p = parents[0][0]; n._want = n._p === me ? null : ang[n._p];
+      } else { n._p = null; n._want = null; }
+    });
+    // nodes with GPS sit in their true compass direction from you (north = up)
+    const mp = myPos();
+    if (mp) list.forEach(n => { if (n._want == null && hasPos(n) && dist(mp, n) > 50) n._want = (bearing(mp, n) - 90) * Math.PI / 180; });
+    const fixed = list.filter(n => n._want != null).sort((a, b) => a._want - b._want);
+    const free = list.filter(n => n._want == null).sort((a, b) => (a.long || a.id).localeCompare(b.long || b.id));
+    fixed.forEach(n => ang[n.id] = n._want);
+    // free nodes: spread evenly, offset so they avoid the fixed ones
+    const off = k === 'u' ? 0.3 : 0.55 + (+k || 0) * 1.1;   // vary the start per ring so rings don't all stack at the top
+    if (!fixed.length) free.forEach((n, i) => ang[n.id] = off + i * 2 * Math.PI / free.length);
+    else free.forEach(n => {   // drop each one into the biggest empty gap on its ring
+      const taken = list.filter(m => ang[m.id] != null).map(m => ((ang[m.id] % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)).sort((a, b) => a - b);
+      let best = 0, at = 0;
+      taken.forEach((a, i) => { const b = i + 1 < taken.length ? taken[i + 1] : taken[0] + 2 * Math.PI; if (b - a > best) { best = b - a; at = a + (b - a) / 2; } });
+      ang[n.id] = at;
+    });
+    // relax so nodes on a ring keep a minimum spacing
+    const ids = list.map(n => n.id);
+    for (let it = 0; it < 60; it++) {
+      ids.sort((a, b) => ang[a] - ang[b]);
+      let moved = false;
+      for (let i = 0; i < ids.length; i++) {
+        const a = ids[i], b = ids[(i + 1) % ids.length];
+        let gap = ang[b] - ang[a]; if (i === ids.length - 1) gap += 2 * Math.PI;
+        if (ids.length > 1 && gap < minSep) { const push = (minSep - gap) / 2; ang[a] -= push; ang[b] += push; moved = true; }
+      }
+      if (!moved) break;
+    }
+  });
+  const P = {}; P[me || 'me'] = [C, C];
+  nodes.forEach(n => { const r = rad(ringOf[n.id]), a = ang[n.id] ?? 0; P[n.id] = [C + r * Math.cos(a), C + r * Math.sin(a)]; });
+  SP.pos = P;
+  const hl = d.hop_limit || S.status.my_hop_limit;
+  let h = '';
+  // rings
+  for (let k = 0; k <= maxRing; k++) {
+    const beyond = hl && k >= hl;
+    h += `<circle class="ring${beyond ? ' beyond' : ''}" cx="${C}" cy="${C}" r="${rad(k)}"/>`;
+    h += `<text class="rlab" x="${C}" y="${C - rad(k) + 15}">${k === 0 ? 'direct' : k + ' hop' + (k > 1 ? 's' : '')}</text>`;
+  }
+  if (byRing.u) h += `<circle class="ring beyond" cx="${C}" cy="${C}" r="${rad(null)}"/><text class="rlab" x="${C}" y="${C - rad(null) + 15}">hops unknown</text>`;
+  if (hl && hl <= maxRing) h += `<text class="rlab" x="${C}" y="${C + rad(hl) - 8}" style="fill:#c99a3f">↑ past your radio's hop limit (${hl}) — your normal messages stop inside this ring</text>`;
+  // links
+  const showAll = $('#spAllLinks').checked;
+  d.links.forEach(L => {
+    const pa = P[L.a === me ? (me || 'me') : L.a], pb = P[L.b === me ? (me || 'me') : L.b];
+    if (!pa || !pb) return;
+    const onlyNb = L.sources.length === 1 && L.sources[0] === 'neighbors';
+    if (!showAll && onlyNb) return;
+    const v = linkSnr(L), col = v == null ? '#7d8ba5' : v >= 0 ? cssVar('var(--green)') : v >= -10 ? cssVar('var(--amber)') : cssVar('var(--red)');
+    const w = L.sources.includes('traceroute') ? 3.2 : 2;
+    h += `<line class="lnk" x1="${pa[0].toFixed(1)}" y1="${pa[1].toFixed(1)}" x2="${pb[0].toFixed(1)}" y2="${pb[1].toFixed(1)}" stroke="${col}" stroke-width="${w}"${onlyNb ? ' stroke-dasharray="5 7"' : ''}><title>${esc((byId[L.a] || {}).long || L.a)} ↔ ${esc((byId[L.b] || {}).long || L.b)}: ${Object.entries(L.snr || {}).map(([k, x]) => `${esc((byId[k.split('>')[1]] || {}).long || k.split('>')[1])} hears ${esc((byId[k.split('>')[0]] || {}).long || k.split('>')[0])} at ${(+x).toFixed(1)} dB`).join('; ') || 'signal unknown'} (${L.sources.join(', ')})</title></line>`;
+  });
+  // nodes
+  const linked = new Set(); d.links.forEach(L => { linked.add(L.a); linked.add(L.b); });
+  nodes.forEach(n => {
+    const [x, y] = P[n.id], fresh = n.last && now - n.last < 7200;
+    const col = n.confirmed ? cssVar('var(--green)') : fresh ? cssVar('var(--blue)') : '#7d8ba5';
+    const lab = (n.long || n.id).trim(), short = lab.length > 18 ? lab.slice(0, 17) + '…' : lab;
+    h += `<g class="nd${SP.sel === n.id ? ' sel' : ''}${linked.has(n.id) ? '' : ' nopath'}" data-id="${esc(n.id)}"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="${col}"/>
+      <text x="${x.toFixed(1)}" y="${(y + 29).toFixed(1)}">${esc(short)}</text><title>${esc(lab)}</title></g>`;
+  });
+  const mpos = myPos();
+  if (mpos) {
+    h += `<text class="rlab" x="${C}" y="22" style="fill:#8b9bb8">N ↑</text>`;
+    (S.status.goals || []).forEach(g => {
+      const a = (bearing(mpos, g) - 90) * Math.PI / 180, r = C - 26, x = C + r * Math.cos(a), y = C + r * Math.sin(a);
+      h += `<g><line x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#ffd166" stroke-width="1.2" stroke-dasharray="2 9" opacity=".55"/>
+        <text x="${x.toFixed(1)}" y="${(y + 6).toFixed(1)}" style="fill:#ffd166;font:700 20px system-ui;text-anchor:middle">★</text>
+        <text x="${x.toFixed(1)}" y="${(y + (y > C ? 24 : -12)).toFixed(1)}" style="fill:#ffd166;font:600 12px system-ui;text-anchor:middle;paint-order:stroke;stroke:#0a0f1a;stroke-width:4px">${esc(g.name)} · ${fmtDist(dist(mpos, g)).split(' (')[0]}</text></g>`;
+    });
+  }
+  h += `<g class="nd"><circle cx="${C}" cy="${C}" r="20" fill="${cssVar('var(--blue)')}" style="stroke:#fff;stroke-width:3"/><text x="${C}" y="${C + 4}" style="font-size:11px;stroke-width:3px">YOU</text></g>`;
+  if (!nodes.length) h += `<text class="rlab" x="${C}" y="${C + 70}">No nodes yet — they appear as your radio hears traffic.</text>`;
+  svg.innerHTML = h;
+  renderReach(nodes, byId, me);
+  renderSpDet();
+  renderScan(d.scan || S.status.scan);
+}
+// Where "you" are: the radio's own GPS if it has one, otherwise the home spot typed in once.
+function myPos() {
+  const me = S.nodes.find(n => n.id === S.status.my_id) || (SP.data && SP.data.nodes.find(n => n.id === SP.data.me));
+  if (me && hasPos(me)) return {lat: +me.lat, lon: +me.lon, src: 'radio'};
+  const h = S.status.home; return h ? {lat: h.lat, lon: h.lon, src: 'home'} : null;
+}
+function bearing(a, b) {
+  const r = Math.PI / 180, y = Math.sin((b.lon - a.lon) * r) * Math.cos(b.lat * r),
+    x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lon - a.lon) * r);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+const compass = d => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(d / 45) % 8];
+function parseLL(t) {
+  const m = String(t || '').match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/);
+  if (!m) return null; const lat = +m[1], lon = +m[2];
+  return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? {lat, lon} : null;
+}
+async function saveSettings(body) { await pingCall('/api/settings', body); await refresh(); if (S.tab === 'spider') loadSpider(); if (S.tab === 'map') renderMap(); }
+function renderRange(nodes) {
+  const el = $('#spRange'), mp = myPos();
+  const locLine = mp ? `<div class="note" style="margin:0 0 8px">Measuring from ${mp.src === 'radio' ? 'your radio\'s GPS' : `your home spot (${mp.lat.toFixed(4)}, ${mp.lon.toFixed(4)})`}. <a href="#" id="homeEdit" style="color:var(--blue)">change</a></div>`
+    : `<div class="note" style="margin:0 0 6px">Your radio hasn't shared a position. Enter where it is to measure range (stays on this computer):</div>`;
+  const editor = `<div id="homeBox" style="display:${mp ? 'none' : 'flex'};gap:6px;margin-bottom:8px"><input id="homeLL" placeholder="lat, lon of your radio" value="${S.status.home ? S.status.home.lat + ', ' + S.status.home.lon : ''}" style="flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px"><button class="btn" id="homeSave">Save</button>${S.status.home ? '<button class="btn" id="homeClear">Clear</button>' : ''}</div>`;
+  if (!mp) { el.innerHTML = locLine + editor; return; }
+  const withPos = nodes.filter(hasPos), far = list => list.length ? list.reduce((a, b) => dist(mp, a) > dist(mp, b) ? a : b) : null;
+  const direct = far(withPos.filter(n => spRing(n) === 0)), heard = far(withPos), conf = far(withPos.filter(n => n.confirmed));
+  const big = (label, n, sub) => `<div class="card" style="padding:8px 10px"><div class="k">${label}</div><div class="v" style="font-size:19px">${n ? fmtDist(dist(mp, n)).split(' (')[0] : '—'}</div><div class="s">${n ? esc((n.long || n.id).trim()) : sub}</div></div>`;
+  el.innerHTML = locLine + editor + `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+    ${big('Direct', direct, 'no direct node with GPS')}${big('Heard', heard, 'none with GPS yet')}${big('Confirmed', conf, 'run a scan')}</div>
+    <div class="note" style="margin:8px 0 0"><b>Direct</b> = farthest node your radio hears without relays. <b>Heard</b> = farthest you can hear through the mesh. <b>Confirmed</b> = farthest that proved it hears you back — your real two-way range today. Only nodes that share GPS can be measured.</div>`;
+}
+function renderGoals(nodes) {
+  const el = $('#spGoals'), mp = myPos(), goals = S.status.goals || [];
+  if (!goals.length) { el.innerHTML = '<div class="note" style="margin:0">Add a place you\'d like to reach.</div>'; return; }
+  el.innerHTML = goals.map((g, i) => {
+    let body = '<div class="note" style="margin:2px 0 0">Set your location above to measure.</div>';
+    if (mp) {
+      const D = dist(mp, g), withPos = nodes.filter(hasPos);
+      const near = withPos.length ? withPos.reduce((a, b) => dist(g, a) < dist(g, b) ? a : b) : null;
+      const nearD = near ? dist(g, near) : null, covered = near ? Math.max(0, Math.min(1, 1 - nearD / D)) : 0;
+      const nearConf = withPos.filter(n => n.confirmed).reduce((a, b) => !a || dist(g, b) < dist(g, a) ? b : a, null);
+      const coveredC = nearConf ? Math.max(0, Math.min(1, 1 - dist(g, nearConf) / D)) : 0;
+      body = `<div style="color:var(--dim);font-size:12.5px">${fmtDist(D)} ${compass(bearing(mp, g))} of you</div>
+        <div style="height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;margin:6px 0;position:relative">
+          <i style="position:absolute;left:0;top:0;bottom:0;width:${(covered * 100).toFixed(0)}%;background:var(--blue);opacity:.55"></i>
+          <i style="position:absolute;left:0;top:0;bottom:0;width:${(coveredC * 100).toFixed(0)}%;background:var(--green)"></i></div>
+        <div style="font-size:12.5px">${near ? `Closest node you hear: <b>${esc((near.long || near.id).trim())}</b>, ${fmtDist(nearD).split(' (')[0]} from ${esc(g.name.split(',')[0])}${spRing(near) != null ? ` · ${spRing(near)} hop${spRing(near) === 1 ? '' : 's'}` : ''}${near.confirmed ? ' · ✅ confirmed' : ''}.` : 'No nodes with GPS heard yet.'}
+        ${nearD != null && nearD < 8000 ? ' <span style="color:var(--green)">The mesh already reaches there — try a traceroute to that node.</span>' : ''}</div>`;
+    }
+    return `<div style="padding:8px 0;border-top:${i ? '1px solid var(--line)' : '0'}"><div style="display:flex;justify-content:space-between"><b>★ ${esc(g.name)}</b>
+      <a href="#" data-goaldel="${i}" style="color:var(--dim);font-size:12px">remove</a></div>${body}</div>`;
+  }).join('') + `<div class="legend" style="margin-top:4px"><span><span class="ln" style="background:var(--blue);opacity:.6"></span>covered by nodes you hear</span><span><span class="ln" style="background:var(--green)"></span>by confirmed nodes</span></div>`;
+}
+document.addEventListener('click', async e => {
+  const t = e.target;
+  if (t.id === 'homeEdit') { e.preventDefault(); $('#homeBox').style.display = 'flex'; $('#homeLL').focus(); }
+  else if (t.id === 'homeSave') { const ll = parseLL($('#homeLL').value); if (!ll) { $('#homeLL').style.borderColor = 'var(--red)'; return; } await saveSettings({home: {name: 'Home', ...ll}}); }
+  else if (t.id === 'homeClear') { await saveSettings({home: null}); }
+  else if (t.dataset && t.dataset.goaldel != null) { e.preventDefault(); const g = [...(S.status.goals || [])]; g.splice(+t.dataset.goaldel, 1); await saveSettings({goals: g}); }
+  else if (t.id === 'gAdd') {
+    const name = $('#gName').value.trim(), ll = parseLL($('#gLL').value);
+    if (!name || !ll) { (!name ? $('#gName') : $('#gLL')).style.borderColor = 'var(--red)'; return; }
+    await saveSettings({goals: [...(S.status.goals || []), {name, ...ll}]}); $('#gName').value = $('#gLL').value = '';
+  }
+});
+function renderReach(nodes, byId, me) {
+  renderRange(nodes); renderGoals(nodes);
+  const mePos = myPos(), hl = (SP.data && SP.data.hop_limit) || S.status.my_hop_limit;
+  const rows = [];
+  for (let k = 0; k <= 7; k++) {
+    const at = nodes.filter(n => spRing(n) === k), conf = at.filter(n => n.confirmed);
+    const far = mePos ? Math.max(0, ...at.filter(hasPos).map(n => dist(mePos, n))) : 0;
+    rows.push({k, n: at.length, c: conf.length, far});
+  }
+  const max = Math.max(1, ...rows.map(r => r.n));
+  const confAll = nodes.filter(n => n.confirmed), heardFar = nodes.filter(n => spRing(n) != null).map(spRing);
+  const farConf = mePos ? Math.max(0, ...confAll.filter(hasPos).map(n => dist(mePos, n))) : 0;
+  const farHeard = mePos ? Math.max(0, ...nodes.filter(hasPos).map(n => dist(mePos, n))) : 0;
+  $('#spReach').innerHTML = `<div class="sprow h"><span>Ring</span><span>Nodes</span><span>All</span><span>✔</span><span>Farthest</span></div>`
+    + rows.map(r => `<div class="sprow${hl && r.k >= hl ? ' beyond' : ''}"><span>${r.k === 0 ? 'direct' : r.k + ' hop' + (r.k > 1 ? 's' : '')}</span>
+      <span class="bar"><i style="width:${r.n / max * 100}%"></i></span><span>${r.n}</span><span style="color:var(--green)">${r.c}</span>
+      <span style="color:var(--dim)">${r.far ? fmtDist(r.far).split(' (')[0] : '—'}</span></div>`).join('')
+    + `<div class="note" style="margin:8px 0 0">${heardFar.length ? `You hear nodes up to <b style="color:var(--text)">${Math.max(...heardFar)} hops</b> out` : 'Nothing heard yet'}${farHeard ? ` (farthest ${fmtDist(farHeard)})` : ''}. `
+    + `${confAll.length ? `<b style="color:var(--green)">${confAll.length}</b> node${confAll.length > 1 ? 's have' : ' has'} confirmed they hear you${farConf ? `, farthest ${fmtDist(farConf)}` : ''}.` : 'No node past a ping has confirmed yet — run a scan.'}`
+    + `${mePos ? '' : ' Give your radio a position to see distances.'}${hl ? ` Your radio's hop limit is ${hl}; rings past it fade.` : ''}</div>`;
+}
+function renderSpDet() {
+  const el = $('#spDet'), d = SP.data; if (!d || !SP.sel) return;
+  const n = d.nodes.find(x => x.id === SP.sel); if (!n) return;
+  const me = d.nodes.find(x => x.id === d.me), mine = d.links.filter(L => L.a === n.id || L.b === n.id);
+  const nm = id => esc(((d.nodes.find(x => x.id === id) || {}).long || id).trim());
+  const rows = [['Hops away', spRing(n) ?? '—'], ['Last heard', ago(n.last)], ['Confirmed', n.confirmed ? `✅ ${ago(n.confirmed)}${n.confirmed_rtt ? ' · ' + fmtMs(n.confirmed_rtt) : ''}` : 'not yet'],
+    ['Signal (last)', n.snr != null ? (+n.snr).toFixed(1) + ' dB' : '—']];
+  if (me && hasPos(me) && hasPos(n)) rows.push(['Distance', fmtDist(dist(me, n))]);
+  el.innerHTML = `<h3>${esc((n.long || n.id).trim())}</h3><div class="kv">${rows.map(([k, v]) => `<div>${k}</div><div>${v}</div>`).join('')}</div>
+    <div style="color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin:4px 0">Known links</div>
+    ${mine.length ? mine.map(L => { const o = L.a === n.id ? L.b : L.a; const s1 = L.snr[`${n.id}>${o}`], s2 = L.snr[`${o}>${n.id}`];
+      return `<div style="margin:3px 0">↔ <b>${nm(o)}</b> <span style="color:var(--dim)">${s1 != null ? `they hear it ${(+s1).toFixed(1)} dB` : ''}${s1 != null && s2 != null ? ' · ' : ''}${s2 != null ? `it hears them ${(+s2).toFixed(1)} dB` : ''} · ${L.sources.join(', ')}</span></div>`; }).join('')
+      : '<div class="note" style="margin:0">No links known yet — a traceroute will find its path.</div>'}
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn" data-sptrace="${esc(n.id)}">🧭 Traceroute (${$('#spHops').value} hops)</button>
+      <a class="btn" href="#" data-pingfor="${esc(n.id)}">🏓 Ping tab</a></div>`;
+}
+function renderScan(sc) {
+  const busy = sc && !sc.finished;
+  $('#spGo').hidden = !!busy; $('#spStop').hidden = !busy;
+  const el = $('#spProg');
+  if (!sc) { el.innerHTML = ''; return; }
+  const name = id => (((SP.data && SP.data.nodes.find(x => x.id === id)) || {}).long || id || '').trim();
+  const pct = sc.total ? Math.round(sc.done / sc.total * 100) : 0, left = sc.total - sc.done;
+  el.innerHTML = `<div class="bar2" style="height:8px;background:var(--panel2);border-radius:4px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:var(--green)"></i></div>
+    <div style="font-size:13px;margin-top:6px">${busy ? `Tracing <b>${esc(name(sc.current) || '…')}</b> · ${sc.done}/${sc.total} done · ${sc.ok} answered · about ${Math.ceil(left * 45 / 60)} min left`
+      : `Scan finished: <b>${sc.ok}</b> of ${sc.total} nodes answered a ${sc.hop_limit}-hop traceroute.`}</div>`;
+}
+$('#spSvg').addEventListener('click', e => {
+  const g = e.target.closest('.nd[data-id]'); if (!g) return;
+  SP.sel = g.dataset.id; renderSpider();
+});
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-sptrace]'); if (!b) return;
+  const r = await pingCall('/api/ping', {to: b.dataset.sptrace, method: 'trace', hop_limit: +$('#spHops').value, replace: false});
+  b.textContent = r.ok ? '⏳ Tracing… (see Ping tab)' : '⚠️ ' + r.msg;
+});
+$('#spGo').onclick = async () => {
+  const r = await pingCall('/api/scan', {hop_limit: +$('#spHops').value});
+  if (!r.ok) $('#spProg').innerHTML = `<div class="err">${esc(r.msg)}</div>`;
+  await refresh(); loadSpider();
+};
+$('#spStop').onclick = async () => { await pingCall('/api/scan/stop'); await refresh(); loadSpider(); };
+['#spRecent', '#spAllLinks'].forEach(sel => $(sel).addEventListener('change', renderSpider));
+
 // ---------- breakdown
 function bars(el, items, colorFn) {
   const max = Math.max(1, ...items.map(i => i[1]));
@@ -877,6 +1199,7 @@ async function refresh() {
     if (S.tab === 'stats') renderStats();
     if (S.tab === 'map') renderMap();
     if (S.tab === 'ping') renderPing();
+    if (S.tab === 'spider') loadSpider();
   } catch (e) {}
 }
 
@@ -972,11 +1295,12 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') document.que
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   S.tab = t.dataset.tab;
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
-  ['feed', 'nodes', 'map', 'ping', 'stats', 'log'].forEach(id => $('#tab-' + id).hidden = id !== S.tab);
+  ['feed', 'nodes', 'map', 'ping', 'spider', 'stats', 'log'].forEach(id => $('#tab-' + id).hidden = id !== S.tab);
   try { localStorage.setItem('meshtap.tab', S.tab); } catch (e) {}
   if (S.tab === 'nodes') renderNodes();
   if (S.tab === 'map') renderMap();
   if (S.tab === 'ping') renderPing();
+  if (S.tab === 'spider') loadSpider();
   if (S.tab === 'stats') renderStats();
 });
 $('#feed').onclick = e => { const el = e.target.closest('.pkt'); if (el) { const p = S.byK.get(+el.dataset.k); if (p) showPacket(p); } };

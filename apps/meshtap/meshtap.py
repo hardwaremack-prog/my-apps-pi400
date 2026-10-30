@@ -30,7 +30,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.4.2"
+VERSION = "1.5.0"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(APP_DIR, "web")
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".meshtap")
@@ -289,18 +289,23 @@ class Hub:
         self.demo_stop = None
         self.seq = 0
         self._reset_counters()
-        self.settings = {"autosave": True}
+        self.settings = {"autosave": True, "home": None,
+                         "goals": [{"name": "Milan, MI", "lat": 42.0853, "lon": -83.6824},
+                                   {"name": "Jackson, MI", "lat": 42.2459, "lon": -84.4013}]}
         try:
             with open(SETTINGS_PATH, encoding="utf-8") as fh:
                 self.settings.update(json.load(fh))
         except (OSError, ValueError):
             pass
+        self.my_id = self.settings.get("my_id")   # last radio we were connected to, until we connect again
         self.unsaved = []              # packets caught while auto-save was off
         self.pings = collections.deque(maxlen=500)
         self.ping_pending = {}         # packet id -> ping record
         self.ping_job = None           # repeating ping settings
         self.ping_seq = 0
         self.ping_late = {}            # cancelled pings, so a late reply can still be noted
+        self.links = {}                # (a, b) sorted node ids -> what we know about that radio link
+        self.scan = None               # spider scan: traceroute every node with a high hop limit
         self.db = sqlite3.connect(DB_PATH, check_same_thread=False)
         self.db.execute("CREATE TABLE IF NOT EXISTS packets (ts REAL, port TEXT, data TEXT)")
         self.db.execute("CREATE TABLE IF NOT EXISTS pings (ts REAL, data TEXT)")
@@ -310,8 +315,13 @@ class Hub:
                 self.pings.append(json.loads(data))
             except ValueError:
                 pass
+        self._pings_confirm_pending = list(self.pings)
         threading.Thread(target=self._ping_watchdog, daemon=True).start()
         self._load_history()
+        for pg in self._pings_confirm_pending:  # nodes that answered a ping before = proven two-way
+            if pg.get("status") == "ok":
+                self._mark_confirmed(pg)
+                self._learn_trace_links(pg)
 
     def _reset_counters(self):
         self.total = 0
@@ -363,6 +373,9 @@ class Hub:
             "ping_waiting": next(iter(self.ping_pending.values()), None),
             "ping_min_interval": PING_MIN_INTERVAL,
             "my_hop_limit": self.my_hop_limit(),
+            "scan": self.scan_status(),
+            "home": self.settings.get("home"),
+            "goals": self.settings.get("goals") or [],
             "bauds": BAUDS,
         }
 
@@ -634,6 +647,13 @@ class Hub:
             self._finish_ping(ping)
 
     def _finish_ping(self, ping):
+        if ping.get("status") == "ok":
+            self._mark_confirmed(ping)
+        s = self.scan
+        if s and not s.get("finished") and s.get("current") == ping.get("to") and ping.get("method") == "trace":
+            s["done"] += 1
+            s["ok"] += ping.get("status") == "ok"
+            s["current"] = None
         with self.lock:
             if ping.get("id") in self.ping_pending:
                 del self.ping_pending[ping["id"]]
@@ -663,6 +683,7 @@ class Hub:
                         f"No answer in {PING_TIMEOUT[ping['method']]} s" +
                         (" — a neighbor relayed it, but it never confirmed" if ping.get("relayed_at") else " — nobody relayed it")))
                     self._finish_ping(ping)
+            self._scan_tick(now)
             job = self.ping_job
             if job and self.connected and not self.ping_pending and now >= job["next"]:
                 job["next"] = now + job["interval"]
@@ -676,6 +697,8 @@ class Hub:
         interval = max(PING_MIN_INTERVAL, int(interval or 60))
         if self.ping_pending and next(iter(self.ping_pending.values()))["to"] != to:
             self.cancel_ping(f"Cancelled — now pinging {self.name_of(to)}")
+        if self.scan and not self.scan.get("finished"):
+            return False, "A spider scan is running — stop it first (Spider tab)."
         self.ping_job = {"to": to, "method": method, "interval": interval, "next": 0, "hop_limit": hop_limit}
         self.push_status()
         return True, f"Pinging {self.name_of(to)} every {interval} s"
@@ -705,6 +728,10 @@ class Hub:
         for key in ("snr", "rssi", "hops"):
             if rec.get(key) is not None:
                 n[key] = rec[key]
+        if rec.get("hops") is not None and rec["dir"] == "in" and not rec.get("via_mqtt"):
+            n["min_hops"] = min(n.get("min_hops", 99), rec["hops"])
+            if rec["hops"] == 0:
+                n["direct_ts"], n["direct_snr"] = rec["ts"], rec.get("snr")
         if rec.get("via_mqtt"):
             n["mqtt"] = True
         fname = rec.get("from_name")
@@ -725,6 +752,15 @@ class Hub:
                 n["voltage"] = dm["voltage"]
             if "channelUtilization" in dm:
                 n["ch_util"] = dm["channelUtilization"]
+        elif rec["port"] == "NEIGHBORINFO_APP":
+            ni = dec.get("neighborinfo") or {}
+            owner = node_id(ni.get("nodeId")) if ni.get("nodeId") else frm
+            for nb in ni.get("neighbors") or []:
+                if nb.get("nodeId"):
+                    self._add_link(owner, node_id(nb["nodeId"]), None, nb.get("snr"), rec["ts"], "neighbors")  # snr = how owner heard it
+        elif rec["port"] == "TRACEROUTE_APP" and dec.get("requestId"):
+            tr = dec.get("traceroute") or {}
+            self._learn_route(rec["to"], frm, tr, rec["ts"])
         elif rec["port"] == "POSITION_APP":
             pos = dec.get("position") or {}
             lat = pos.get("latitude", pos.get("latitudeI", 0) / 1e7 if "latitudeI" in pos else None)
@@ -735,6 +771,138 @@ class Hub:
                 if pos.get("altitude") is not None:
                     n["alt"] = pos["altitude"]
         return n
+
+    # ---- links between radios (for the Spider tab)
+    def _add_link(self, a, b, snr_ab, snr_ba, ts, source):
+        """snr_ab = how well b heard a; snr_ba = how well a heard b."""
+        if not a or not b or a == b or "^all" in (a, b):
+            return
+        key = tuple(sorted((a, b)))
+        L = self.links.setdefault(key, {"a": key[0], "b": key[1], "snr": {}, "sources": [], "ts": 0})
+        for frm_, to_, v in ((a, b, snr_ab), (b, a, snr_ba)):
+            if v is not None:
+                L["snr"][f"{frm_}>{to_}"] = round(float(v), 2)
+        if source not in L["sources"]:
+            L["sources"].append(source)
+        L["ts"] = max(L["ts"], ts)
+
+    def _learn_route(self, origin, dest, tr, ts):
+        """A traceroute answer: origin → route… → dest, and dest → routeBack… → origin, with SNR per hop."""
+        route = [node_id(x) for x in tr.get("route") or []]
+        back = [node_id(x) for x in tr.get("routeBack") or []]
+        snr_to = [s / 4 for s in tr.get("snrTowards") or []]
+        snr_back = [s / 4 for s in tr.get("snrBack") or []]
+        hops = [origin] + route + [dest]
+        for i in range(len(hops) - 1):
+            s = snr_to[i] if i < len(snr_to) and snr_to[i] != -32 else None
+            self._add_link(hops[i], hops[i + 1], s, None, ts, "traceroute")
+        if snr_back:
+            bh = [dest] + back + [origin]
+            for i in range(len(bh) - 1):
+                s = snr_back[i] if i < len(snr_back) and snr_back[i] != -32 else None
+                self._add_link(bh[i], bh[i + 1], s, None, ts, "traceroute")
+        for i, nid in enumerate(hops[1:], 1):  # everyone on the path is reachable within i-1 relays
+            nn = self.nodes.setdefault(nid, {"id": nid, "packets": 0, "ports": {}})
+            nn["path_hops"] = min(nn.get("path_hops", 99), i - 1)
+
+    def _learn_trace_links(self, ping):
+        if ping.get("method") == "trace" and ping.get("status") == "ok" and ping.get("route") is not None and self.my_id:
+            raw = {"route": [int(x[1:], 16) for x in ping.get("route") or [] if str(x).startswith("!")],
+                   "routeBack": [int(x[1:], 16) for x in ping.get("route_back") or [] if str(x).startswith("!")],
+                   "snrTowards": [s * 4 for s in ping.get("snr_towards") or []],
+                   "snrBack": [s * 4 for s in ping.get("snr_back") or []]}
+            self._learn_route(self.my_id, ping["to"], raw, ping.get("done") or ping["ts"])
+
+    def _mark_confirmed(self, ping):
+        n = self.nodes.setdefault(ping["to"], {"id": ping["to"], "packets": 0, "ports": {}})
+        n["confirmed"] = max(n.get("confirmed", 0), ping.get("done") or ping["ts"])
+        n["confirmed_rtt"] = ping.get("rtt")
+
+    def spider(self):
+        """Everything the Spider tab draws: nodes with hop counts, known links, and scan progress."""
+        with self.lock:
+            me = self.my_id
+            links = [dict(L) for L in self.links.values()]
+            if me:  # nodes heard directly are linked to us
+                have = {(L["a"], L["b"]) for L in links}
+                for nid, n in self.nodes.items():
+                    if n.get("direct_ts") and nid != me:
+                        key = tuple(sorted((me, nid)))
+                        if key not in have:
+                            links.append({"a": key[0], "b": key[1], "snr": {f"{nid}>{me}": n.get("direct_snr")},
+                                          "sources": ["heard directly"], "ts": n["direct_ts"]})
+            nodes = []
+            for nid, n in self.nodes.items():
+                if not nid.startswith("!"):
+                    continue
+                nodes.append({k: n.get(k) for k in ("id", "long", "short", "hw", "hops", "min_hops", "path_hops", "last",
+                                                    "snr", "lat", "lon", "confirmed", "confirmed_rtt", "packets", "mqtt")})
+            return {"me": me, "hop_limit": self.my_hop_limit(), "nodes": nodes, "links": links, "scan": self.scan_status(),
+                    "home": self.settings.get("home"), "goals": self.settings.get("goals") or []}
+
+    def update_settings(self, body):
+        """Home location and goal places for range planning."""
+        def place(d):
+            try:
+                lat, lon = float(d["lat"]), float(d["lon"])
+            except (KeyError, TypeError, ValueError):
+                return None
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                return None
+            return {"name": str(d.get("name") or "")[:60], "lat": round(lat, 5), "lon": round(lon, 5)}
+        with self.lock:
+            if "home" in body:
+                self.settings["home"] = place(body["home"]) if body["home"] else None
+            if "goals" in body:
+                self.settings["goals"] = [g for g in (place(x) for x in body["goals"] or []) if g and g["name"]][:12]
+            self._write_settings()
+        return True
+
+    def scan_status(self):
+        s = self.scan
+        if not s:
+            return None
+        return {k: s[k] for k in ("hop_limit", "total", "done", "ok", "current", "started", "finished", "next")}
+
+    def start_scan(self, hop_limit=7, interval=PING_MIN_INTERVAL):
+        if not self.connected:
+            return False, "Connect to your radio first."
+        targets = sorted([n for nid, n in self.nodes.items() if nid.startswith("!") and nid != self.my_id
+                          and (n.get("packets") or n.get("last")) and not n.get("mqtt")],
+                         key=lambda n: (n.get("hops") if n.get("hops") is not None else 9, -(n.get("last") or 0)))
+        if not targets:
+            return False, "No nodes heard yet — wait for some traffic first."
+        self.ping_job = None
+        self.scan = {"queue": [n["id"] for n in targets], "hop_limit": int(hop_limit or 7), "interval": max(PING_MIN_INTERVAL, int(interval)),
+                     "total": len(targets), "done": 0, "ok": 0, "current": None, "started": time.time(), "finished": None, "next": 0}
+        self.add_log(f"[MeshTap] spider scan started: traceroute to {len(targets)} nodes, hop limit {self.scan['hop_limit']}")
+        self.push_status()
+        return True, f"Scanning {len(targets)} nodes, one every {self.scan['interval']} s"
+
+    def stop_scan(self):
+        if self.scan and not self.scan.get("finished"):
+            self.scan["finished"] = time.time()
+            self.scan["queue"] = []
+            self.add_log("[MeshTap] spider scan stopped")
+        self.push_status()
+
+    def _scan_tick(self, now):
+        s = self.scan
+        if not s or s.get("finished") or not self.connected or self.ping_pending or now < s["next"]:
+            return
+        if not s["queue"]:
+            s["finished"], s["current"] = now, None
+            self.add_log(f"[MeshTap] spider scan done: {s['ok']} of {s['total']} nodes answered a 7-hop traceroute")
+            self.push_status()
+            return
+        target = s["queue"].pop(0)
+        s["current"] = target
+        s["next"] = now + s["interval"]
+        ok, msg = self.send_ping(target, "trace", hop_limit=s["hop_limit"])
+        if not ok:
+            s["done"] += 1
+            self.add_log(f"[MeshTap] spider scan: {msg}")
+        self.push_status()
 
     def seed_nodes(self, iface):
         """Pull in the node list the radio already knows about."""
@@ -769,6 +937,9 @@ class Hub:
             try:
                 my = iface.getMyNodeInfo() or {}
                 self.my_id = (my.get("user") or {}).get("id") or node_id(my.get("num"))
+                if self.my_id and self.settings.get("my_id") != self.my_id:
+                    self.settings["my_id"] = self.my_id
+                    self._write_settings()
             except Exception:
                 pass
 
@@ -908,6 +1079,8 @@ class Hub:
 
     def disconnect(self):
         self.ping_job = None
+        if getattr(self, "scan", None) and not self.scan.get("finished"):
+            self.scan["finished"] = time.time()
         for ping in list(getattr(self, "ping_pending", {}).values()):
             ping.update(status="error", detail="Disconnected before an answer came back")
             self._finish_ping(ping)
@@ -946,6 +1119,7 @@ class Hub:
             self.db.execute("DELETE FROM pings")
             self.pings.clear()
             self.unsaved = []
+            self.links = {}
             self.db.commit()
             self.saved_total = 0
             if self.iface:
@@ -1185,6 +1359,8 @@ class Handler(BaseHTTPRequestHandler):
             limit = int((qs.get("limit") or ["1000"])[0])
             with HUB.lock:
                 return self._send(200, list(HUB.packets)[-limit:])
+        if url.path == "/api/spider":
+            return self._send(200, HUB.spider())
         if url.path == "/api/pings":
             with HUB.lock:
                 return self._send(200, list(HUB.pings))
@@ -1245,6 +1421,16 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 ok, msg = HUB.send_ping(to, method, replace=bool(body.get("replace")), hop_limit=body.get("hop_limit") or None)
             return self._send(200, {"ok": ok, "msg": msg})
+        if url.path == "/api/settings":
+            HUB.update_settings(body)
+            return self._send(200, {"ok": True})
+        if url.path == "/api/scan":
+            ok, msg = HUB.start_scan(body.get("hop_limit") or 7, body.get("interval") or PING_MIN_INTERVAL)
+            return self._send(200, {"ok": ok, "msg": msg})
+        if url.path == "/api/scan/stop":
+            HUB.stop_scan()
+            HUB.cancel_ping("Scan stopped")
+            return self._send(200, {"ok": True})
         if url.path == "/api/ping/cancel":
             HUB.cancel_ping()
             return self._send(200, {"ok": True})
