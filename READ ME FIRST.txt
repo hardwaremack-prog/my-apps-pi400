@@ -21,7 +21,7 @@ SERVER LIGHTS (top of the menu, like Command Center on Windows)
   The bar at the top shows this Pi's name, IP address, temperature, CPU,
   memory, SD card space, uptime and a warning if the power supply is too
   weak. Under it is a light for every server: SSH, VNC, The Shelf,
-  PiMesh, PodDeck, Blueprint Wiki, NetPulse, and any other web server
+  PiMesh, PodDeck, PiPortal, Blueprint Wiki, NetPulse, and any other web server
   running on the Pi (PON Lab, PiDirStat, Uptime Kuma...). Green = running,
   red = off.
   - Click a green web server to open it.
@@ -255,6 +255,22 @@ PODDECK (container control panel)
   installs Podman and asks you to pick a password; after that it starts
   on every boot. Open it from any device at http://<pi-ip>:8070.
   Needs 64-bit Raspberry Pi OS.
+
+PIPORTAL (desktop with sound, in any browser)
+  Regular VNC has no sound. PiPortal shows the Pi's desktop in any web
+  browser AND plays whatever the Pi is playing (videos, games, music)
+  on your PC, phone or tablet. It also has live stats (CPU per core,
+  temperature, memory, storage, network, power warnings), the Pi's own
+  speaker volume, processes, services with logs, a terminal, a file
+  browser with drag-and-drop upload, Restart / Shut down, and a Fleet
+  page to jump between your Pis.
+  Start it with the PiPortal icon on the Desktop (added by Set Up My
+  Apps.sh) or from the Pi menu under System Tools. The first time it
+  installs what it needs and asks you to pick a password; after that it
+  starts on every boot. Open it from any device at http://<pi-ip>:6090
+  and tap the speaker button for sound. On the Pi 400 it starts on the
+  "Fast (Wi-Fi)" picture setting, which keeps it smooth. The Pi has to
+  be logged in to its desktop. Home Wi-Fi only: don't forward port 6090.
 
 68K MAC MUSEUM (vintage Mac guide)
   Every Mac from the original 128K to the last 68040 PowerBook: specs,

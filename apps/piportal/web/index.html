@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#13261f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>PiPortal</title>
+<link rel="icon" href="/static/favicon.svg">
+<link rel="stylesheet" href="/static/vendor/xterm.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<!-- Login -->
+<section id="login" class="login" hidden>
+  <form id="loginForm" class="login-card">
+    <svg class="login-mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>
+    <h1 id="loginHost">PiPortal</h1>
+    <p id="loginModel" class="muted">Sign in to manage this Pi</p>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required autofocus>
+    <button type="submit" class="btn primary wide">Sign in</button>
+    <p id="loginErr" class="err" role="alert"></p>
+  </form>
+</section>
+
+<!-- App -->
+<div id="app" class="app" hidden>
+  <nav class="rail" aria-label="Sections">
+    <div class="rail-brand" title="PiPortal">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>
+    </div>
+    <button class="nav on" data-view="desktop"><svg><use href="#i-desktop"/></svg><span>Desktop</span></button>
+    <button class="nav" data-view="overview"><svg><use href="#i-gauge"/></svg><span>Overview</span></button>
+    <button class="nav" data-view="processes"><svg><use href="#i-list"/></svg><span>Processes</span></button>
+    <button class="nav" data-view="services"><svg><use href="#i-cog"/></svg><span>Services</span></button>
+    <button class="nav" data-view="terminal"><svg><use href="#i-term"/></svg><span>Terminal</span></button>
+    <button class="nav" data-view="files"><svg><use href="#i-folder"/></svg><span>Files</span></button>
+    <button class="nav" data-view="fleet"><svg><use href="#i-fleet"/></svg><span>Fleet</span></button>
+    <div class="rail-spacer"></div>
+    <button class="nav" id="logoutBtn" title="Sign out"><svg><use href="#i-out"/></svg><span>Sign out</span></button>
+  </nav>
+
+  <main class="stage">
+    <!-- DESKTOP -->
+    <section class="view on" id="v-desktop">
+      <header class="deskbar">
+        <div class="who">
+          <strong id="hostName">—</strong>
+          <span id="hostModel" class="muted"></span>
+        </div>
+        <div class="deskbar-group">
+          <button class="btn primary" id="connectBtn"><svg><use href="#i-play"/></svg>Connect</button>
+          <select id="quality" aria-label="Picture quality">
+            <option value="9">Sharp picture</option>
+            <option value="6" selected>Balanced</option>
+            <option value="3">Fast (Wi-Fi)</option>
+          </select>
+        </div>
+
+        <div class="sound" aria-label="Sound">
+          <button class="iconbtn" id="soundBtn" title="Stream the Pi's sound to this device" aria-pressed="false">
+            <svg class="ic-off"><use href="#i-mute"/></svg><svg class="ic-on"><use href="#i-speaker"/></svg>
+          </button>
+          <canvas id="vu" width="96" height="22" aria-hidden="true"></canvas>
+          <input type="range" id="vol" min="0" max="150" value="100" aria-label="Volume on this device">
+          <select id="audioQ" aria-label="Sound quality">
+            <option value="48000/2">Hi-fi stereo</option>
+            <option value="32000/2" selected>Good stereo</option>
+            <option value="24000/1">Low data (mono)</option>
+          </select>
+          <select id="audioLat" aria-label="Sound delay">
+            <option value="0.06">Low delay</option>
+            <option value="0.12" selected>Normal delay</option>
+            <option value="0.25">Smooth on Wi-Fi</option>
+          </select>
+        </div>
+
+        <div class="deskbar-group right">
+          <button class="iconbtn" id="clipBtn" title="Clipboard"><svg><use href="#i-clip"/></svg></button>
+          <button class="iconbtn" id="cadBtn" title="Send Ctrl+Alt+Del"><svg><use href="#i-keys"/></svg></button>
+          <button class="iconbtn" id="kbdBtn" title="On-screen keyboard"><svg><use href="#i-kbd"/></svg></button>
+          <button class="iconbtn" id="fsBtn" title="Full screen"><svg><use href="#i-full"/></svg></button>
+        </div>
+      </header>
+
+      <div class="screen-wrap">
+        <div id="screen" class="screen"></div>
+        <div id="screenIdle" class="screen-idle">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>
+          <h2>See and hear your Pi</h2>
+          <p>Connect shows the desktop. Tap the speaker to stream whatever the Pi is playing — videos, games, music — to this device.</p>
+          <button class="btn primary" id="connectBtn2"><svg><use href="#i-play"/></svg>Connect to desktop</button>
+          <p id="deskErr" class="err" role="alert"></p>
+        </div>
+        <input id="mobileKbd" class="mobile-kbd" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" aria-label="Keyboard input">
+      </div>
+
+      <dialog id="clipDlg" class="dlg">
+        <form method="dialog">
+          <h3>Clipboard</h3>
+          <p class="muted">Text copied on the Pi appears here. Type or paste here and press Send to put it on the Pi's clipboard.</p>
+          <textarea id="clipText" rows="6"></textarea>
+          <div class="dlg-actions">
+            <button value="close" class="btn">Close</button>
+            <button id="clipSend" value="close" class="btn primary">Send to Pi</button>
+          </div>
+        </form>
+      </dialog>
+    </section>
+
+    <!-- OVERVIEW -->
+    <section class="view" id="v-overview">
+      <header class="viewhead">
+        <div>
+          <h2 id="ovHost">—</h2>
+          <p class="muted" id="ovSub"></p>
+        </div>
+        <div class="power">
+          <button class="btn" data-power="reboot"><svg><use href="#i-reboot"/></svg>Restart</button>
+          <button class="btn danger" data-power="shutdown"><svg><use href="#i-power"/></svg>Shut down</button>
+        </div>
+      </header>
+
+      <div class="board">
+        <div class="tile tile-cpu">
+          <h3>Processor</h3>
+          <div class="big"><span id="cpuPct">0</span><small>%</small></div>
+          <div id="cores" class="cores"></div>
+          <canvas id="cpuSpark" class="spark" height="56"></canvas>
+          <p class="muted" id="cpuSub"></p>
+        </div>
+        <div class="tile">
+          <h3>Temperature</h3>
+          <div class="big"><span id="temp">–</span><small>°C</small></div>
+          <div class="thermo"><div id="thermoFill"></div></div>
+          <p class="muted" id="tempSub"></p>
+        </div>
+        <div class="tile">
+          <h3>Memory</h3>
+          <div class="big"><span id="memPct">0</span><small>%</small></div>
+          <div class="bar"><div id="memBar"></div></div>
+          <p class="muted" id="memSub"></p>
+        </div>
+        <div class="tile">
+          <h3>Storage</h3>
+          <div class="big"><span id="diskPct">0</span><small>%</small></div>
+          <div class="bar"><div id="diskBar"></div></div>
+          <p class="muted" id="diskSub"></p>
+        </div>
+        <div class="tile">
+          <h3>Network</h3>
+          <dl class="kv"><dt>Down</dt><dd id="netRx">–</dd><dt>Up</dt><dd id="netTx">–</dd></dl>
+          <p class="muted" id="ipList"></p>
+        </div>
+        <div class="tile">
+          <h3>Pi speakers</h3>
+          <div class="pivol">
+            <button class="iconbtn" id="piMute" title="Mute the Pi's own speakers"><svg><use href="#i-speaker"/></svg></button>
+            <input type="range" id="piVol" min="0" max="150" value="50" aria-label="Pi volume">
+            <span id="piVolVal">–</span>
+          </div>
+          <p class="muted" id="piSink"></p>
+        </div>
+        <div class="tile tile-wide">
+          <h3>Health</h3>
+          <ul class="health" id="health"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROCESSES -->
+    <section class="view" id="v-processes">
+      <header class="viewhead">
+        <div><h2>Processes</h2><p class="muted">Updates every 2 seconds. Sorted by processor use.</p></div>
+        <input type="search" id="procFilter" placeholder="Filter by name or user" aria-label="Filter processes">
+      </header>
+      <div class="tablewrap">
+        <table class="grid">
+          <thead><tr><th>Name</th><th>User</th><th class="num">CPU</th><th class="num">Memory</th><th class="num">PID</th><th></th></tr></thead>
+          <tbody id="procBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SERVICES -->
+    <section class="view" id="v-services">
+      <header class="viewhead">
+        <div><h2>Services</h2><p class="muted">Background programs managed by systemd.</p></div>
+        <div class="filters">
+          <select id="svcState" aria-label="Show"><option value="running">Running</option><option value="failed">Failed</option><option value="all">All</option></select>
+          <input type="search" id="svcFilter" placeholder="Filter services" aria-label="Filter services">
+        </div>
+      </header>
+      <div class="tablewrap">
+        <table class="grid">
+          <thead><tr><th>Service</th><th>State</th><th>At boot</th><th></th></tr></thead>
+          <tbody id="svcBody"></tbody>
+        </table>
+      </div>
+      <dialog id="logDlg" class="dlg wide">
+        <form method="dialog">
+          <h3 id="logTitle">Log</h3>
+          <pre id="logText" class="log"></pre>
+          <div class="dlg-actions"><button class="btn primary">Close</button></div>
+        </form>
+      </dialog>
+    </section>
+
+    <!-- TERMINAL -->
+    <section class="view" id="v-terminal">
+      <div id="term" class="term"></div>
+    </section>
+
+    <!-- FILES -->
+    <section class="view" id="v-files">
+      <header class="viewhead">
+        <div class="crumbs" id="crumbs"></div>
+        <div class="filebtns">
+          <label class="check"><input type="checkbox" id="showHidden">Show hidden</label>
+          <button class="btn" id="newFolder"><svg><use href="#i-folder"/></svg>New folder</button>
+          <label class="btn primary"><svg><use href="#i-up"/></svg>Upload<input type="file" id="upload" multiple hidden></label>
+        </div>
+      </header>
+      <div class="drop" id="drop">
+        <div class="tablewrap">
+          <table class="grid files">
+            <thead><tr><th>Name</th><th class="num">Size</th><th class="num">Modified</th><th></th></tr></thead>
+            <tbody id="fileBody"></tbody>
+          </table>
+        </div>
+        <div class="drop-hint">Drop files to upload them here</div>
+      </div>
+    </section>
+
+    <!-- FLEET -->
+    <section class="view" id="v-fleet">
+      <header class="viewhead">
+        <div><h2>Your Pis</h2><p class="muted">Add the other Pis running PiPortal to jump between them.</p></div>
+        <form id="fleetAdd" class="fleet-add">
+          <input id="fleetHost" placeholder="pi500.local:6090" aria-label="Address" required>
+          <button class="btn primary">Add Pi</button>
+        </form>
+      </header>
+      <div class="fleet" id="fleet"></div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- Icons -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="mark" viewBox="0 0 64 64">
+      <rect x="6" y="12" width="52" height="36" rx="5" fill="none" stroke="currentColor" stroke-width="4"/>
+      <path d="M24 56h16M32 48v8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <path d="M22 30h4l5-8v16l-5-8M38 24c3 3 3 9 0 12M43 20c6 5 6 15 0 20" fill="none" stroke="var(--copper)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-desktop" viewBox="0 0 24 24"><path d="M3 5h18v11H3zM9 20h6M12 16v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0M12 17l4-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-term" viewBox="0 0 24 24"><path d="M3 4h18v16H3zM7 9l3 3-3 3M12 15h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-fleet" viewBox="0 0 24 24"><path d="M3 4h8v6H3zM13 4h8v6h-8zM3 14h8v6H3zM13 14h8v6h-8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M10 4H4v16h6M15 8l4 4-4 4M19 12H9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z" fill="currentColor"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><path d="M6 6h12v12H6z" fill="currentColor"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16 9c1.5 1.5 1.5 4.5 0 6M19 6c3.2 3.2 3.2 8.8 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><path d="M8 4h8v3H8zM6 5H4v16h16V5h-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-keys" viewBox="0 0 24 24"><path d="M2 8h6v8H2zM9 8h6v8H9zM16 8h6v8h-6z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-kbd" viewBox="0 0 24 24"><path d="M2 6h20v12H2zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-reboot" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<script src="/static/vendor/novnc.bundle.js"></script>
+<script src="/static/vendor/xterm.js"></script>
+<script src="/static/vendor/addon-fit.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

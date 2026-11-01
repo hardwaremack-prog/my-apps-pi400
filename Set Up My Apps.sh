@@ -273,6 +273,25 @@ Categories=System;Utility;"
   gio set "$DESK/PodDeck.desktop" metadata::trusted true 2>/dev/null || true
 fi
 
+# 3f1. PiPortal (the desktop WITH sound in any browser, plus Pi management; first run installs it and picks a password)
+PP="$DEST/apps/piportal"
+if [ -f "$PP/server.py" ]; then
+  chmod +x "$PP/server.py" "$PP/start-piportal.sh" "$PP/install.sh" "$PP/uninstall.sh" 2>/dev/null || true
+  PPL="[Desktop Entry]
+Type=Application
+Name=PiPortal
+Comment=See and hear this Pi from any browser
+Exec=bash \"$PP/start-piportal.sh\"
+Path=$PP
+Icon=$PP/piportal-icon.png
+Terminal=true
+Categories=System;Network;"
+  printf '%s\n' "$PPL" > "$HOME/.local/share/applications/piportal.desktop"
+  printf '%s\n' "$PPL" > "$DESK/PiPortal.desktop"
+  chmod +x "$DESK/PiPortal.desktop" "$HOME/.local/share/applications/piportal.desktop"
+  gio set "$DESK/PiPortal.desktop" metadata::trusted true 2>/dev/null || true
+fi
+
 # 3f2. Frostfall Cabins (LAN multiplayer game server; everyone else joins from a browser)
 FC="$DEST/games/frostfall-cabins"
 if [ -f "$FC/server.py" ]; then
@@ -454,7 +473,7 @@ done
 
 echo
 echo "  All set! Double-click 'My Apps' on the Desktop,"
-echo "  (RPi400 Performance, the Task Manager, Pip, NetPulse, NetSentry, Halo Studio, PiDirStat, PON Lab, PON Fleet, WiFi Share, Blueprint Wiki, PodDeck, MeshTap, PiMesh, Frostfall Cabins Server, RAID Forge and the Snipping Tool have their own icons too),"
+echo "  (RPi400 Performance, the Task Manager, Pip, NetPulse, NetSentry, Halo Studio, PiDirStat, PON Lab, PON Fleet, WiFi Share, Blueprint Wiki, PodDeck, PiPortal, MeshTap, PiMesh, Frostfall Cabins Server, RAID Forge and the Snipping Tool have their own icons too),"
 echo "  or find it in the Raspberry Pi menu under Games."
 echo "  The server lights (SSH, VNC, The Shelf, PiMesh and more) are at the top of the menu."
 [ -n "$NEED_REBOOT" ] && echo "  Restart the Pi once so the Task Manager starts cleanly:  sudo reboot"

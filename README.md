@@ -6,9 +6,11 @@ A clickable menu of all my apps and games for the Pi 400, with server lights at 
 
 - **Games**, **Apps** and the **Tidy Suite** as big tiles (arrow keys, Enter, `/` to search)
 - **Server lights**: this Pi's temperature, CPU, memory, SD card and power, plus a green/red light
-  for every server (SSH, VNC, The Shelf, PiMesh, PodDeck, Blueprint Wiki, NetPulse, Pip, ...)
+  for every server (SSH, VNC, The Shelf, PiMesh, PodDeck, PiPortal, Blueprint Wiki, NetPulse, Pip, ...)
 - **Web access**: one switch opens My Apps to your phone and PCs on port 8400, behind a password (off until you turn it on)
 - **Stop buttons**: shut down any running web server one at a time (click, then confirm)
+- **PiPortal** (new): the Pi's desktop *with sound* in any browser on your PC, phone or tablet (VNC has none), plus stats,
+  processes, services, a terminal and files. Port 6090. Also on its own at [piportal](https://github.com/hardwaremack-prog/piportal)
 - **RPi400 Task Manager**: Windows-style Task Manager (Ctrl+Shift+Esc) with an Update everything button
 - **Pip**: offline voice assistant for your headset
 - **RPi400 Performance**: make the Pi run as fast as it can
